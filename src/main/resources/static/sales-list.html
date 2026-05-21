@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sales List – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .status-paid     { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(34,197,94,0.12);color:#16a34a;border:1px solid rgba(34,197,94,0.25); }
+        .status-partial  { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(245,158,11,0.12);color:#d97706;border:1px solid rgba(245,158,11,0.25); }
+        .status-returned { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(239,68,68,0.12);color:#dc2626;border:1px solid rgba(239,68,68,0.25); }
+        .status-part-ret { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(249,115,22,0.12);color:#ea580c;border:1px solid rgba(249,115,22,0.25); }
+        .receipt-badge  { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:var(--radius-full);font-family:monospace;font-size:0.7rem;font-weight:700;color:var(--primary);white-space:nowrap; }
+        .filter-bar     { display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-5); }
+        .filter-bar select,.filter-bar input { height:36px;padding:0 var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);outline:none; }
+        .filter-bar select:focus,.filter-bar input:focus { border-color:var(--primary); }
+        .custom-date-inputs { display:none;gap:var(--space-2);align-items:center; }
+        .custom-date-inputs.visible { display:flex; }
+        .action-btn   { background:none;border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem;transition:all .15s; }
+        .action-btn:hover { background:var(--surface-2);color:var(--text-primary); }
+        #globalActionDrop { display:none;position:fixed;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-md);min-width:170px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.22); }
+        .drop-item    { display:flex;align-items:center;gap:8px;padding:8px 14px;font-size:var(--text-sm);color:var(--text-secondary);cursor:pointer;transition:background .12s;white-space:nowrap; }
+        .drop-item:hover { background:var(--surface-2);color:var(--text-primary); }
+        .drop-item.danger { color:var(--danger); }
+        .drop-item.danger:hover { background:var(--danger-light); }
+        .pagination   { display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-5);justify-content:flex-end; }
+        .page-btn     { padding:4px 12px;border:1px solid var(--border);background:var(--surface-2);border-radius:var(--radius-sm);cursor:pointer;font-size:var(--text-sm);color:var(--text-secondary);transition:all .15s; }
+        .page-btn:hover   { background:var(--primary-light);color:var(--primary);border-color:rgba(99,102,241,0.3); }
+        .page-btn.active  { background:var(--primary);color:#fff;border-color:var(--primary); }
+        .page-btn:disabled{ opacity:.4;cursor:not-allowed; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item"><i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span></a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child"><i class="fas fa-cash-register"></i><span class="nav-label">POS</span></a>
+                <a href="/sales-list.html" class="nav-item nav-child"><i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span></a>
+                <a href="/sales-return.html" class="nav-item nav-child"><i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span></a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item"><i class="fas fa-box-open"></i><span class="nav-label">Products</span></a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item"><i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span></a>
+        <a href="/stock-adjustments.html" class="nav-item"><i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span></a>
+        <a href="/stockout.html" class="nav-item"><i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span></a>
+        <a href="/predictions.html" class="nav-item"><i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span></a>
+        <a href="/suppliers.html" class="nav-item"><i class="fas fa-truck"></i><span class="nav-label">Suppliers</span></a>
+        <a href="/purchase-orders.html" class="nav-item"><i class="fas fa-file-invoice"></i><span class="nav-label">Purchase Orders</span></a>
+        <a href="/returns.html" class="nav-item"><i class="fas fa-rotate-left"></i><span class="nav-label">Returns</span></a>
+        <a href="/supplies.html" class="nav-item"><i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span></a>
+        <a href="/stock-transfers.html" class="nav-item"><i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span></a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item"><i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span></a>
+        <a href="/expenses.html" class="nav-item"><i class="fas fa-receipt"></i><span class="nav-label">Expenses</span></a>
+        <div class="nav-group-label">Customers</div>
+        <a href="/customers.html" class="nav-item"><i class="fas fa-user-group"></i><span class="nav-label">Customers</span></a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item"><i class="fas fa-code-branch"></i><span class="nav-label">Branches</span></a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item"><i class="fas fa-users"></i><span class="nav-label">Staff</span></a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item"><i class="fas fa-cog"></i><span class="nav-label">Settings</span></a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i><span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Sales List</div>
+            <div class="page-breadcrumb">SmartPOS / Sales / Sales List</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+        <label style="font-size:var(--text-sm);color:var(--text-muted)">Show</label>
+        <select id="pageSizeSelect" onchange="onPageSizeChange()">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+
+        <div class="input-icon-wrap">
+            <i class="fas fa-search input-icon"></i>
+            <input type="text" id="searchInput" class="form-control"
+                   placeholder="Search invoice or customer..."
+                   style="width:240px" oninput="debounceSearch()"/>
+        </div>
+
+        <select id="dateRangeSelect" onchange="onDateRangeChange()">
+            <option value="today" selected>Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="month">This Month</option>
+            <option value="last_month">Last Month</option>
+            <option value="year">This Year</option>
+            <option value="all">All Time</option>
+            <option value="custom">Custom Range</option>
+        </select>
+
+        <div class="custom-date-inputs" id="customDateInputs">
+            <input type="date" id="dateFrom"/>
+            <span style="color:var(--text-muted);font-size:var(--text-sm)">to</span>
+            <input type="date" id="dateTo"/>
+            <button class="btn btn-secondary btn-sm" onclick="loadPage(0)">Apply</button>
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:var(--space-2)">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV()" title="Export to CSV">
+                <i class="fas fa-file-csv"></i> Export
+            </button>
+            <button class="btn btn-primary btn-sm" onclick="window.location.href='/sales.html'">
+                <i class="fas fa-plus"></i> New Sale
+            </button>
+        </div>
+    </div>
+
+    <!-- STAT STRIP -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Transactions</div>
+                <div class="stat-icon indigo"><i class="fas fa-receipt"></i></div>
+            </div>
+            <div class="stat-value" id="totalCount">–</div>
+            <div class="stat-sub">In selected period</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Revenue</div>
+                <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <div class="stat-value" id="totalRevenue">–</div>
+            <div class="stat-sub">Before discounts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Discount</div>
+                <div class="stat-icon amber"><i class="fas fa-tag"></i></div>
+            </div>
+            <div class="stat-value" id="totalDiscount">–</div>
+            <div class="stat-sub">Amount discounted</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Due</div>
+                <div class="stat-icon red"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="stat-value" id="totalDue">–</div>
+            <div class="stat-sub">Unpaid balances</div>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+            <table class="sp-table" id="salesTable">
+                <thead>
+                    <tr>
+                        <th style="width:44px">#</th>
+                        <th>Date</th>
+                        <th>Invoice</th>
+                        <th>Customer</th>
+                        <th>Cashier</th>
+                        <th>Payment</th>
+                        <th style="text-align:right">Total</th>
+                        <th style="text-align:right">Disc</th>
+                        <th style="text-align:right">Paid</th>
+                        <th style="text-align:right">Due</th>
+                        <th style="text-align:center">Status</th>
+                        <th style="text-align:center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="salesTbody">
+                    <tr><td colspan="12">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination" id="pagination"></div>
+
+</main>
+
+<!-- RECEIPT MODAL -->
+<div class="modal-overlay" id="receiptModal">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-receipt" style="color:var(--primary);margin-right:8px"></i>Invoice</span>
+            <button class="modal-close" onclick="Modal.close('receiptModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="receiptModalBody" style="font-size:0.82rem"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('receiptModal')">Close</button>
+            <button class="btn btn-primary" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+        </div>
+    </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<!-- Global action dropdown — lives on body to escape table overflow:hidden -->
+<div id="globalActionDrop"></div>
+
+<div class="modal-overlay" id="paymentModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-money-bill-wave" style="color:var(--success);margin-right:8px"></i>Payment Details</span>
+            <button class="modal-close" onclick="Modal.close('paymentModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="paymentModalBody"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('paymentModal')">Close</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+RoleGuard.guardCurrentPage();
+
+const SALES_API = '/api/sales';
+let currentPage = 0;
+let totalPages  = 0;
+let pageSize    = 20;
+let searchTimer = null;
+let allData     = [];
+
+document.addEventListener('DOMContentLoaded', () => {
+    Auth.requireClient();
+    Sidebar.init();
+    setAvatarInitials('userAvatar', Auth.getUserName());
+    loadPage(0);
+});
+
+// ── Date helpers ──────────────────────────────────────────────
+function getDateRange() {
+    const sel = document.getElementById('dateRangeSelect').value;
+    const now = new Date();
+    const fmt = d => d.toISOString().slice(0,10);
+    let from=null, to=null;
+    if (sel==='today')      { from=to=fmt(now); }
+    else if (sel==='yesterday') { const y=new Date(now); y.setDate(y.getDate()-1); from=to=fmt(y); }
+    else if (sel==='7days') { const s=new Date(now); s.setDate(s.getDate()-6); from=fmt(s); to=fmt(now); }
+    else if (sel==='30days'){ const s=new Date(now); s.setDate(s.getDate()-29); from=fmt(s); to=fmt(now); }
+    else if (sel==='month') { from=fmt(new Date(now.getFullYear(),now.getMonth(),1)); to=fmt(now); }
+    else if (sel==='last_month') {
+        const m=now.getMonth()===0?11:now.getMonth()-1;
+        const y=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+        from=fmt(new Date(y,m,1)); to=fmt(new Date(y,m+1,0));
+    }
+    else if (sel==='year')  { from=`${now.getFullYear()}-01-01`; to=fmt(now); }
+    else if (sel==='custom'){ from=document.getElementById('dateFrom').value||null; to=document.getElementById('dateTo').value||null; }
+    return {from,to};
+}
+
+function onDateRangeChange() {
+    const sel = document.getElementById('dateRangeSelect').value;
+    document.getElementById('customDateInputs').classList.toggle('visible', sel==='custom');
+    if (sel !== 'custom') loadPage(0);
+}
+
+function onPageSizeChange() { pageSize=parseInt(document.getElementById('pageSizeSelect').value); loadPage(0); }
+function debounceSearch()   { clearTimeout(searchTimer); searchTimer=setTimeout(()=>loadPage(0),350); }
+
+// ── Load ──────────────────────────────────────────────────────
+async function loadPage(page) {
+    currentPage = page;
+    const {from,to} = getDateRange();
+    const q = document.getElementById('searchInput').value.trim();
+    let url = `${SALES_API}/transactions/list?page=${page}&size=${pageSize}`;
+    if (q)    url += `&search=${encodeURIComponent(q)}`;
+    if (from) url += `&dateFrom=${from}`;
+    if (to)   url += `&dateTo=${to}`;
+
+    document.getElementById('salesTbody').innerHTML =
+        `<tr><td colspan="12"><div class="empty-state">
+         <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--primary)"></i>
+         </div></td></tr>`;
+
+    try {
+        const data  = await API.get(url);
+        allData     = data.content || [];
+        totalPages  = data.totalPages || 1;
+        renderTable(allData, page);
+        renderPagination(page, totalPages);
+        updateStats(allData, data.totalElements || 0);
+    } catch(e) {
+        document.getElementById('salesTbody').innerHTML =
+            `<tr><td colspan="12">
+             <div class="empty-state">
+                 <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger)">
+                     <i class="fas fa-exclamation-circle"></i>
+                 </div>
+                 <div class="empty-state-title">Failed to load sales</div>
+                 <div class="empty-state-text">${e.message||'Please check your connection and try again.'}</div>
+             </div></td></tr>`;
+    }
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderTable(rows, page) {
+    const tbody = document.getElementById('salesTbody');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="12">
+            <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-receipt"></i></div>
+                <div class="empty-state-title">No transactions found</div>
+                <div class="empty-state-text">Try a different date range or search term.</div>
+            </div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map((tx, i) => {
+        const sl     = page * pageSize + i + 1;
+        const date   = tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '–';
+        const inv    = tx.receiptNumber ? `<span class="receipt-badge">${tx.receiptNumber}</span>` : '–';
+        const party  = tx.customerName  ? `<span class="cell-primary" style="font-size:var(--text-sm)">${escHtml(tx.customerName)}</span>` : '<span class="text-muted" style="font-size:var(--text-xs)">Walk-in</span>';
+        const cashier= tx.cashierName   ? `<span style="font-size:var(--text-xs)">${escHtml(tx.cashierName)}</span>` : '<span class="text-muted">–</span>';
+        const pay    = tx.paymentMethod || '–';
+        const isPaid = !tx.dueAmount || parseFloat(tx.dueAmount) <= 0;
+        let badge;
+        if (tx.status === 'RETURNED') {
+            badge = `<span class="status-returned"><i class="fas fa-undo-alt" style="font-size:0.6rem"></i> Returned</span>`;
+        } else if (tx.status === 'PARTIALLY_RETURNED') {
+            badge = `<span class="status-part-ret"><i class="fas fa-undo-alt" style="font-size:0.6rem"></i> Part. Return</span>`;
+        } else {
+            badge = isPaid
+                ? `<span class="status-paid"><i class="fas fa-check-circle" style="font-size:0.6rem"></i> Paid</span>`
+                : `<span class="status-partial"><i class="fas fa-clock" style="font-size:0.6rem"></i> Partial</span>`;
+        }
+        return `<tr>
+            <td class="text-muted" style="font-size:var(--text-xs)">${sl}</td>
+            <td style="font-size:var(--text-xs);white-space:nowrap;color:var(--text-secondary)">${date}</td>
+            <td>${inv}</td>
+            <td>${party}</td>
+            <td>${cashier}</td>
+            <td style="font-size:var(--text-xs);color:var(--text-muted)">${pay}</td>
+            <td style="text-align:right;font-weight:600;color:var(--text-primary)">${fmt(tx.totalAmount)}</td>
+            <td style="text-align:right;color:var(--danger);font-size:var(--text-xs)">${parseFloat(tx.discountAmount||0)>0?fmt(tx.discountAmount):'–'}</td>
+            <td style="text-align:right;color:var(--success)">${fmt(tx.amountReceived)}</td>
+            <td style="text-align:right;color:${!isPaid?'var(--danger)':'var(--text-muted)'};font-weight:${!isPaid?'600':'400'}">${fmt(tx.dueAmount)}</td>
+            <td style="text-align:center">${badge}</td>
+            <td style="text-align:center">
+                <button class="action-btn" onclick="toggleMenu(this,${page * pageSize + i})">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function fmt(v) {
+    if (v==null) return '0.00';
+    return parseFloat(v).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function updateStats(rows, totalElements) {
+    const rev  = rows.reduce((s,r)=>s+parseFloat(r.totalAmount  ||0),0);
+    const disc = rows.reduce((s,r)=>s+parseFloat(r.discountAmount||0),0);
+    const due  = rows.reduce((s,r)=>s+parseFloat(r.dueAmount    ||0),0);
+    document.getElementById('totalCount').textContent   = totalElements;
+    document.getElementById('totalRevenue').textContent = 'AED ' + fmt(rev);
+    document.getElementById('totalDiscount').textContent= disc > 0 ? 'AED ' + fmt(disc) : '—';
+    document.getElementById('totalDue').textContent     = due > 0 ? 'AED ' + fmt(due)  : '—';
+}
+
+// ── Pagination ────────────────────────────────────────────────
+function renderPagination(cur, total) {
+    const el = document.getElementById('pagination');
+    if (total<=1) { el.innerHTML=''; return; }
+    let h = `<button class="page-btn" onclick="loadPage(${cur-1})" ${cur===0?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+    const s=Math.max(0,cur-2), e=Math.min(total,s+5);
+    for (let p=s;p<e;p++) h+=`<button class="page-btn ${p===cur?'active':''}" onclick="loadPage(${p})">${p+1}</button>`;
+    h+=`<button class="page-btn" onclick="loadPage(${cur+1})" ${cur>=total-1?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+    el.innerHTML=h;
+}
+
+// ── Action menu ───────────────────────────────────────────────
+function toggleMenu(btn, rowIdx) {
+    const drop = document.getElementById('globalActionDrop');
+    // toggle off if same button clicked again
+    if (drop._srcBtn === btn && drop.style.display !== 'none') { closeMenu(); return; }
+
+    const tx = allData[rowIdx];
+    if (!tx) return;
+
+    drop.innerHTML = `
+        <div class="drop-item" onclick="viewInvoice('${tx.receiptNumber||''}');closeMenu()">
+            <i class="fas fa-receipt"></i> View Invoice
+        </div>
+        <div class="drop-item" onclick="goToReturn('${tx.receiptNumber||''}');closeMenu()">
+            <i class="fas fa-undo-alt"></i> Process Return
+        </div>
+        <div class="drop-item" onclick="viewPaymentByIdx(${rowIdx});closeMenu()">
+            <i class="fas fa-money-bill-wave"></i> Payment Details
+        </div>`;
+
+    const r = btn.getBoundingClientRect();
+    const w = 170;
+    let left = r.right - w;
+    if (left < 8) left = 8;
+    if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8;
+    drop.style.top  = (r.bottom + 4) + 'px';
+    drop.style.left = left + 'px';
+    drop.style.display = 'block';
+    drop._srcBtn = btn;
+}
+
+function closeMenu() {
+    const drop = document.getElementById('globalActionDrop');
+    drop.style.display = 'none';
+    drop._srcBtn = null;
+}
+
+function viewPaymentByIdx(idx) { viewPayment(allData[idx]); }
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('.action-btn') && !e.target.closest('#globalActionDrop')) closeMenu();
+});
+document.addEventListener('scroll', closeMenu, true);
+window.addEventListener('resize', closeMenu);
+
+// ── View Invoice ──────────────────────────────────────────────
+async function viewInvoice(receiptNumber) {
+    if (!receiptNumber) { Toast.error('No receipt number.'); return; }
+    try {
+        const tx = await API.get(`${SALES_API}/receipt/${encodeURIComponent(receiptNumber)}`);
+        const itemsHtml = (tx.items||[]).map(it=>
+            `<tr>
+                <td style="padding:4px 0">${escHtml(it.productName)}</td>
+                <td style="text-align:right;padding:4px 0">${parseFloat(it.quantitySold)} × ${fmt(it.priceAtSale)}</td>
+                <td style="text-align:right;padding:4px 0;font-weight:600">${fmt(it.totalAmount)}</td>
+            </tr>`).join('');
+
+        document.getElementById('receiptModalBody').innerHTML = `
+            <div style="text-align:center;margin-bottom:var(--space-4)">
+                <div style="font-weight:700;font-size:1rem;color:var(--text-primary)">${Auth.getBusinessName()}</div>
+                <div style="color:var(--text-muted);font-size:0.75rem">${tx.branchName||''}</div>
+                <div style="color:var(--text-muted);font-size:0.75rem">${tx.createdAt?new Date(tx.createdAt).toLocaleString():''}</div>
+                <div style="margin-top:var(--space-2)">Invoice: <strong style="color:var(--primary)">${tx.receiptNumber||'–'}</strong></div>
+                ${tx.customerName?`<div style="font-size:0.8rem;margin-top:2px">Customer: <strong>${escHtml(tx.customerName)}</strong></div>`:''}
+                ${tx.cashierName ?`<div style="font-size:0.75rem;color:var(--text-muted)">Cashier: ${escHtml(tx.cashierName)}</div>`:''}
+            </div>
+            <hr style="border:none;border-top:1px dashed var(--border);margin:var(--space-3) 0"/>
+            <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
+                <thead><tr>
+                    <th style="text-align:left;padding:2px 0;color:var(--text-muted)">Item</th>
+                    <th style="text-align:right;color:var(--text-muted)">Qty × Price</th>
+                    <th style="text-align:right;color:var(--text-muted)">Total</th>
+                </tr></thead>
+                <tbody>${itemsHtml}</tbody>
+            </table>
+            <hr style="border:none;border-top:1px dashed var(--border);margin:var(--space-3) 0"/>
+            <div style="display:flex;flex-direction:column;gap:4px;font-size:0.8rem">
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Subtotal</span><span>AED ${fmt(tx.subtotal)}</span></div>
+                ${parseFloat(tx.discountAmount||0)>0?`<div style="display:flex;justify-content:space-between;color:var(--danger)"><span>Discount</span><span>– AED ${fmt(tx.discountAmount)}</span></div>`:''}
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">VAT (${tx.vatPercent||0}%)</span><span>AED ${fmt(tx.vatAmount)}</span></div>
+                <div style="display:flex;justify-content:space-between;font-weight:700;font-size:0.95rem;margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">
+                    <span>TOTAL</span><span style="color:var(--primary)">AED ${fmt(tx.totalAmount)}</span>
+                </div>
+                ${parseFloat(tx.dueAmount||0)>0?`<div style="display:flex;justify-content:space-between;color:var(--danger)"><span>Due</span><span>AED ${fmt(tx.dueAmount)}</span></div>`:''}
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-muted)">Payment</span><span>${tx.paymentMethod||'–'}</span></div>
+            </div>
+            <div style="text-align:center;margin-top:var(--space-4);color:var(--text-muted);font-size:0.7rem">
+                Thank you for your business!
+            </div>`;
+        Modal.open('receiptModal');
+    } catch(e) { Toast.error('Could not load receipt.'); }
+}
+
+function goToReturn(receiptNumber) {
+    if (!receiptNumber) { Toast.error('No receipt number.'); return; }
+    window.location.href = `/sales-return.html?receipt=${encodeURIComponent(receiptNumber)}`;
+}
+
+function viewPayment(tx) {
+    const isPaid = !tx.dueAmount || parseFloat(tx.dueAmount) <= 0;
+    document.getElementById('paymentModalBody').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+            ${prow('Invoice',   tx.receiptNumber||'–')}
+            ${prow('Method',    tx.paymentMethod||'–')}
+            ${prow('Total',     'AED ' + fmt(tx.totalAmount))}
+            ${prow('Received',  'AED ' + fmt(tx.amountReceived))}
+            ${prow('Change',    'AED ' + fmt(tx.changeGiven))}
+            ${prow('Discount',  parseFloat(tx.discountAmount||0)>0?'AED '+fmt(tx.discountAmount):'None')}
+            ${prow('VAT %',     (tx.vatPercent||0)+'%')}
+            ${prow('Due',       'AED '+fmt(tx.dueAmount), !isPaid?'color:var(--danger);font-weight:600':'')}
+        </div>
+        <div style="margin-top:var(--space-3);text-align:center">
+            ${isPaid
+                ? '<span class="status-paid"><i class="fas fa-check-circle"></i> Fully Paid</span>'
+                : '<span class="status-partial"><i class="fas fa-clock"></i> Partially Paid</span>'}
+        </div>`;
+    Modal.open('paymentModal');
+}
+
+function prow(label, value, style='') {
+    return `<div style="background:var(--surface-2);border-radius:var(--radius-sm);padding:var(--space-3)">
+        <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:2px">${label}</div>
+        <div style="font-size:var(--text-sm);font-weight:500;${style}">${value}</div>
+    </div>`;
+}
+
+// ── Export CSV ────────────────────────────────────────────────
+function exportCSV() {
+    if (!allData.length) { Toast.error('No data to export.'); return; }
+    const headers = ['#','Date','Invoice','Customer','Cashier','Payment','Total','Discount','Paid','Due','Status'];
+    const rows = allData.map((tx,i)=>[
+        i+1,
+        tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-GB') : '',
+        tx.receiptNumber||'',
+        tx.customerName||'Walk-in',
+        tx.cashierName||'',
+        tx.paymentMethod||'',
+        parseFloat(tx.totalAmount||0).toFixed(2),
+        parseFloat(tx.discountAmount||0).toFixed(2),
+        parseFloat(tx.amountReceived||0).toFixed(2),
+        parseFloat(tx.dueAmount||0).toFixed(2),
+        tx.status==='RETURNED'?'Returned':tx.status==='PARTIALLY_RETURNED'?'Partial Return':(!tx.dueAmount||parseFloat(tx.dueAmount)<=0)?'Paid':'Partial'
+    ]);
+    const csv = [headers, ...rows].map(r=>r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = `sales_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    Toast.success('CSV exported.');
+}
+</script>
+</body>
+</html>

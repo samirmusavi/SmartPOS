@@ -1,0 +1,401 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Stock Adjustments – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item active">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="adj_title">Stock Adjustments</div>
+            <div class="page-breadcrumb">SmartPOS / Operations / Stock Adjustments</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="adj_kpi_total">Total Adjustments</div>
+                <div class="stat-icon indigo"><i class="fas fa-sliders"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub" id="statTotalSub" data-i18n="adj_sub_branch">At this branch</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="adj_kpi_gained">Stock Gained</div>
+                <div class="stat-icon green"><i class="fas fa-arrow-up"></i></div>
+            </div>
+            <div class="stat-value" id="statGained" style="color:var(--success)">—</div>
+            <div class="stat-sub" data-i18n="adj_sub_added">Units added</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="adj_kpi_lost">Stock Lost</div>
+                <div class="stat-icon red"><i class="fas fa-arrow-down"></i></div>
+            </div>
+            <div class="stat-value" id="statLost" style="color:var(--danger)">—</div>
+            <div class="stat-sub" data-i18n="adj_sub_removed">Units removed</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="adj_kpi_net">Net Change</div>
+                <div class="stat-icon amber"><i class="fas fa-scale-balanced"></i></div>
+            </div>
+            <div class="stat-value" id="statNet">—</div>
+            <div class="stat-sub" data-i18n="adj_sub_net">Gained minus lost</div>
+        </div>
+    </div>
+
+    <!-- ADJUSTMENT HISTORY TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="adj_title">Adjustment History</span>
+            <button class="btn btn-secondary btn-sm" onclick="exportHistory()" data-i18n="adj_btn_export">
+                <i class="fas fa-file-export"></i> Export History
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search products..." data-i18n="pos_search_products"
+                           style="width:240px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="reasonFilter" style="width:180px" onchange="renderTable()">
+                    <option value="">All Reasons</option>
+                    <option value="MANUAL_COUNT">Manual Count</option>
+                    <option value="DAMAGED">Damaged</option>
+                    <option value="STOLEN">Stolen / Theft</option>
+                    <option value="SUPPLIER_RETURN">Supplier Return</option>
+                    <option value="RECEIVED_STOCK">Received Stock</option>
+                    <option value="OTHER">Other</option>
+                </select>
+                <select class="form-control" id="directionFilter" style="width:150px" onchange="renderTable()">
+                    <option value="">All Directions</option>
+                    <option value="gain">Stock Gained (+)</option>
+                    <option value="loss">Stock Lost (−)</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th data-i18n="adj_th_product">Product</th>
+                    <th style="text-align:center" data-i18n="adj_th_old">Old Stock</th>
+                    <th style="text-align:center" data-i18n="adj_th_new">New Stock</th>
+                    <th style="text-align:center" data-i18n="adj_th_change">Change</th>
+                    <th style="text-align:center" data-i18n="adj_th_reason">Reason</th>
+                    <th data-i18n="adj_th_notes">Notes</th>
+                    <th data-i18n="adj_th_user">Adjusted By</th>
+                    <th style="text-align:right" data-i18n="adj_th_date">Date & Time</th>
+                </tr>
+                </thead>
+                <tbody id="adjTableBody">
+                <tr><td colspan="9"><div class="empty-state">
+                    <div class="skeleton" style="width:200px;height:16px"></div>
+                </div></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="toolbar">
+            <span class="text-sm text-muted" id="paginationInfo">—</span>
+            <div class="pagination" id="paginationPages"></div>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const ADJ_API = '/api/stock-adjustments';
+
+    const REASON_LABELS = {
+        MANUAL_COUNT:    'Manual Count',
+        DAMAGED:         'Damaged',
+        STOLEN:          'Stolen',
+        SUPPLIER_RETURN: 'Supplier Return',
+        RECEIVED_STOCK:  'Received Stock',
+        OTHER:           'Other'
+    };
+    const REASON_COLORS = {
+        MANUAL_COUNT:    'badge-primary',
+        DAMAGED:         'badge-danger',
+        STOLEN:          'badge-danger',
+        SUPPLIER_RETURN: 'badge-warning',
+        RECEIVED_STOCK:  'badge-success',
+        OTHER:           'badge-neutral'
+    };
+
+    let allAdjustments = [];
+    let currentPage    = 1;
+    const perPage      = 15;
+
+    async function loadData() {
+        try {
+            const [adjustments, summary] = await Promise.all([
+                API.get(ADJ_API),
+                API.get(`${ADJ_API}/summary`)
+            ]);
+            allAdjustments = adjustments;
+            renderStats(summary);
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch(e) {
+            Toast.error('Failed to load stock adjustments.');
+            console.error(e);
+        }
+    }
+
+    function renderStats(summary) {
+        const total   = Number(summary.totalAdjustments || 0);
+        const gained  = Number(summary.totalStockGained || 0);
+        const lost    = Number(summary.totalStockLost   || 0);
+        const net     = gained - lost;
+
+        document.getElementById('statTotal').textContent  = total.toLocaleString();
+        document.getElementById('statGained').textContent = `+${gained.toLocaleString()}`;
+        document.getElementById('statLost').textContent   = `−${lost.toLocaleString()}`;
+
+        const netEl = document.getElementById('statNet');
+        netEl.textContent = (net >= 0 ? '+' : '') + net.toLocaleString();
+        netEl.style.color = net >= 0 ? 'var(--success)' : 'var(--danger)';
+
+        // Update stat label to show branch or global context
+        const branchName = Auth.getBranchName();
+        document.getElementById('statTotalSub').textContent =
+            branchName ? `At ${branchName}` : 'All branches combined';
+    }
+
+    function renderTable() {
+        const q         = document.getElementById('searchInput').value.toLowerCase();
+        const reason    = document.getElementById('reasonFilter').value;
+        const direction = document.getElementById('directionFilter').value;
+
+        const filtered = allAdjustments.filter(a => {
+            const matchQ = (a.productName || '').toLowerCase().includes(q) ||
+                (a.notes || '').toLowerCase().includes(q) ||
+                (a.adjustedBy || '').toLowerCase().includes(q);
+            const matchR = !reason    || a.reason === reason;
+            const matchD = !direction ||
+                (direction === 'gain' && a.adjustment > 0) ||
+                (direction === 'loss' && a.adjustment < 0);
+            return matchQ && matchR && matchD;
+        });
+
+        const total = filtered.length;
+        const pages = Math.ceil(total / perPage) || 1;
+        currentPage = Math.min(currentPage, pages);
+        const start = (currentPage - 1) * perPage;
+        const slice = filtered.slice(start, start + perPage);
+
+        const tc = document.getElementById('totalCount');
+        if (tc) tc.textContent = total;
+        document.getElementById('countLabel').textContent =
+            `${total} adjustment${total !== 1 ? 's' : ''}`;
+        document.getElementById('paginationInfo').textContent = total
+            ? `Showing ${start + 1}–${Math.min(start + perPage, total)} of ${total}`
+            : 'No adjustments';
+
+        const tbody = document.getElementById('adjTableBody');
+
+        if (!slice.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="9">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-sliders"></i></div>
+                        <div class="empty-state-title">No adjustments found</div>
+                        <div class="empty-state-text">
+                            ${allAdjustments.length
+                ? 'Try adjusting your search or filters.'
+                : 'Adjustments made on the Products page will appear here.'}
+                        </div>
+                    </div>
+                </td></tr>`;
+        } else {
+            tbody.innerHTML = slice.map((a, i) => {
+                const adj      = a.adjustment;
+                const isGain   = adj > 0;
+                const adjColor = isGain ? 'var(--success)' : 'var(--danger)';
+                const adjIcon  = isGain ? 'fa-arrow-up' : 'fa-arrow-down';
+                const adjText  = (isGain ? '+' : '') + adj;
+
+                return `
+                <tr>
+                    <td class="text-muted" style="text-align:center">${start + i + 1}</td>
+                    <td class="cell-primary">${a.productName || '—'}</td>
+                    <td class="text-secondary" style="text-align:center">${a.oldQuantity}</td>
+                    <td class="font-medium text-primary" style="text-align:center">${a.newQuantity}</td>
+                    <td style="text-align:center">
+                        <span style="color:${adjColor};font-weight:700;font-size:var(--text-sm)">
+                            <i class="fas ${adjIcon}" style="font-size:0.6rem;margin-right:3px"></i>
+                            ${adjText}
+                        </span>
+                    </td>
+                    <td style="text-align:center">
+                        <span class="badge ${REASON_COLORS[a.reason] || 'badge-neutral'}">
+                            ${REASON_LABELS[a.reason] || a.reason}
+                        </span>
+                    </td>
+                    <td class="text-secondary">
+                        ${a.notes
+                    ? `<span title="${escapeHtml(a.notes)}">${a.notes.length > 30 ? a.notes.substring(0, 30) + '...' : a.notes}</span>`
+                    : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="text-secondary">${a.adjustedBy || '—'}</td>
+                    <td class="text-muted" style="text-align:right;white-space:nowrap">
+                        ${Format.datetime(a.adjustedAt)}
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Pagination
+        let pHtml = '';
+        if (currentPage > 1)
+            pHtml += `<button class="page-btn" onclick="goPage(${currentPage - 1})"><i class="fas fa-chevron-left"></i></button>`;
+        for (let p = 1; p <= pages; p++)
+            pHtml += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`;
+        if (currentPage < pages)
+            pHtml += `<button class="page-btn" onclick="goPage(${currentPage + 1})"><i class="fas fa-chevron-right"></i></button>`;
+        document.getElementById('paginationPages').innerHTML = pHtml;
+    }
+
+    function goPage(p) { currentPage = p; renderTable(); }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g,
+            c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadData();
+</script>
+</body>
+</html>
+

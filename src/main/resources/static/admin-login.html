@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Admin Login – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+</head>
+<body>
+
+<div class="auth-page">
+    <div class="auth-card">
+
+        <!-- Brand -->
+        <div class="auth-brand">
+            <div class="auth-logo">
+                <i class="fas fa-store"></i>
+            </div>
+            <div class="auth-title">SmartPOS</div>
+            <div class="auth-subtitle">Intelligent Retail Management System</div>
+        </div>
+
+        <!-- Login Box -->
+        <div class="auth-box">
+            <div class="auth-box-title">Admin Portal</div>
+            <div class="auth-box-sub">Sign in to manage your platform</div>
+
+            <div id="alertBox" style="display:none" class="alert alert-error mb-4"></div>
+
+            <div class="flex flex-col gap-4">
+
+                <div class="form-group">
+                    <label class="form-label">Username</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="username" class="form-control"
+                               placeholder="Enter your username" autocomplete="username">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Password</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" class="form-control"
+                               placeholder="Enter your password" autocomplete="current-password">
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-lg" id="loginBtn" onclick="login()">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Sign In
+                </button>
+
+            </div>
+
+            <div style="text-align:center;margin-top:20px">
+        <span class="badge badge-neutral">
+          <i class="fas fa-shield-alt"></i>
+          &nbsp;Administrator Access Only
+        </span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    // Redirect if already logged in
+    if (Auth.isAdmin()) {
+        window.location.href = '/admin-dashboard.html';
+    }
+
+    async function login() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const btn      = document.getElementById('loginBtn');
+        const alert    = document.getElementById('alertBox');
+
+        alert.style.display = 'none';
+
+        if (!username || !password) {
+            showError('Please enter your username and password.');
+            return;
+        }
+
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+        btn.disabled  = true;
+
+        try {
+            const data = await API.post('/api/admin/login', { username, password });
+            Auth.setAdmin(data);
+            window.location.href = '/admin-dashboard.html';
+        } catch (err) {
+            showError(err.message || 'Invalid username or password.');
+            btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+            btn.disabled  = false;
+        }
+    }
+
+    function showError(msg) {
+        const el = document.getElementById('alertBox');
+        el.innerHTML = `<i class="fas fa-exclamation-circle"></i> &nbsp;${msg}`;
+        el.style.display = 'flex';
+    }
+
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+    });
+</script>
+</body>
+</html>

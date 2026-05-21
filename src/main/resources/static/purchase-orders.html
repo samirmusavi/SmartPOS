@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Purchase Orders – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .order-line-item {
+            display: grid;
+            grid-template-columns: 1fr 100px 120px 40px;
+            gap: var(--space-3);
+            align-items: end;
+            padding: var(--space-3) 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .order-line-item:last-child { border-bottom: none; }
+        .order-lines-header {
+            display: grid;
+            grid-template-columns: 1fr 100px 120px 40px;
+            gap: var(--space-3);
+            padding: var(--space-2) 0;
+            font-size: var(--text-xs);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border);
+        }
+        .order-total-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-4);
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: var(--radius-md);
+            margin-top: var(--space-4);
+        }
+        .order-total-label {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+        .order-total-value {
+            font-size: var(--text-lg);
+            font-weight: 700;
+            color: var(--primary);
+        }
+        .add-line-btn {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-2) var(--space-4);
+            margin-top: var(--space-3);
+            background: var(--surface-2);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-md);
+            color: var(--primary);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            width: 100%;
+            justify-content: center;
+        }
+        .add-line-btn:hover {
+            background: var(--primary-light);
+            border-color: rgba(99,102,241,0.3);
+        }
+        .remove-line-btn {
+            width: 32px; height: 32px;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 0.75rem;
+            transition: all var(--transition-fast);
+        }
+        .remove-line-btn:hover {
+            background: var(--danger-light);
+            color: var(--danger);
+            border-color: rgba(239,68,68,0.3);
+        }
+        .supplier-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+            padding: var(--space-3) var(--space-4);
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: var(--text-sm);
+        }
+        .supplier-info i {
+            color: var(--primary);
+            font-size: 0.85rem;
+        }
+        .line-count-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 20px;
+            height: 20px;
+            border-radius: var(--radius-full);
+            background: var(--primary);
+            color: #fff;
+            font-size: 0.65rem;
+            font-weight: 700;
+            margin-left: var(--space-2);
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item active">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="po_title">Purchase Orders</div>
+            <div class="page-breadcrumb">SmartPOS / Inventory / Purchase Orders</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Orders</div>
+                <div class="stat-icon blue"><i class="fas fa-file-invoice"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub">All time</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="po_kpi_received">Received</div>
+                <div class="stat-icon green"><i class="fas fa-circle-check"></i></div>
+            </div>
+            <div class="stat-value" id="statReceived">—</div>
+            <div class="stat-sub">Stock added to inventory</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="po_kpi_pending">Pending</div>
+                <div class="stat-icon amber"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="stat-value" id="statPending">—</div>
+            <div class="stat-sub">Awaiting delivery</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Spent</div>
+                <div class="stat-icon red"><i class="fas fa-coins"></i></div>
+            </div>
+            <div class="stat-value" id="statSpent">—</div>
+            <div class="stat-sub">On received orders</div>
+        </div>
+    </div>
+
+    <!-- TABLE CARD -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-file-invoice" style="color:var(--primary);margin-right:8px"></i>
+                Order History
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> New Order
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <input type="text" class="form-control" id="searchInput"
+                       placeholder="Search product or supplier…"
+                       style="width:240px" oninput="renderTable()">
+                <select class="form-control" id="statusFilter"
+                        style="width:160px" onchange="renderTable()">
+                    <option value="">All Status</option>
+                    <option value="DRAFT">Draft</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="RECEIVED">Received</option>
+                    <option value="CANCELLED">Cancelled</option>
+                </select>
+            </div>
+            <span class="text-sm text-muted" id="countLabel">—</span>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th data-i18n="po_th_id">PO #</th>
+                    <th data-i18n="po_th_product">Product</th>
+                    <th data-i18n="po_th_sup">Supplier</th>
+                    <th data-i18n="po_th_qty_ordered" style="text-align:center">Qty Ordered</th>
+                    <th data-i18n="po_th_qty_received" style="text-align:center">Qty Received</th>
+                    <th data-i18n="po_th_unit_cost" style="text-align:center">Unit Cost</th>
+                    <th data-i18n="po_th_total_cost" style="text-align:center">Total Cost</th>
+                    <th data-i18n="po_th_expected" style="text-align:center">Expected Date</th>
+                    <th data-i18n="po_th_status">Status</th>
+                    <th data-i18n="po_th_created_by">Created By</th>
+                    <th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="poTableBody">
+                <tr><td colspan="11">
+                    <div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div>
+                </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- CREATE ORDER MODAL — Multi-Product -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal" style="max-width:640px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-file-invoice" style="color:var(--primary);margin-right:8px"></i>
+                New Purchase Order
+            </span>
+            <button class="modal-close" onclick="Modal.close('createModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+
+                <!-- Step 1: Select Supplier -->
+                <div style="margin-bottom:var(--space-6)">
+                    <label class="form-label" data-i18n="po_lbl_sup">Select Supplier *</label>
+                    <select id="fSupplier" class="form-control" onchange="onSupplierChange()">
+                        <option value="">— Select supplier —</option>
+                    </select>
+                </div>
+
+                <!-- Supplier info -->
+                <div id="supplierInfoBox" style="display:none" class="supplier-info">
+                    <i class="fas fa-truck"></i>
+                    <span id="supplierInfoText">—</span>
+                </div>
+
+                <!-- Step 2: Add Products -->
+                <div id="lineItemsSection" style="display:none">
+                    <div class="text-xs font-semibold uppercase tracking" style="color:var(--primary);margin-bottom:var(--space-2)">
+                        <i class="fas fa-boxes-stacked" style="margin-right:6px"></i>
+                        Order Items
+                        <span class="line-count-badge" id="lineCountBadge">0</span>
+                    </div>
+
+                    <div class="order-lines-header">
+                        <span>Product</span>
+                        <span>Qty</span>
+                        <span>Unit Cost</span>
+                        <span></span>
+                    </div>
+
+                    <div id="lineItemsContainer"></div>
+
+                    <button type="button" class="add-line-btn" onclick="addLineItem()">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+
+                <!-- Shared fields -->
+                <div class="grid-2" id="sharedFields" style="display:none">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Expected Delivery
+                            <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span>
+                        </label>
+                        <input type="date" id="fExpectedDelivery" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" id="fNotes" class="form-control"
+                               placeholder="e.g. Urgent, call before delivery">
+                    </div>
+                </div>
+
+                <!-- Total -->
+                <div id="orderTotalBar" class="order-total-bar" style="display:none">
+                    <span class="order-total-label">
+                        <i class="fas fa-calculator" style="margin-right:6px"></i>
+                        Estimated Total (<span id="totalItemCount">0</span> items)
+                    </span>
+                    <span class="order-total-value" id="orderTotalValue">AED 0.00</span>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('createModal')">Cancel</button>
+            <button class="btn btn-primary" id="placeOrderBtn" onclick="createOrder()" style="display:none">
+                <i class="fas fa-check"></i> Place Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- RECEIVE MODAL -->
+<div class="modal-overlay" id="receiveModal">
+    <div class="modal" style="max-width:440px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-circle-check" style="color:var(--success);margin-right:8px"></i>
+                Receive Stock
+            </span>
+            <button class="modal-close" onclick="Modal.close('receiveModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="receiveOrderId">
+            <div style="background:var(--surface-2);border:1px solid var(--border);
+                        border-radius:var(--radius-md);padding:var(--space-4);
+                        margin-bottom:var(--space-4)">
+                <div class="grid-2" style="gap:var(--space-3)">
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Product</div>
+                        <div class="text-sm font-semibold text-primary" id="receiveProductName">—</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Qty Ordered</div>
+                        <div class="text-sm font-semibold text-primary" id="receiveQtyOrdered">—</div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Supplier</div>
+                        <div class="text-sm font-semibold text-primary" id="receiveSupplierName">—</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div class="form-group">
+                    <label class="form-label">
+                        Quantity Received *
+                        <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">
+                            — can differ from ordered
+                        </span>
+                    </label>
+                    <input type="number" id="receiveQtyInput" class="form-control"
+                           placeholder="Enter quantity received" min="1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" id="receiveNotes" class="form-control"
+                           placeholder="e.g. 5 units damaged on arrival">
+                </div>
+                <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);
+                            border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                            font-size:var(--text-xs);color:var(--text-secondary)">
+                    <i class="fas fa-info-circle" style="color:var(--success);margin-right:6px"></i>
+                    Stock will be added to this branch's inventory automatically when you confirm.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('receiveModal')">Cancel</button>
+            <button class="btn btn-success" onclick="confirmReceive()"
+                    style="background:var(--success);color:#fff;border-color:var(--success)">
+                <i class="fas fa-circle-check"></i> Confirm Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CANCEL MODAL -->
+<div class="modal-overlay" id="cancelModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="po_title">Purchase Orders</span>
+            <button class="modal-close" onclick="Modal.close('cancelModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-ban"></i>
+            </div>
+            <div class="empty-state-title mb-2">Cancel this order?</div>
+            <div class="empty-state-text">
+                Order for <strong id="cancelProductName" style="color:var(--text-primary)"></strong>
+                will be marked as cancelled.
+                No stock changes will be made.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('cancelModal')">Keep Order</button>
+            <button class="btn btn-danger" onclick="confirmCancel()">
+                <i class="fas fa-ban"></i> Cancel Order
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const PO_API       = '/api/purchase-orders';
+    const SUPPLIER_API = '/api/suppliers';
+    const PRODUCT_API  = '/api/products';
+
+    let allOrders    = [];
+    let allSuppliers = [];
+    let allProducts  = [];
+    let cancelId     = null;
+
+    // ── Line items state for multi-product ordering ──────────
+    let lineItems = []; // { productId, productName, quantity, unitCost }
+
+    const STATUS_BADGE = {
+        DRAFT:     '<span class="badge badge-neutral" style="background:var(--surface-3);color:var(--text-secondary)">Draft</span>',
+        PENDING:   '<span class="badge badge-warning">Pending</span>',
+        RECEIVED:  '<span class="badge badge-success">Received</span>',
+        CANCELLED: '<span class="badge badge-danger">Cancelled</span>'
+    };
+
+    async function loadData() {
+        try {
+            const [orders, summary, suppliers, products] = await Promise.all([
+                API.get(PO_API),
+                API.get(`${PO_API}/summary`),
+                API.get(SUPPLIER_API),
+                API.get(PRODUCT_API)
+            ]);
+            allOrders    = orders;
+            allSuppliers = suppliers;
+            allProducts  = products;
+            renderStats(summary);
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load purchase orders.');
+            console.error(e);
+        }
+    }
+
+    function renderStats(summary) {
+        document.getElementById('statTotal').textContent    = summary.total    || 0;
+        document.getElementById('statPending').textContent  = summary.pending  || 0;
+        document.getElementById('statReceived').textContent = summary.received || 0;
+        document.getElementById('statSpent').textContent    = Format.currency(summary.totalSpent || 0);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  CREATE ORDER — MULTI-PRODUCT FLOW
+    // ═══════════════════════════════════════════════════════════
+
+    function openCreateModal() {
+        // Reset state
+        lineItems = [];
+        document.getElementById('fExpectedDelivery').value = '';
+        document.getElementById('fNotes').value = '';
+
+        // Populate supplier dropdown
+        const base = '<option value="">— Select supplier —</option>';
+        const opts = allSuppliers.map(s =>
+            `<option value="${s.id}">${s.name}</option>`
+        ).join('');
+        document.getElementById('fSupplier').innerHTML = base + opts;
+
+        // Hide sections until supplier is selected
+        document.getElementById('supplierInfoBox').style.display = 'none';
+        document.getElementById('lineItemsSection').style.display = 'none';
+        document.getElementById('sharedFields').style.display = 'none';
+        document.getElementById('orderTotalBar').style.display = 'none';
+        document.getElementById('placeOrderBtn').style.display = 'none';
+        document.getElementById('lineItemsContainer').innerHTML = '';
+
+        Modal.open('createModal');
+    }
+
+    function onSupplierChange() {
+        const supplierId = parseInt(document.getElementById('fSupplier').value) || null;
+
+        if (!supplierId) {
+            document.getElementById('supplierInfoBox').style.display = 'none';
+            document.getElementById('lineItemsSection').style.display = 'none';
+            document.getElementById('sharedFields').style.display = 'none';
+            document.getElementById('orderTotalBar').style.display = 'none';
+            document.getElementById('placeOrderBtn').style.display = 'none';
+            return;
+        }
+
+        const supplier = allSuppliers.find(s => s.id === supplierId);
+        const supplierProducts = allProducts.filter(p => p.supplierId === supplierId);
+        const infoText = supplier
+            ? `${supplier.name} — ${supplierProducts.length} product${supplierProducts.length !== 1 ? 's' : ''} linked`
+            : '—';
+
+        document.getElementById('supplierInfoText').textContent = infoText;
+        document.getElementById('supplierInfoBox').style.display = 'flex';
+        document.getElementById('lineItemsSection').style.display = 'block';
+        document.getElementById('sharedFields').style.display = 'grid';
+        document.getElementById('orderTotalBar').style.display = 'flex';
+        document.getElementById('placeOrderBtn').style.display = 'inline-flex';
+
+        // Reset line items and add first one
+        lineItems = [];
+        addLineItem();
+    }
+
+    function getSupplierProducts() {
+        const supplierId = parseInt(document.getElementById('fSupplier').value) || null;
+        if (!supplierId) return allProducts;
+
+        // Products from this supplier first, then others
+        const linked = allProducts.filter(p => p.supplierId === supplierId);
+        const others = allProducts.filter(p => p.supplierId !== supplierId);
+        return [...linked, ...others];
+    }
+
+    function addLineItem() {
+        const supplierId = parseInt(document.getElementById('fSupplier').value) || null;
+        const supplierProducts = supplierId
+            ? allProducts.filter(p => p.supplierId === supplierId)
+            : allProducts;
+
+        // Default to first available product not already selected
+        const usedProductIds = lineItems.map(li => li.productId);
+        const available = supplierProducts.filter(p => !usedProductIds.includes(p.id));
+
+        lineItems.push({
+            productId: null,
+            productName: '',
+            quantity: 1,
+            unitCost: 0
+        });
+
+        renderLineItems();
+    }
+
+    function removeLineItem(index) {
+        lineItems.splice(index, 1);
+        renderLineItems();
+        updateOrderTotal();
+    }
+
+    function renderLineItems() {
+        const container = document.getElementById('lineItemsContainer');
+        const supplierId = parseInt(document.getElementById('fSupplier').value) || null;
+
+        // Products from this supplier
+        const supplierProducts = supplierId
+            ? allProducts.filter(p => p.supplierId === supplierId)
+            : [];
+        const otherProducts = supplierId
+            ? allProducts.filter(p => p.supplierId !== supplierId)
+            : allProducts;
+
+        container.innerHTML = lineItems.map((li, i) => {
+            // Build product options with optgroups
+            let productOpts = '<option value="">— Select product —</option>';
+            if (supplierProducts.length) {
+                productOpts += `<optgroup label="From this supplier">`;
+                supplierProducts.forEach(p => {
+                    const sel = li.productId === p.id ? 'selected' : '';
+                    productOpts += `<option value="${p.id}" data-cost="${p.costPrice||0}" ${sel}>${p.name}</option>`;
+                });
+                productOpts += `</optgroup>`;
+            }
+            if (otherProducts.length) {
+                productOpts += `<optgroup label="Other products">`;
+                otherProducts.forEach(p => {
+                    const sel = li.productId === p.id ? 'selected' : '';
+                    productOpts += `<option value="${p.id}" data-cost="${p.costPrice||0}" ${sel}>${p.name}</option>`;
+                });
+                productOpts += `</optgroup>`;
+            }
+
+            return `
+                <div class="order-line-item">
+                    <select class="form-control" onchange="onLineProductChange(${i}, this)">
+                        ${productOpts}
+                    </select>
+                    <input type="number" class="form-control" value="${li.quantity || ''}"
+                           placeholder="Qty" min="1"
+                           oninput="onLineQtyChange(${i}, this.value)">
+                    <div style="position:relative">
+                        <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);
+                                     color:var(--text-muted);font-size:var(--text-xs)">$</span>
+                        <input type="number" class="form-control" value="${li.unitCost || ''}"
+                               placeholder="0.00" step="0.01" min="0"
+                               style="padding-left:24px"
+                               oninput="onLineCostChange(${i}, this.value)">
+                    </div>
+                    <button class="remove-line-btn" onclick="removeLineItem(${i})"
+                            ${lineItems.length <= 1 ? 'disabled style="opacity:0.3;cursor:not-allowed"' : ''}>
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>`;
+        }).join('');
+
+        document.getElementById('lineCountBadge').textContent = lineItems.length;
+        updateOrderTotal();
+    }
+
+    function onLineProductChange(index, selectEl) {
+        const productId = parseInt(selectEl.value) || null;
+        const option = selectEl.options[selectEl.selectedIndex];
+        const costPrice = option ? parseFloat(option.getAttribute('data-cost')) || 0 : 0;
+
+        lineItems[index].productId = productId;
+        lineItems[index].productName = option ? option.textContent : '';
+
+        // Auto-fill unit cost from product cost price
+        if (costPrice > 0) {
+            lineItems[index].unitCost = costPrice;
+        }
+
+        renderLineItems();
+    }
+
+    function onLineQtyChange(index, value) {
+        lineItems[index].quantity = parseInt(value) || 0;
+        updateOrderTotal();
+    }
+
+    function onLineCostChange(index, value) {
+        lineItems[index].unitCost = parseFloat(value) || 0;
+        updateOrderTotal();
+    }
+
+    function updateOrderTotal() {
+        let total = 0;
+        let count = 0;
+        lineItems.forEach(li => {
+            if (li.productId && li.quantity > 0) {
+                count++;
+                total += (li.quantity * li.unitCost);
+            }
+        });
+        document.getElementById('orderTotalValue').textContent = Format.currency(total);
+        document.getElementById('totalItemCount').textContent = count;
+    }
+
+    async function createOrder() {
+        const supplierId = document.getElementById('fSupplier').value;
+        const delivery   = document.getElementById('fExpectedDelivery').value;
+        const notes      = document.getElementById('fNotes').value.trim();
+
+        if (!supplierId) {
+            Toast.error('Please select a supplier.');
+            return;
+        }
+
+        // Validate line items
+        const validLines = lineItems.filter(li => li.productId && li.quantity > 0);
+        if (validLines.length === 0) {
+            Toast.error('Please add at least one product with a quantity.');
+            return;
+        }
+
+        // Check for duplicates
+        const productIds = validLines.map(li => li.productId);
+        if (new Set(productIds).size !== productIds.length) {
+            Toast.error('Duplicate products found. Please remove duplicates.');
+            return;
+        }
+
+        try {
+            // Create one PO per line item (existing API supports single-product orders)
+            const promises = validLines.map(li =>
+                API.post(PO_API, {
+                    supplierId,
+                    productId: li.productId,
+                    quantityOrdered: li.quantity,
+                    unitCost: li.unitCost || '',
+                    expectedDelivery: delivery || '',
+                    notes,
+                    createdBy: Auth.getUserName()
+                })
+            );
+
+            await Promise.all(promises);
+            Modal.close('createModal');
+            Toast.success(`${validLines.length} purchase order${validLines.length > 1 ? 's' : ''} placed successfully.`);
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to create order.');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  RECEIVE STOCK
+    // ═══════════════════════════════════════════════════════════
+
+    function openReceiveModal(id, productName, qtyOrdered, supplierName) {
+        document.getElementById('receiveOrderId').value            = id;
+        document.getElementById('receiveProductName').textContent  = productName;
+        document.getElementById('receiveQtyOrdered').textContent   = qtyOrdered;
+        document.getElementById('receiveSupplierName').textContent = supplierName;
+        document.getElementById('receiveQtyInput').value           = qtyOrdered;
+        document.getElementById('receiveNotes').value              = '';
+        Modal.open('receiveModal');
+    }
+
+    async function confirmReceive() {
+        const id    = document.getElementById('receiveOrderId').value;
+        const qty   = document.getElementById('receiveQtyInput').value;
+        const notes = document.getElementById('receiveNotes').value.trim();
+
+        if (!qty || parseInt(qty) < 1) {
+            Toast.error('Please enter a valid quantity.');
+            return;
+        }
+
+        try {
+            await API.put(`${PO_API}/${id}/receive`, {
+                quantityReceived: qty,
+                notes
+            });
+            Modal.close('receiveModal');
+            Toast.success('Stock received and inventory updated.');
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to receive order.');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  CANCEL ORDER
+    // ═══════════════════════════════════════════════════════════
+
+    function openCancelModal(id, productName) {
+        cancelId = id;
+        document.getElementById('cancelProductName').textContent = productName;
+        Modal.open('cancelModal');
+    }
+
+    async function confirmCancel() {
+        try {
+            await API.put(`${PO_API}/${cancelId}/cancel`, {});
+            Modal.close('cancelModal');
+            Toast.success('Order cancelled.');
+            cancelId = null;
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to cancel order.');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  APPROVE ORDER
+    // ═══════════════════════════════════════════════════════════
+
+    async function approveOrder(id) {
+        try {
+            await API.put(`${PO_API}/${id}/approve`, {});
+            Toast.success('Order approved and sent to supplier.');
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to approve order.');
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    //  RENDER TABLE
+    // ═══════════════════════════════════════════════════════════
+
+    function renderTable() {
+        const q      = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+
+        const filtered = allOrders.filter(o => {
+            const matchQ = o.productName.toLowerCase().includes(q) ||
+                o.supplierName.toLowerCase().includes(q);
+            const matchS = !status || o.status === status;
+            return matchQ && matchS;
+        });
+
+        document.getElementById('countLabel').textContent =
+            `${filtered.length} order${filtered.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('poTableBody');
+
+        if (!filtered.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="11">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-file-invoice"></i></div>
+                        <div class="empty-state-title">No purchase orders yet</div>
+                        <div class="empty-state-text">Create your first order when stock is running low.</div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((o, i) => {
+            let actions = '';
+            if (o.status === 'DRAFT' || o.status === 'PENDING') {
+                if (o.status === 'DRAFT') {
+                    actions += `
+                        <button class="btn btn-primary btn-sm"
+                                onclick="approveOrder(${o.id})">
+                            <i class="fas fa-paper-plane"></i> Approve
+                        </button> `;
+                }
+                actions += `
+                    <button class="btn btn-success btn-sm"
+                            style="background:var(--success);color:#fff;border-color:var(--success)"
+                            onclick="openReceiveModal(${o.id},'${escapeHtml(o.productName)}',${o.quantityOrdered},'${escapeHtml(o.supplierName)}')">
+                        <i class="fas fa-circle-check"></i> Receive
+                    </button>
+                    <button class="btn btn-danger btn-sm"
+                            onclick="openCancelModal(${o.id},'${escapeHtml(o.productName)}')">
+                        <i class="fas fa-ban"></i>
+                    </button>`;
+            }
+
+            return `
+                <tr>
+                    <td class="text-muted">${i + 1}</td>
+                    <td class="font-medium">${escapeHtml(o.productName)}</td>
+                    <td class="text-secondary">${escapeHtml(o.supplierName)}</td>
+                    <td>${o.quantityOrdered}</td>
+                    <td>${o.quantityReceived != null ? o.quantityReceived : '<span class="text-muted">—</span>'}</td>
+                    <td>${o.unitCost ? Format.currency(o.unitCost) : '<span class="text-muted">—</span>'}</td>
+                    <td class="font-medium text-primary">
+                        ${o.totalCost ? Format.currency(o.totalCost) : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="text-muted">${o.expectedDelivery ? Format.date(o.expectedDelivery) : '—'}</td>
+                    <td>${STATUS_BADGE[o.status] || o.status}</td>
+                    <td class="text-secondary">${escapeHtml(o.createdBy)}</td>
+                    <td>${actions}</td>
+                </tr>`;
+        }).join('');
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadData();
+</script>
+</body>
+</html>

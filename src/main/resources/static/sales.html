@@ -1,0 +1,1760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sales (POS) – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        .pos-wrapper { display:grid; grid-template-columns:1fr 1fr; height:calc(100vh - var(--topbar-height)); overflow:hidden; margin:calc(-1 * var(--space-6)); }
+        @media(max-width:900px) { .pos-wrapper { grid-template-columns:1fr; overflow-y:auto; height:auto; } }
+        .pos-left { display:flex; flex-direction:column; border-right:1px solid var(--border); overflow:hidden; background:var(--surface-1); }
+        .pos-left-header { padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); flex-shrink:0; }
+        .pos-left-title { font-size:var(--text-sm); font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-3); }
+        .quick-actions { display:flex; gap:var(--space-2); flex-wrap:wrap; }
+        .pos-form { flex:1; overflow-y:auto; padding:var(--space-5); }
+        .cart-table { width:100%; border-collapse:collapse; margin-bottom:var(--space-4); }
+        .cart-table th { font-size:var(--text-xs); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); padding:var(--space-2) var(--space-3); text-align:left; border-bottom:1px solid var(--border); }
+        .cart-table td { padding:var(--space-3); border-bottom:1px solid var(--border); font-size:var(--text-sm); color:var(--text-secondary); vertical-align:middle; }
+        .cart-table tr:last-child td { border-bottom:none; }
+        .qty-input { width:52px; padding:var(--space-1) var(--space-2); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:var(--text-sm); text-align:center; outline:none; }
+        .qty-input:focus { border-color:var(--primary); }
+        .btn-remove { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:var(--space-1); border-radius:var(--radius-sm); transition:color var(--transition-fast); }
+        .btn-remove:hover { color:var(--danger); }
+        .summary-box { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-5); margin-bottom:var(--space-4); }
+        .summary-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3); font-size:var(--text-sm); }
+        .summary-row .s-label { color:var(--text-muted); }
+        .summary-row .s-val   { color:var(--text-primary); font-weight:500; }
+        .summary-total { border-top:1px solid var(--border); padding-top:var(--space-3); margin-top:var(--space-3); }
+        .summary-total .s-label { font-size:var(--text-base); font-weight:600; color:var(--text-primary); }
+        .summary-total .s-val   { font-size:var(--text-xl); font-weight:700; color:var(--primary); }
+        .btn-complete-sale { width:100%; padding:var(--space-4); background:var(--primary); color:#fff; border:none; border-radius:var(--radius-md); font-size:var(--text-md); font-weight:700; cursor:pointer; transition:all var(--transition-fast); box-shadow:0 4px 16px var(--primary-glow); }
+        .btn-complete-sale:hover { background:var(--primary-hover); transform:translateY(-1px); box-shadow:0 6px 24px var(--primary-glow); }
+        .btn-complete-sale:active { transform:scale(0.98); }
+        .btn-complete-sale:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+        .btn-cancel-sale { width:100%; padding:var(--space-3); background:transparent; color:var(--text-muted); border:1px solid var(--border); border-radius:var(--radius-md); font-size:var(--text-sm); cursor:pointer; margin-top:var(--space-2); transition:all var(--transition-fast); }
+        .btn-cancel-sale:hover { background:var(--danger-light); color:var(--danger); border-color:rgba(239,68,68,0.3); }
+        .pos-right { display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+        .pos-search-bar { padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); background:var(--surface-1); flex-shrink:0; }
+        .scanner-bar { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:var(--space-3); transition:all var(--transition-fast); }
+        .scanner-bar.active { border-color:var(--primary); background:var(--primary-light); }
+        .scanner-bar.scanning { border-color:var(--success); background:rgba(34,197,94,0.08); animation:scanPulse 0.3s ease; }
+        @keyframes scanPulse { 0%{transform:scale(1)} 50%{transform:scale(1.01)} 100%{transform:scale(1)} }
+        .scanner-icon { width:32px; height:32px; border-radius:var(--radius-sm); background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:0.9rem; color:var(--text-muted); flex-shrink:0; transition:all var(--transition-fast); }
+        .scanner-bar.active   .scanner-icon { background:var(--primary-light); color:var(--primary); }
+        .scanner-bar.scanning .scanner-icon { background:rgba(34,197,94,0.15); color:var(--success); }
+        .scanner-input { flex:1; background:transparent; border:none; outline:none; font-size:var(--text-sm); color:var(--text-primary); font-family:var(--font-mono); }
+        .scanner-input::placeholder { color:var(--text-muted); font-family:var(--font); }
+        .scanner-status { font-size:var(--text-xs); color:var(--text-muted); white-space:nowrap; flex-shrink:0; }
+        .scanner-bar.active   .scanner-status { color:var(--primary); }
+        .scanner-bar.scanning .scanner-status { color:var(--success); }
+        .filter-pills { display:flex; gap:var(--space-2); flex-wrap:wrap; margin-top:var(--space-3); }
+        .filter-pill { padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all var(--transition-fast); }
+        .filter-pill:hover { background:var(--surface-2); color:var(--text-primary); }
+        .filter-pill.active { background:var(--primary-light); color:var(--primary); border-color:rgba(99,102,241,0.3); }
+        .product-grid { flex:1; overflow-y:auto; padding:var(--space-4); display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:var(--space-4); align-content:start; }
+        .product-card { background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius-xl); text-align:center; cursor:pointer; transition:all var(--transition-fast); position:relative; display:flex; flex-direction:column; }
+        .product-card:hover { border-color:var(--primary); transform:translateY(-3px); box-shadow:0 6px 20px rgba(99,102,241,0.2); }
+        .product-card.out-of-stock { opacity:0.4; cursor:not-allowed; }
+        .product-card.out-of-stock:hover { transform:none; border-color:var(--border); box-shadow:none; }
+        .product-card.just-scanned { border-color:var(--success); box-shadow:0 0 0 2px rgba(34,197,94,0.3); animation:cardFlash 0.5s ease; }
+        @keyframes cardFlash { 0%{background:rgba(34,197,94,0.15)} 100%{background:var(--surface-1)} }
+        .product-card-image { width:100%; height:100px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:var(--radius-xl) var(--radius-xl) 0 0; flex-shrink:0; }
+        .product-card-image img { width:100%; height:100%; object-fit:cover; }
+        .product-card-image .card-placeholder { font-size:1.8rem; color:var(--text-muted); opacity:0.3; }
+        .product-card-body { padding:8px 10px 10px; flex:1; display:flex; flex-direction:column; justify-content:center; min-height:52px; }
+        .product-card-name { font-size:0.72rem; font-weight:600; color:var(--text-primary); line-height:1.3; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .product-card-price { font-size:0.85rem; font-weight:700; color:var(--primary); }
+        .product-card-stock-badge { position:absolute; top:8px; right:8px; font-size:0.6rem; font-weight:700; padding:2px 7px; border-radius:var(--radius-full); background:rgba(0,0,0,0.5); color:#fff; backdrop-filter:blur(4px); }
+        .product-card-stock-badge.out { background:rgba(239,68,68,0.8); }
+        .product-card-stock-badge.low { background:rgba(245,158,11,0.8); }
+        .popular-badge { position:absolute; top:8px; left:8px; font-size:0.55rem; font-weight:700; padding:2px 7px; border-radius:var(--radius-full); background:rgba(245,158,11,0.9); color:#fff; text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:3px; z-index:1; }
+        .popular-header { grid-column:1/-1; display:flex; align-items:center; gap:var(--space-2); padding:var(--space-1) 0; margin-bottom:calc(-1 * var(--space-2)); }
+        .popular-header-text { font-size:var(--text-xs); font-weight:700; color:var(--warning); text-transform:uppercase; letter-spacing:0.08em; }
+        .popular-divider { grid-column:1/-1; height:1px; background:var(--border); margin:var(--space-1) 0; }
+        .all-products-header { grid-column:1/-1; display:flex; align-items:center; gap:var(--space-2); padding:var(--space-1) 0; margin-bottom:calc(-1 * var(--space-2)); }
+        .all-products-header-text { font-size:var(--text-xs); font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; }
+        .payment-grid { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-4); margin-bottom:var(--space-4); }
+        /* Receipt — matches Settings preview exactly */
+        .receipt-card {
+            max-width: 340px;
+            margin: 0 auto;
+            background: #fff;
+            color: #000;
+            padding: 20px 22px;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            font-family: 'Courier New', 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .receipt-header {
+            text-align: center;
+            border-bottom: 1px dashed #bbb;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+        .receipt-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 10px;
+            overflow: hidden;
+        }
+        .receipt-logo i { font-size: 32px; color: #aaa; }
+        .receipt-logo img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            filter: grayscale(1);
+        }
+        .receipt-biz {
+            font-size: 15px;
+            font-weight: 700;
+            color: #000;
+        }
+        .receipt-branch {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .receipt-meta {
+            text-align: center;
+            font-size: 11px;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        .receipt-meta .receipt-no {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-size: 12px;
+            color: #000;
+        }
+        .receipt-block {
+            border-top: 1px dashed #bbb;
+            border-bottom: 1px dashed #bbb;
+            padding: 8px 0;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #333;
+        }
+        .receipt-block .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .receipt-items {
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #bbb;
+        }
+        .receipt-items .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            color: #333;
+            font-size: 11px;
+        }
+        .receipt-totals .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+            color: #333;
+            font-size: 11px;
+        }
+        .receipt-totals .row.total {
+            font-weight: 700;
+            font-size: 13px;
+            color: #000;
+            margin-top: 6px;
+        }
+        .receipt-footer {
+            text-align: center;
+            border-top: 1px dashed #bbb;
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #444;
+            font-style: italic;
+            white-space: pre-wrap;
+        }
+        .receipt-vat {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #888;
+        }
+        /* Gold / Silver Calculator */
+        .gold-calc-panel { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-4); margin-bottom:var(--space-4); }
+        .gold-calc-panel h4 { font-size:var(--text-sm); font-weight:700; color:var(--text-primary); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--space-2); }
+        .gold-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-3); }
+        .gold-result { background:var(--primary); color:#fff; border-radius:var(--radius); padding:var(--space-3); text-align:center; margin-top:var(--space-2); }
+        .discount-row { display:flex; gap:var(--space-2); align-items:center; margin-bottom:var(--space-2); }
+        .discount-row select { width:160px; flex-shrink:0; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="pos_title">Sales (POS)</div>
+            <div class="page-breadcrumb">SmartPOS / Operations / New Sale</div>
+        </div>
+    </div>
+    <div class="topbar-right" style="display: flex; align-items: center; gap: var(--space-4);">
+        <div class="topbar-rates" style="display: flex; gap: var(--space-3); align-items: center; background: var(--surface-2); padding: 4px var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md);">
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+                <label style="font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🏆 Gold Oz ($):</label>
+                <input type="number" id="globalOzRate" value="2300" step="0.01" style="width: 90px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--text-primary); font-weight: 700; text-align: center; outline: none;" oninput="syncGlobalRates()">
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+                <label style="font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase;">🥈 Silver Oz ($):</label>
+                <input type="number" id="globalSilverOzRate" value="29" step="0.01" style="width: 70px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--text-primary); font-weight: 700; text-align: center; outline: none;" oninput="syncGlobalRates()">
+            </div>
+            <div style="display: flex; align-items: center; gap: var(--space-2);">
+                <label style="font-size: var(--text-xs); font-weight: 700; color: var(--text-muted); text-transform: uppercase;">💵 USD ↔ AED:</label>
+                <input type="number" id="globalExchangeRate" value="3.674" step="0.001" style="width: 70px; padding: 4px 8px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-1); color: var(--text-primary); font-weight: 700; text-align: center; outline: none;" oninput="syncGlobalRates()">
+            </div>
+        </div>
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+    <div class="pos-wrapper">
+
+        <!-- LEFT: Cart + Payment -->
+        <div class="pos-left">
+            <div class="pos-left-header">
+                <div class="pos-left-title" data-i18n="pos_quick_actions">Quick Actions</div>
+                <div class="quick-actions">
+                    <a href="/products.html" class="btn btn-secondary btn-sm"><i class="fas fa-box-open"></i> <span data-i18n="nav_products">Products</span></a>
+                    <a href="/dashboard.html" class="btn btn-secondary btn-sm"><i class="fas fa-th-large"></i> <span data-i18n="nav_dashboard">Dashboard</span></a>
+                    <a href="/report.html" class="btn btn-secondary btn-sm"><i class="fas fa-chart-bar"></i> <span data-i18n="nav_reports">Reports</span></a>
+                    <button class="btn btn-secondary btn-sm" onclick="Modal.open('receiptLookupModal')"><i class="fas fa-magnifying-glass"></i> <span data-i18n="pos_lookup_receipt">Lookup Receipt</span></button>
+                </div>
+            </div>
+            <div class="pos-form">
+                <table class="cart-table">
+                    <thead><tr><th>#</th><th data-i18n="nav_products" style="margin-left:0;margin-right:0">Product</th><th data-i18n="pos_th_price">Price</th><th data-i18n="pos_th_qty">Qty</th><th data-i18n="pos_th_sub">Sub</th><th></th></tr></thead>
+                    <tbody id="cartBody">
+                    <tr><td colspan="6">
+                        <div class="empty-state" style="padding:var(--space-8)">
+                            <div class="empty-state-icon"><i class="fas fa-shopping-basket"></i></div>
+                            <div class="empty-state-title" data-i18n="pos_cart_empty">Cart is empty</div>
+                            <div class="empty-state-text" data-i18n="pos_cart_scan">Scan a barcode or click a product to add it.</div>
+                        </div>
+                    </td></tr>
+                    </tbody>
+                </table>
+                <hr class="divider">
+                <div class="form-group" style="margin-bottom:var(--space-4)">
+                    <label class="form-label" data-i18n="pos_customer">Customer (Loyalty Program)</label>
+                    <select id="customerId" class="form-control" onchange="toggleWalkInName()">
+                        <option value="" data-i18n="pos_walkin">— Walk-in Customer —</option>
+                    </select>
+                </div>
+                <div class="form-group" id="walkInNameGroup" style="margin-bottom:var(--space-4)">
+                    <label class="form-label">Walk-in Customer Name (Optional)</label>
+                    <input type="text" id="walkInCustomerName" class="form-control" placeholder="Enter customer name...">
+                </div>
+                <!-- GOLD / SILVER CALCULATOR -->
+                <div class="gold-calc-panel" id="goldCalcPanel" style="display:none">
+                    <h4 id="calcTitle"><i class="fas fa-calculator"></i> Precious Metal Calculator</h4>
+                    
+                    <!-- BULLION SECTION -->
+                    <div id="bullionCalcSection">
+                        <div class="gold-row">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Metal</label>
+                                <select id="metalType" class="form-control" onchange="onMetalTypeChange()">
+                                    <option value="gold">Gold</option>
+                                    <option value="silver">Silver</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Purity (e.g. 995.0, 750)</label>
+                                <input type="number" id="metalPurity" class="form-control" placeholder="995.0" step="0.1" oninput="calcGoldPrice()">
+                            </div>
+                        </div>
+                        <div class="gold-row">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Weight (grams)</label>
+                                <input type="number" id="metalWeight" class="form-control" placeholder="23.56" step="0.01" oninput="calcGoldPrice()">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label" id="ozRateLabel">Gold Oz Rate (USD $)</label>
+                                <input type="number" id="ozRate" class="form-control" placeholder="4688" step="0.01" oninput="calcGoldPrice()">
+                            </div>
+                        </div>
+                        <div class="gold-row">
+                            <div class="form-group" style="margin-bottom:0; grid-column: 1 / span 2;">
+                                <label class="form-label">USD ↔ AED Exchange Rate</label>
+                                <input type="number" id="usdExchangeRate" class="form-control" value="3.674" step="0.001" oninput="calcGoldPrice()">
+                            </div>
+                        </div>
+                        <div id="goldResult" class="gold-result" style="display:none">
+                            <div style="font-size:var(--text-xs);opacity:0.85" id="goldFormula"></div>
+                            <div style="font-size:var(--text-xl);font-weight:700;margin-top:4px" id="goldPriceAED"></div>
+                            <div style="font-size:var(--text-xs);opacity:0.8;margin-top:2px" id="goldPriceUSD"></div>
+                        </div>
+                        <!-- DISCOUNT -->
+                        <div style="margin-top:var(--space-4);border-top:1px solid var(--border);padding-top:var(--space-3)">
+                            <label class="form-label">Discount</label>
+                            <div class="discount-row">
+                                <select id="discountType" class="form-control" onchange="calcGoldPrice()">
+                                    <option value="none">No Discount</option>
+                                    <option value="percent">% Percentage</option>
+                                    <option value="per_oz">Per Oz (USD $)</option>
+                                    <option value="flat">Flat Amount (AED)</option>
+                                </select>
+                                <input type="number" id="discountValue" class="form-control" placeholder="0" step="0.01" oninput="calcGoldPrice()" style="flex:1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- JEWELLERY SECTION -->
+                    <div id="jewelleryCalcSection" style="display:none">
+                        <!-- Weight mode toggle -->
+                        <div style="display:flex;align-items:center;gap:6px;margin-bottom:var(--space-3)">
+                            <span style="font-size:var(--text-xs);color:var(--text-muted);white-space:nowrap">Weight is:</span>
+                            <button id="jewelModePerPc" onclick="setJewelMode('perpiece')"
+                                style="padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--primary);color:#fff;border:1px solid var(--primary)">
+                                Per piece
+                            </button>
+                            <button id="jewelModeTotalSet" onclick="setJewelMode('totalset')"
+                                style="padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)">
+                                Total set
+                            </button>
+                        </div>
+                        <div class="gold-row">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label" id="jewelWeightLabel">Weight (grams)</label>
+                                <input type="number" id="jewelWeight" class="form-control" placeholder="2.2" step="0.01" oninput="calcJewelPrice()">
+                            </div>
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Price per Gram</label>
+                                <div style="display:flex; gap:4px">
+                                    <input type="number" id="jewelPricePerGram" class="form-control" placeholder="120" step="0.01" oninput="calcJewelPrice()">
+                                    <select id="jewelCurrency" class="form-control" onchange="calcJewelPrice()" style="width:75px; padding:0 4px">
+                                        <option value="USD">USD ($)</option>
+                                        <option value="AED">AED</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Jewellery Discount -->
+                        <div class="gold-row" style="margin-top:var(--space-2)">
+                            <div class="form-group" style="margin-bottom:0">
+                                <label class="form-label">Discount</label>
+                                <select id="jewelDiscType" class="form-control" onchange="onJewelDiscTypeChange()">
+                                    <option value="none">No Discount</option>
+                                    <option value="percent">% Percentage</option>
+                                    <option value="pergram">Per Gram (AED)</option>
+                                    <option value="flat">Flat Amount (AED)</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="margin-bottom:0;visibility:hidden" id="jewelDiscValueGroup">
+                                <label class="form-label" id="jewelDiscLabel">Value</label>
+                                <input type="number" id="jewelDiscValue" class="form-control" placeholder="0" step="0.01" min="0" oninput="calcJewelPrice()">
+                            </div>
+                        </div>
+                        <div id="jewelResult" class="gold-result" style="display:none; margin-top:var(--space-3)">
+                            <div style="font-size:var(--text-xs);opacity:0.85" id="jewelFormula"></div>
+                            <div style="font-size:var(--text-xl);font-weight:700;margin-top:4px" id="jewelPriceAED"></div>
+                            <div style="font-size:var(--text-xs);opacity:0.8;margin-top:2px" id="jewelPriceUSD"></div>
+                            <div id="jewelDiscountLine" style="display:none;margin-top:4px;font-size:var(--text-xs);font-weight:600;color:#ef4444"></div>
+                            <div id="jewelFinalLine"    style="display:none;margin-top:2px;font-size:var(--text-sm);font-weight:700;color:var(--success)"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="payment-grid" style="grid-template-columns: repeat(2, 1fr); gap: var(--space-3); margin-top: var(--space-4);">
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="pos_payment">Payment Type</label>
+                        <select id="paymentType" class="form-control">
+                            <option data-i18n="pos_cash">Cash</option><option data-i18n="pos_card">Card</option><option data-i18n="pos_bank">Bank Transfer</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="pos_received">Received (AED)</label>
+                        <input type="number" id="receiveAmt" class="form-control" placeholder="0.00" oninput="calcChange()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="color: #0a7a2f; font-weight: 600;">Change (AED)</label>
+                        <input type="number" id="changeAmt" class="form-control" placeholder="0.00" readonly style="color: #0a7a2f; font-weight: bold; background: var(--surface-2);">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" style="color: var(--danger); font-weight: 600;">Due Amount (AED)</label>
+                        <input type="number" id="dueAmt" class="form-control" placeholder="0.00" readonly style="color: var(--danger); font-weight: bold; background: var(--surface-2);">
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label class="form-label" data-i18n="pos_note">Note</label>
+                        <input type="text" id="saleNote" class="form-control" placeholder="Optional..." data-i18n="pos_note_placeholder">
+                    </div>
+                </div>
+                <div style="margin-bottom: var(--space-3); display: flex; align-items: center; gap: var(--space-2); background: var(--surface-2); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-md);">
+                    <input type="checkbox" id="vatToggle" checked onchange="calcTotals()" style="width: 16px; height: 16px; cursor: pointer;">
+                    <label for="vatToggle" style="font-size: var(--text-sm); font-weight: 600; cursor: pointer; color: var(--text-primary);">Apply 5% VAT (Bullion Tax)</label>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-row"><span class="s-label" data-i18n="pos_items_in_cart">Items in cart</span><span class="s-val" id="cartCount">0</span></div>
+                    <div class="summary-row"><span class="s-label" data-i18n="pos_subtotal">Subtotal</span><span class="s-val" id="subTotal">AED 0.00</span></div>
+                    <div class="summary-row" id="discountRow" style="display:none"><span class="s-label" style="color:var(--danger)">Discount</span><span class="s-val" style="color:var(--danger)" id="discountAmt">- AED 0.00</span></div>
+                    <div class="summary-row" id="vatRow"><span class="s-label" data-i18n="pos_vat">VAT (5%)</span><span class="s-val" id="vatAmt">AED 0.00</span></div>
+                    <div class="summary-row summary-total"><span class="s-label" data-i18n="pos_total_payable">Total Payable</span><span class="s-val" id="totalAmt">AED 0.00</span></div>
+                </div>
+                <div style="display: flex; gap: var(--space-3); margin-bottom: var(--space-2);">
+                    <button class="btn btn-secondary" id="addToCartBtn" onclick="finalizeActiveItem()" style="flex: 1; padding: var(--space-4); font-size: var(--text-md); font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 0; background: var(--surface-3); border: 1px solid var(--border); color: var(--text-primary); transition: all var(--transition-fast);" disabled>
+                        <i class="fas fa-cart-plus"></i> Add to Cart
+                    </button>
+                    <button class="btn-complete-sale" id="completeSaleBtn" onclick="submitSale()" style="flex: 1.2; margin-top: 0;">
+                        <i class="fas fa-check-circle"></i> &nbsp;<span data-i18n="btn_complete_sale">Complete Sale</span>
+                    </button>
+                </div>
+                <button class="btn-cancel-sale" onclick="clearCart()"><i class="fas fa-times"></i> <span data-i18n="btn_cancel_sale">Cancel Sale</span></button>
+            </div>
+        </div>
+
+        <!-- RIGHT: Product Grid + Scanner -->
+        <div class="pos-right">
+            <div class="pos-search-bar">
+                <div class="scanner-bar" id="scannerBar">
+                    <div class="scanner-icon" id="scannerIcon"><i class="fas fa-barcode"></i></div>
+                    <input type="text" class="scanner-input" id="barcodeInput"
+                           placeholder="Scan barcode or type to search products..."
+                           data-i18n="pos_search_products"
+                           autocomplete="off" autocorrect="off" spellcheck="false">
+                    <span class="scanner-status" id="scannerStatus">Ready</span>
+                </div>
+                <div class="filter-pills" id="categoryPills">
+                    <button class="filter-pill active" onclick="filterByCategory('all',this)">All</button>
+                </div>
+            </div>
+            <div class="product-grid" id="productsGrid">
+                <div style="grid-column:1/-1">
+                    <div class="empty-state"><div class="skeleton" style="width:200px;height:16px"></div></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- RECEIPT MODAL -->
+<div class="modal-overlay" id="receiptModal">
+    <div class="modal" style="max-width:380px; border-radius:var(--radius-lg); overflow:hidden; padding:0; background:var(--surface-1)">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:var(--space-3) var(--space-4); background:var(--surface-2); border-bottom:1px solid var(--border)">
+            <span style="font-weight:600; font-size:var(--text-sm); color:var(--text-primary)">
+                <i class="fas fa-receipt" style="color:var(--primary); margin-right:6px"></i>
+                <span data-i18n="pos_receipt_title">Receipt</span>
+            </span>
+            <button class="modal-close" onclick="Modal.close('receiptModal')" aria-label="Close" title="Close" style="background:none; border:none; color:var(--text-secondary); cursor:pointer; font-size:16px; padding:4px 8px; border-radius:var(--radius-sm)">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <!-- Scrollable receipt area (white, matches Settings preview) -->
+        <div id="receiptContent" style="max-height:60vh; overflow-y:auto; background:var(--surface-2); padding:var(--space-4)">
+            <div class="receipt-card">
+                <div class="receipt-header">
+                    <div class="receipt-logo" id="receiptLogo"><i class="fas fa-store"></i></div>
+                    <div class="receipt-biz" id="receiptBizName">Business Name</div>
+                    <div class="receipt-branch" id="receiptBranchName">Branch Name</div>
+                </div>
+                <div id="receiptItems"></div>
+            </div>
+        </div>
+        <!-- Button row -->
+        <div style="background:var(--surface-1); border-top:1px solid var(--border); padding:var(--space-3) var(--space-4); display:flex; gap:var(--space-2); flex-wrap:wrap">
+            <button class="btn btn-secondary flex-1" onclick="Modal.close('receiptModal');clearCart()" style="background:var(--surface-2);color:var(--text-primary);border-color:var(--border)"><i class="fas fa-plus"></i> <span data-i18n="btn_new_sale">New Sale</span></button>
+            <button class="btn btn-primary flex-1" id="whatsappReceiptBtn" style="background:#25D366;border-color:#25D366;color:#fff" onclick="shareReceiptWhatsApp()">
+                <i class="fab fa-whatsapp"></i> <span data-i18n="btn_share">Share</span>
+            </button>
+            <button class="btn btn-ghost flex-1" onclick="endSale()" style="background:var(--surface-2);color:var(--text-primary);border-color:var(--border)" title="End sale and return to POS">
+                <i class="fas fa-check"></i> <span data-i18n="btn_done">Done</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SUPPLY DEDUCTION MODAL -->
+<div class="modal-overlay" id="supplyDeductionModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-boxes-stacked" style="color:var(--primary);margin-right:8px"></i><span data-i18n="pos_deduction_title">Record Supplies Used</span></span>
+        </div>
+        <div class="modal-body">
+            <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);font-size:var(--text-xs);color:var(--text-secondary)" data-i18n="pos_deduction_info">
+                <i class="fas fa-info-circle" style="color:var(--primary);margin-right:6px"></i>
+                Based on your supply templates, these supplies were likely used for this sale. Adjust quantities if needed, then confirm.
+            </div>
+            <div id="deductionBody"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="skipDeductions()" data-i18n="pos_btn_skip">Skip</button>
+            <button class="btn btn-primary" onclick="confirmDeductions()"><i class="fas fa-check"></i> <span data-i18n="pos_btn_confirm_supplies">Confirm &amp; Update Supplies</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- RECEIPT LOOKUP MODAL -->
+<div class="modal-overlay" id="receiptLookupModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-magnifying-glass" style="color:var(--primary);margin-right:8px"></i><span data-i18n="pos_lookup_title">Lookup Receipt</span></span>
+            <button class="modal-close" onclick="Modal.close('receiptLookupModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label" data-i18n="pos_lookup_lbl">Receipt Number</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-receipt input-icon"></i>
+                    <input type="text" id="receiptLookupInput" class="form-control"
+                           placeholder="e.g. DXB-2026-00001"
+                           data-i18n="pos_lookup_placeholder"
+                           style="font-family:var(--font-mono);letter-spacing:0.05em"
+                           onkeydown="if(event.key==='Enter')lookupReceipt()">
+                </div>
+            </div>
+            <div id="receiptLookupResult" style="display:none;margin-top:var(--space-4)"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('receiptLookupModal')" data-i18n="btn_cancel">Close</button>
+            <button class="btn btn-primary" onclick="lookupReceipt()"><i class="fas fa-search"></i> <span data-i18n="pos_btn_find">Find Receipt</span></button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const PRODUCTS_API = '/api/products';
+    const SALES_API    = '/api/sales';
+    const TEMPLATE_API = '/api/supply-templates';
+    const BRANCH_API   = '/api/branches';
+
+    const branchId   = Auth.getBranchId();
+    const branchName = Auth.getBranchName();
+
+    let allProducts     = [];
+    let branchInvMap    = {};
+    let cart             = [];
+    let currentCategory = 'all';
+    let saleInProgress  = false;
+    let topSellerIds    = new Set();
+
+    // ── RECEIPT LOOKUP ────────────────────────────────────────────
+    async function lookupReceipt() {
+        const input = document.getElementById('receiptLookupInput').value.trim().toUpperCase();
+        const result = document.getElementById('receiptLookupResult');
+        if (!input) { Toast.error('Enter a receipt number.'); return; }
+        result.style.display = 'none';
+        try {
+            const r = await API.get(`${SALES_API}/receipt/${encodeURIComponent(input)}`);
+            const items = r.items || [];
+            const itemRows = items.map(item =>
+                `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:var(--text-xs)">
+                    <div><span class="text-primary font-semibold">${item.productName}</span><span class="text-muted"> × ${item.quantitySold}</span></div>
+                    <span class="text-primary font-medium">${Format.currency(item.totalAmount)}</span>
+                </div>`).join('');
+            result.style.display = 'block';
+            result.innerHTML = `
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
+                    <div style="background:var(--primary);padding:var(--space-3) var(--space-4);display:flex;align-items:center;justify-content:space-between">
+                        <span class="font-bold" style="color:#fff;font-family:var(--font-mono);font-size:var(--text-sm)">${r.receiptNumber || input}</span>
+                        <span class="text-xs" style="color:rgba(255,255,255,0.7)">${Format.datetime(r.createdAt)}</span>
+                    </div>
+                    <div style="padding:var(--space-4)">
+                        <div class="grid-2" style="gap:var(--space-3);margin-bottom:var(--space-4)">
+                            <div><div class="text-xs text-muted">Branch</div><div class="text-sm font-semibold text-primary">${r.branchName || '—'}</div></div>
+                            <div><div class="text-xs text-muted">Cashier</div><div class="text-sm font-semibold text-primary">${r.cashierName || '—'}</div></div>
+                            <div><div class="text-xs text-muted">Payment</div><div class="text-sm font-semibold text-primary">${r.paymentMethod || '—'}</div></div>
+                            <div><div class="text-xs text-muted">Items</div><div class="text-sm font-semibold text-primary">${items.length} product${items.length !== 1 ? 's' : ''}</div></div>
+                        </div>
+                        <div style="margin-bottom:var(--space-3)">
+                            <div class="text-xs text-muted font-semibold" style="margin-bottom:var(--space-2);text-transform:uppercase;letter-spacing:0.06em">Items</div>
+                            ${itemRows}
+                        </div>
+                        <div style="border-top:1px dashed var(--border);padding-top:var(--space-3);margin-top:var(--space-2)">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="text-xs text-muted">Subtotal</span><span class="text-xs text-secondary">${Format.currency(r.subtotal)}</span></div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span class="text-xs text-muted">VAT (5%)</span><span class="text-xs text-secondary">${Format.currency(r.vatAmount)}</span></div>
+                            <div style="display:flex;justify-content:space-between;margin-top:var(--space-2);padding-top:var(--space-2);border-top:1px solid var(--border)">
+                                <span class="text-sm font-bold text-primary">Total</span>
+                                <span class="text-sm font-bold" style="color:var(--primary)">${Format.currency(r.totalAmount)}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+        } catch(e) {
+            result.style.display = 'block';
+            result.innerHTML = `<div class="alert alert-error"><i class="fas fa-exclamation-circle"></i>&nbsp; Receipt not found. Check the number and try again.</div>`;
+        }
+    }
+
+    // ── BARCODE SCANNER ───────────────────────────────────────────
+    const Scanner = {
+        lastKeyTime:0, typingTimer:null, SCAN_SPEED_MS:50, MIN_LENGTH:3,
+        init() {
+            const input = document.getElementById('barcodeInput');
+            document.addEventListener('keydown', e => {
+                if (e.target!==input && !e.target.closest('.modal-overlay') && !['INPUT','SELECT','TEXTAREA'].includes(e.target.tagName)) input.focus();
+            });
+            input.addEventListener('keydown', e => {
+                if (e.key==='Enter') { e.preventDefault(); const val=input.value.trim(); if (val.length>=this.MIN_LENGTH) this.processBarcode(val); input.value=''; clearTimeout(this.typingTimer); this.setStatus('ready'); }
+            });
+            input.addEventListener('input', () => {
+                const now=Date.now(), val=input.value, gap=now-this.lastKeyTime; this.lastKeyTime=now;
+                if (gap<this.SCAN_SPEED_MS && val.length>1) {
+                    this.setStatus('scanning'); clearTimeout(this.typingTimer);
+                    this.typingTimer=setTimeout(()=>{ const t=input.value.trim(); if (t.length>=this.MIN_LENGTH && !t.includes(' ') && t.length>=6) { this.processBarcode(t); input.value=''; this.setStatus('ready'); } },100);
+                } else { this.setStatus('searching'); clearTimeout(this.typingTimer); this.typingTimer=setTimeout(()=>filterProducts(),200); }
+            });
+            input.addEventListener('focus',()=>{ document.getElementById('scannerBar').classList.add('active'); this.setStatus('ready'); });
+            input.addEventListener('blur',()=>{ if (!input.value) { document.getElementById('scannerBar').classList.remove('active'); this.setStatus('ready'); } });
+        },
+        setStatus(mode) {
+            const bar=document.getElementById('scannerBar'), icon=document.getElementById('scannerIcon'), status=document.getElementById('scannerStatus');
+            bar.classList.remove('active','scanning');
+            if (mode==='scanning') { bar.classList.add('scanning'); icon.innerHTML='<i class="fas fa-circle-notch fa-spin"></i>'; status.textContent='Scanning...'; }
+            else if (mode==='searching') { bar.classList.add('active'); icon.innerHTML='<i class="fas fa-search"></i>'; status.textContent='Searching'; }
+            else if (mode==='found') { bar.classList.add('scanning'); icon.innerHTML='<i class="fas fa-check"></i>'; status.textContent='Added!'; setTimeout(()=>this.setStatus('ready'),1000); }
+            else if (mode==='notfound') { icon.innerHTML='<i class="fas fa-times"></i>'; status.textContent='Not found'; setTimeout(()=>this.setStatus('ready'),1500); }
+            else { icon.innerHTML='<i class="fas fa-barcode"></i>'; status.textContent='Ready'; }
+        },
+        async processBarcode(barcode) {
+            this.setStatus('scanning');
+            const byBarcode = allProducts.find(p => p.barcode && p.barcode.toLowerCase() === barcode.toLowerCase());
+            if (byBarcode) { this.handleFound(byBarcode); return; }
+            try {
+                const product = await API.get(`${PRODUCTS_API}/barcode/${encodeURIComponent(barcode)}`);
+                const idx = allProducts.findIndex(p => p.id===product.id);
+                if (idx>=0) allProducts[idx]=product; else allProducts.push(product);
+                this.handleFound(product);
+            } catch(err) { this.setStatus('notfound'); Toast.error(`Barcode not found: ${barcode}`); }
+        },
+        handleFound(product) {
+            const stock = getEffectiveStock(product);
+            if (stock===0) { this.setStatus('notfound'); Toast.warning(`${product.name} is out of stock`+(branchName ? ` at ${branchName}` : '')+'.'); return; }
+            addToCart(product.id); this.setStatus('found');
+            document.querySelectorAll('.product-card').forEach(card=>{ if (card.dataset.productId==product.id) { card.classList.add('just-scanned'); setTimeout(()=>card.classList.remove('just-scanned'),600); } });
+        }
+    };
+
+    // ── PRODUCT GRID ──────────────────────────────────────────────
+    const catIcons = { beverages:'fa-wine-bottle', electronics:'fa-microchip', food:'fa-utensils', clothing:'fa-tshirt', accessories:'fa-gem', default:'fa-box-open' };
+    function getCatIcon(cat) { return catIcons[cat.toLowerCase()]||catIcons.default; }
+
+    function getEffectiveStock(product) {
+        return branchId ? (branchInvMap[product.id] ?? 0) : product.quantity;
+    }
+
+    // ── TOP SELLERS ───────────────────────────────────────────────
+    async function loadTopSellers() {
+        try {
+            const report = await API.get('/api/sales/report');
+            const top = report.topSellingProducts || [];
+            topSellerIds = new Set(
+                top.slice(0, 5).map(p => {
+                    const match = allProducts.find(ap => ap.name === p.productName);
+                    return match ? match.id : null;
+                }).filter(id => id !== null)
+            );
+        } catch(e) {
+            topSellerIds = new Set();
+        }
+    }
+
+    // ── LOAD PRODUCTS ─────────────────────────────────────────────
+    async function loadProducts() {
+        try {
+            allProducts = await API.get(PRODUCTS_API);
+            if (branchId) {
+                try {
+                    const inv = await API.get(`${BRANCH_API}/${branchId}/inventory`);
+                    branchInvMap = {};
+                    inv.forEach(i => branchInvMap[i.productId] = i.quantity);
+                } catch(e) { console.warn('Could not load branch inventory:', e); }
+            }
+            await loadTopSellers();
+            buildCategoryPills();
+            renderProducts(allProducts);
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch(e) { Toast.error('Failed to load products.'); }
+    }
+
+    function buildCategoryPills() {
+        const cats = [...new Set(allProducts.map(p => p.category))];
+        const container = document.getElementById('categoryPills');
+        container.innerHTML = `<button class="filter-pill active" onclick="filterByCategory('all',this)">All</button>`;
+        cats.forEach(c => container.innerHTML += `<button class="filter-pill" onclick="filterByCategory('${c}',this)">${c}</button>`);
+    }
+
+    // ── BUILD PRODUCT CARD ────────────────────────────────────────
+    function buildProductCard(p, isPopular) {
+        const stock = getEffectiveStock(p);
+        const isOut = stock === 0;
+        const isLow = stock > 0 && stock < 10;
+
+        let stockBadgeHtml = '';
+        if (isOut) stockBadgeHtml = '<span class="product-card-stock-badge out">Out</span>';
+        else if (isLow) stockBadgeHtml = `<span class="product-card-stock-badge low">${stock}</span>`;
+        else stockBadgeHtml = `<span class="product-card-stock-badge">${stock}</span>`;
+
+        const popularBadge = isPopular ? '<span class="popular-badge"><i class="fas fa-fire" style="font-size:0.5rem"></i> Popular</span>' : '';
+        const icon = getCatIcon(p.category);
+
+        return `
+            <div class="product-card ${isOut ? 'out-of-stock' : ''}"
+                 data-product-id="${p.id}"
+                 onclick="${isOut ? "Toast.warning('This product is out of stock.')" : `addToCart(${p.id})`}">
+                ${popularBadge}
+                ${stockBadgeHtml}
+                <div class="product-card-image">
+                    ${p.imagePath ? `<img src="${p.imagePath}" alt="${p.name}">` : `<i class="fas ${icon} card-placeholder"></i>`}
+                </div>
+                <div class="product-card-body">
+                    <div class="product-card-name" title="${p.name}">${p.name}</div>
+                    <div class="product-card-price">${Format.currency(p.price)}</div>
+                </div>
+            </div>`;
+    }
+
+    // ── RENDER PRODUCTS ───────────────────────────────────────────
+    function renderProducts(list) {
+        const grid = document.getElementById('productsGrid');
+        if (!list.length) {
+            grid.innerHTML = `<div style="grid-column:1/-1"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-box-open"></i></div><div class="empty-state-title">No products found</div><div class="empty-state-text">Try a different search or category.</div></div></div>`;
+            return;
+        }
+
+        const popular = list.filter(p => topSellerIds.has(p.id));
+        const regular = list.filter(p => !topSellerIds.has(p.id));
+        let html = '';
+
+        if (popular.length > 0 && currentCategory === 'all') {
+            html += `<div class="popular-header"><i class="fas fa-fire" style="color:var(--warning);font-size:0.75rem"></i><span class="popular-header-text">Popular</span></div>`;
+            html += popular.map(p => buildProductCard(p, true)).join('');
+            html += '<div class="popular-divider"></div>';
+            html += `<div class="all-products-header"><i class="fas fa-box-open" style="color:var(--text-muted);font-size:0.7rem"></i><span class="all-products-header-text">All Products</span></div>`;
+        }
+
+        const regularList = (popular.length > 0 && currentCategory === 'all') ? regular : list;
+        html += regularList.map(p => buildProductCard(p, topSellerIds.has(p.id))).join('');
+        grid.innerHTML = html;
+    }
+
+    function filterByCategory(cat, btn) {
+        currentCategory = cat;
+        document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        filterProducts();
+    }
+
+    function filterProducts() {
+        const q = document.getElementById('barcodeInput').value.toLowerCase();
+        let list = allProducts;
+        if (currentCategory !== 'all') list = list.filter(p => p.category === currentCategory);
+        if (q) list = list.filter(p => p.name.toLowerCase().includes(q) || (p.barcode||'').toLowerCase().includes(q));
+        renderProducts(list);
+    }
+
+    // ── CART ──────────────────────────────────────────────────────
+    let activeCartItemId = null;
+    let jewelMode = 'perpiece'; // 'perpiece' | 'totalset'
+
+    function updateAddToCartBtnState() {
+        const btn = document.getElementById('addToCartBtn');
+        if (btn) {
+            if (activeCartItemId !== null) {
+                btn.disabled = false;
+                btn.classList.remove('disabled');
+                btn.style.opacity = '1';
+                btn.style.cursor = 'pointer';
+            } else {
+                btn.disabled = true;
+                btn.classList.add('disabled');
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            }
+        }
+    }
+
+    function finalizeActiveItem() {
+        if (activeCartItemId === null) return;
+        const item = cart.find(x => x.cartItemId === activeCartItemId);
+        if (!item) return;
+        
+        const cat = (item.category || '').toLowerCase();
+        if (item.unit === 'PCS') {
+            calcJewelPrice();
+        } else {
+            calcGoldPrice();
+        }
+        
+        Toast.success(`Calculated price locked for ${item.name}`);
+        setActiveCartItem(null);
+    }
+
+    function addToCart(id) {
+        const p = allProducts.find(x => x.id===id); if (!p) return;
+        const stock = getEffectiveStock(p);
+        
+        const isGoldOrSilver = (p.category || '').toLowerCase().includes('gold') || 
+                               (p.category || '').toLowerCase().includes('silver') || 
+                               (p.category || '').toLowerCase().includes('jewel') || 
+                               (p.category || '').toLowerCase().includes('ring');
+        const defaultUnit = p.unitType || (isGoldOrSilver ? 'GRAM' : 'PCS');
+        
+        // For gold/silver items, we ALWAYS create a new entry so they can be calculated separately.
+        // For non-gold/silver items, we look for an existing cart item with the same product ID.
+        let existing = null;
+        if (!isGoldOrSilver) {
+            existing = cart.find(x => x.id === id);
+        }
+        
+        let targetCartItemId;
+        
+        if (existing) { 
+            if (existing.qty >= stock) { Toast.warning('Not enough stock available.'); return; } 
+            existing.qty++; 
+            targetCartItemId = existing.cartItemId;
+        } else { 
+            const newCartItemId = 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+            cart.push({
+                ...p, 
+                cartItemId: newCartItemId,
+                qty: 1, 
+                _stock: stock, 
+                unit: defaultUnit,
+                discountType: 'none',
+                discountValue: 0,
+                calculatedDiscount: 0,
+                originalDiscount: 0,
+                calculatedWeight: 1
+            }); 
+            targetCartItemId = newCartItemId;
+        }
+        
+        renderCart(); 
+        
+        if (isGoldOrSilver) {
+            setActiveCartItem(targetCartItemId);
+        } else {
+            setActiveCartItem(null);
+            calcTotals();
+        }
+        
+        Toast.success(`${p.name} added to cart`);
+    }
+
+    function removeFromCart(cartItemId) { 
+        if (cartItemId === activeCartItemId) {
+            setActiveCartItem(null);
+        }
+        cart = cart.filter(x => x.cartItemId !== cartItemId); 
+        renderCart(); 
+        calcTotals(); 
+    }
+
+    function updateQty(cartItemId, val) {
+        const item = cart.find(x => x.cartItemId === cartItemId);
+        if (!item) return;
+        const stock = getEffectiveStock(allProducts.find(x => x.id === item.id) || {quantity:0});
+        const newQty = Math.max(0.01, parseFloat(val)||0.01);
+        if (newQty > stock) { Toast.warning('Exceeds available stock.'); item.qty = stock; } else { item.qty = newQty; }
+        
+        // Scale discount proportionally if the gram quantity/weight changes in the cart
+        if (item.unit === 'GRAM' && item.calculatedWeight) {
+            const ratio = item.qty / item.calculatedWeight;
+            item.calculatedDiscount = (item.originalDiscount || 0) * ratio;
+        }
+        
+        // If it's the active item, update the calculator's weight input to sync!
+        if (cartItemId === activeCartItemId) {
+            if (item.unit === 'PCS') {
+                document.getElementById('jewelWeight').value = item.qty;
+            } else {
+                document.getElementById('metalWeight').value = item.qty;
+            }
+            // Force formula recalculation live
+            const purity = parseFloat(document.getElementById('metalPurity').value) || 995;
+            const ozRate = parseFloat(document.getElementById('ozRate').value) || 0;
+            const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+            const TROY_OZ  = 31.1035;
+            const weightOz    = item.qty / TROY_OZ;
+            const purityFactor = purity / 1000;
+            const priceUSD    = weightOz * purityFactor * ozRate;
+            
+            const discountType = document.getElementById('discountType').value;
+            const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+            let discountUSD = 0;
+            if (discountType === 'percent') {
+                discountUSD = priceUSD * (discountVal / 100);
+            } else if (discountType === 'per_oz') {
+                discountUSD = weightOz * discountVal;
+            } else if (discountType === 'flat') {
+                discountUSD = discountVal / exchangeRate;
+            }
+            item.calculatedDiscount = discountUSD * exchangeRate;
+        }
+        
+        renderCart(); calcTotals();
+    }
+
+    function updateUnit(cartItemId, unit) {
+        const item = cart.find(x => x.cartItemId === cartItemId);
+        if (item) {
+            item.unit = unit;
+            renderCart();
+            if (cartItemId === activeCartItemId) {
+                setActiveCartItem(cartItemId);
+            } else {
+                calcTotals();
+            }
+        }
+    }
+
+    function clearCart() {
+        cart = []; 
+        setActiveCartItem(null);
+        renderCart(); 
+        calcTotals();
+        document.getElementById('receiveAmt').value = '';
+        document.getElementById('changeAmt').value  = '';
+        document.getElementById('dueAmt').value     = '';
+        document.getElementById('customerId').value = '';
+        document.getElementById('walkInCustomerName').value = '';
+        toggleWalkInName();
+    }
+
+    function renderCart() {
+        const tbody = document.getElementById('cartBody');
+        if (!cart.length) {
+            tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state" style="padding:var(--space-8)"><div class="empty-state-icon"><i class="fas fa-shopping-basket"></i></div><div class="empty-state-title">Cart is empty</div><div class="empty-state-text">Scan a barcode or click a product to add it.</div></div></td></tr>`;
+            return;
+        }
+        tbody.innerHTML = cart.map((item,i) => {
+            const isActive = item.cartItemId === activeCartItemId;
+            const highlightStyle = isActive ? `background: rgba(10, 122, 47, 0.08); border-left: 3px solid var(--success); cursor: pointer;` : `cursor: pointer;`;
+            return `
+            <tr style="${highlightStyle}" onclick="setActiveCartItem('${item.cartItemId}')">
+                <td class="text-muted">${i+1}</td>
+                <td class="cell-primary" style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                    ${item.name}
+                    ${item.unit === 'GRAM' ? ' <span style="font-size: 10px; padding: 2px 4px; background: var(--success); color: white; border-radius: 3px; font-weight: bold; margin-left: 4px;">g</span>' : ''}
+                    ${item.unit === 'PCS' ? ' <span style="font-size: 10px; padding: 2px 4px; background: var(--info); color: white; border-radius: 3px; font-weight: bold; margin-left: 4px;">pcs</span>' : ''}
+                </td>
+                <td class="text-secondary">${Format.currency(item.price)}</td>
+                <td style="white-space: nowrap; display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation()">
+                    <input class="qty-input" type="number" step="0.01" min="0.01" max="${getEffectiveStock(item)}" value="${item.qty}" onchange="updateQty('${item.cartItemId}',this.value)" style="width: 70px;">
+                    <select onchange="updateUnit('${item.cartItemId}',this.value)" style="padding: 2px 4px; font-size: var(--text-xs); border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); color: var(--text-primary); cursor: pointer;">
+                        <option value="GRAM" ${item.unit === 'GRAM' ? 'selected' : ''}>g</option>
+                        <option value="PCS" ${item.unit === 'PCS' ? 'selected' : ''}>pcs</option>
+                    </select>
+                </td>
+                <td class="font-medium text-primary">${Format.currency(item.price*item.qty)}</td>
+                <td onclick="event.stopPropagation()"><button class="btn-remove" onclick="removeFromCart('${item.cartItemId}')"><i class="fas fa-times"></i></button></td>
+            </tr>`;
+        }).join('');
+    }
+
+    function setActiveCartItem(cartItemId) {
+        const item = cart.find(x => x.cartItemId === cartItemId);
+        const panel = document.getElementById('goldCalcPanel');
+        if (!item) {
+            activeCartItemId = null;
+            if (panel) panel.style.display = 'none';
+            document.getElementById('calcTitle').innerHTML = `<i class="fas fa-calculator"></i> Precious Metal Calculator`;
+            document.getElementById('bullionCalcSection').style.display = 'block';
+            document.getElementById('jewelleryCalcSection').style.display = 'none';
+            
+            // Clean inputs and reset jewel mode + discount
+            document.getElementById('goldResult').style.display = 'none';
+            document.getElementById('jewelResult').style.display = 'none';
+            document.getElementById('metalWeight').value = '';
+            document.getElementById('jewelWeight').value = '';
+            document.getElementById('jewelPricePerGram').value = '';
+            document.getElementById('jewelDiscType').value = 'none';
+            document.getElementById('jewelDiscValue').value = '';
+            document.getElementById('jewelDiscValueGroup').style.visibility = 'hidden';
+            jewelMode = 'perpiece';
+            setJewelMode('perpiece');
+
+            updateAddToCartBtnState();
+            renderCart();
+            return;
+        }
+        
+        const cat = (item.category || '').toLowerCase();
+        if (!cat.includes('gold') && !cat.includes('silver') && !cat.includes('jewel') && !cat.includes('ring') && item.price !== 0) {
+            if (panel) panel.style.display = 'none';
+            return;
+        }
+        
+        activeCartItemId = cartItemId;
+        if (panel) panel.style.display = 'block';
+        
+        if (item.unit === 'PCS') {
+            // Show Jewellery Calculator
+            document.getElementById('bullionCalcSection').style.display = 'none';
+            document.getElementById('jewelleryCalcSection').style.display = 'block';
+            document.getElementById('calcTitle').innerHTML = `<i class="fas fa-gem"></i> Jewellery Calc: <span style="color:var(--success)">${item.name}</span>`;
+
+            // Restore inputs FIRST, then mode — setJewelMode calls calcJewelPrice()
+            // so inputs must already have values or the price resets to 0
+            document.getElementById('jewelWeight').value = item.jewelleryWeight || '';
+            document.getElementById('jewelPricePerGram').value = item.jewelleryPricePerGram || '';
+            document.getElementById('jewelCurrency').value = item.jewelleryCurrency || 'USD';
+
+            // Restore discount
+            const savedDiscType = item.jewelleryDiscType || 'none';
+            document.getElementById('jewelDiscType').value  = savedDiscType;
+            document.getElementById('jewelDiscValue').value = item.jewelleryDiscValue || '';
+            if (savedDiscType !== 'none') {
+                document.getElementById('jewelDiscValueGroup').style.visibility = 'visible';
+                const lbl = document.getElementById('jewelDiscLabel');
+                if (savedDiscType === 'percent') lbl.textContent = 'Discount %';
+                if (savedDiscType === 'pergram')  lbl.textContent = 'Discount / gram (AED)';
+                if (savedDiscType === 'flat')     lbl.textContent = 'Flat Amount (AED)';
+            } else {
+                document.getElementById('jewelDiscValueGroup').style.visibility = 'hidden';
+            }
+
+            const savedMode = item.jewelleryTotalMode ? 'totalset' : 'perpiece';
+            jewelMode = savedMode;
+            setJewelMode(savedMode); // this calls calcJewelPrice() — inputs are ready now
+        } else {
+            // Show Bullion Calculator
+            document.getElementById('bullionCalcSection').style.display = 'block';
+            document.getElementById('jewelleryCalcSection').style.display = 'none';
+            document.getElementById('calcTitle').innerHTML = `<i class="fas fa-calculator"></i> Calculator: <span style="color:var(--success)">${item.name}</span>`;
+            
+            document.getElementById('metalWeight').value = item.qty;
+            document.getElementById('metalPurity').value = parseFloat(item.purity) || 995;
+            const detectedMetal = cat.includes('silver') ? 'silver' : 'gold';
+            document.getElementById('metalType').value = detectedMetal;
+            // Sync oz rate from the correct global rate for this metal type
+            const _goldOz   = document.getElementById('globalOzRate').value;
+            const _silverOz = document.getElementById('globalSilverOzRate').value;
+            document.getElementById('ozRate').value = detectedMetal === 'silver' ? _silverOz : _goldOz;
+            document.getElementById('discountType').value = item.discountType || 'none';
+            document.getElementById('discountValue').value = item.discountValue || 0;
+            calcGoldPrice();
+        }
+        
+        updateAddToCartBtnState();
+        renderCart();
+    }
+
+    function syncGlobalRates() {
+        const goldOzRate   = document.getElementById('globalOzRate').value;
+        const silverOzRate = document.getElementById('globalSilverOzRate').value;
+        const exchangeRate = document.getElementById('globalExchangeRate').value;
+
+        // Persist all three daily rates
+        localStorage.setItem('smartpos_global_oz_rate',        goldOzRate);
+        localStorage.setItem('smartpos_global_silver_oz_rate', silverOzRate);
+        localStorage.setItem('smartpos_global_exchange_rate',  exchangeRate);
+
+        // Route oz rate to the correct global based on current metal type
+        const metalType = document.getElementById('metalType')
+                            ? document.getElementById('metalType').value : 'gold';
+        const activeOzRate = metalType === 'silver' ? silverOzRate : goldOzRate;
+
+        if (document.getElementById('ozRate')) {
+            document.getElementById('ozRate').value = activeOzRate;
+        }
+        if (document.getElementById('usdExchangeRate')) {
+            document.getElementById('usdExchangeRate').value = exchangeRate;
+        }
+
+        if (activeCartItemId !== null) {
+            const item = cart.find(x => x.cartItemId === activeCartItemId);
+            if (item && item.unit === 'PCS') {
+                calcJewelPrice();
+                return;
+            }
+        }
+        calcGoldPrice();
+    }
+
+    function onMetalTypeChange() {
+        // When the user switches between Gold / Silver in the calculator,
+        // auto-populate the Oz Rate field from the matching global rate.
+        const metalType    = document.getElementById('metalType').value;
+        const goldOzRate   = document.getElementById('globalOzRate').value;
+        const silverOzRate = document.getElementById('globalSilverOzRate').value;
+        const activeOzRate = metalType === 'silver' ? silverOzRate : goldOzRate;
+        if (document.getElementById('ozRate')) {
+            document.getElementById('ozRate').value = activeOzRate;
+        }
+        calcGoldPrice();
+    }
+
+    function calcGoldPrice() {
+        const weight = parseFloat(document.getElementById('metalWeight').value) || 0;
+        const purity = parseFloat(document.getElementById('metalPurity').value) || 0;
+        const ozRate = parseFloat(document.getElementById('ozRate').value) || 0;
+        const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+        const metal  = document.getElementById('metalType').value;
+        document.getElementById('ozRateLabel').textContent = (metal === 'gold' ? 'Gold' : 'Silver') + ' Oz Rate (USD $)';
+        const resultDiv = document.getElementById('goldResult');
+        if (!weight || !purity || !ozRate) { resultDiv.style.display = 'none'; calcTotals(); return; }
+        const TROY_OZ  = 31.1035;
+        const weightOz    = weight / TROY_OZ;
+        const purityFactor = purity / 1000;
+        const priceUSD    = weightOz * purityFactor * ozRate;
+        
+        // Discount inside calculator
+        const discountType = document.getElementById('discountType').value;
+        const discountVal = parseFloat(document.getElementById('discountValue').value) || 0;
+        let discountUSD = 0;
+        if (discountType === 'percent') {
+            discountUSD = priceUSD * (discountVal / 100);
+        } else if (discountType === 'per_oz') {
+            discountUSD = weightOz * discountVal;
+        } else if (discountType === 'flat') {
+            discountUSD = discountVal / exchangeRate;
+        }
+        
+        const finalPriceUSD = Math.max(0, priceUSD - discountUSD);
+        const finalPriceAED = finalPriceUSD * exchangeRate;
+        const discountAED = discountUSD * exchangeRate;
+        
+        document.getElementById('goldFormula').textContent =
+            `${weight}g ÷ 31.1035 × ${purity}/1000 × $${ozRate} = $${priceUSD.toFixed(2)}`;
+        
+        if (discountVal > 0) {
+            document.getElementById('goldPriceAED').innerHTML = `AED ${finalPriceAED.toFixed(2)} <span style="font-size: var(--text-xs); color: var(--danger); font-weight: normal;">(Save AED ${discountAED.toFixed(2)})</span>`;
+        } else {
+            document.getElementById('goldPriceAED').textContent = `AED ${finalPriceAED.toFixed(2)}`;
+        }
+        document.getElementById('goldPriceUSD').textContent = `USD $${finalPriceUSD.toFixed(2)} × ${exchangeRate}`;
+        resultDiv.style.display = 'block';
+        
+        // Dynamic live sync to cart item
+        if (activeCartItemId !== null) {
+            const item = cart.find(x => x.cartItemId === activeCartItemId);
+            if (item) {
+                const undiscountedPricePerGram = (priceUSD * exchangeRate) / weight;
+                item.qty = weight;
+                item.price = undiscountedPricePerGram;
+                item.calculatedWeight = weight;
+                item.calculatedDiscount = discountAED;
+                item.originalDiscount = discountAED;
+                item.discountType = discountType;
+                item.discountValue = discountVal;
+            }
+        }
+        
+        calcTotals();
+    }
+
+    function onJewelDiscTypeChange() {
+        const type  = document.getElementById('jewelDiscType').value;
+        const group = document.getElementById('jewelDiscValueGroup');
+        const lbl   = document.getElementById('jewelDiscLabel');
+        if (type === 'none') {
+            group.style.visibility = 'hidden';
+            document.getElementById('jewelDiscValue').value = '';
+        } else {
+            group.style.visibility = 'visible';
+            if (type === 'percent')  lbl.textContent = 'Discount %';
+            if (type === 'pergram')  lbl.textContent = 'Discount / gram (AED)';
+            if (type === 'flat')     lbl.textContent = 'Flat Amount (AED)';
+        }
+        calcJewelPrice();
+    }
+
+    function setJewelMode(mode) {
+        jewelMode = mode;
+        const perPcBtn  = document.getElementById('jewelModePerPc');
+        const totalBtn  = document.getElementById('jewelModeTotalSet');
+        const lbl       = document.getElementById('jewelWeightLabel');
+        if (mode === 'totalset') {
+            perPcBtn.style.cssText  = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)';
+            totalBtn.style.cssText  = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:#d97706;color:#fff;border:1px solid #d97706';
+            lbl.textContent = 'Total Weight (all pcs)';
+        } else {
+            perPcBtn.style.cssText  = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--primary);color:#fff;border:1px solid var(--primary)';
+            totalBtn.style.cssText  = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)';
+            lbl.textContent = 'Weight (grams)';
+        }
+        if (activeCartItemId !== null) {
+            const item = cart.find(x => x.cartItemId === activeCartItemId);
+            if (item) item.jewelleryTotalMode = (mode === 'totalset');
+        }
+        calcJewelPrice();
+    }
+
+    function calcJewelPrice() {
+        const weight       = parseFloat(document.getElementById('jewelWeight').value) || 0;
+        const pricePerGram = parseFloat(document.getElementById('jewelPricePerGram').value) || 0;
+        const currency     = document.getElementById('jewelCurrency').value;
+        const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+        const resultDiv    = document.getElementById('jewelResult');
+        const isTotalMode  = jewelMode === 'totalset';
+        const discType     = document.getElementById('jewelDiscType').value;
+        const discValue    = parseFloat(document.getElementById('jewelDiscValue').value) || 0;
+
+        // Get qty of active item (needed for total-set mode + total discount calc)
+        let itemQty = 1;
+        if (activeCartItemId !== null) {
+            const it = cart.find(x => x.cartItemId === activeCartItemId);
+            if (it) itemQty = Math.max(1, it.qty || 1);
+        }
+
+        if (!weight || !pricePerGram) {
+            resultDiv.style.display = 'none';
+            if (activeCartItemId !== null) {
+                const item = cart.find(x => x.cartItemId === activeCartItemId);
+                if (item) { item.price = 0; item.jewelleryWeight = 0; item.jewelleryPricePerGram = 0; item.calculatedDiscount = 0; }
+            }
+            calcTotals();
+            return;
+        }
+
+        // ── Base price ────────────────────────────────────────────
+        let totalAED, totalUSD;
+        if (currency === 'USD') {
+            totalUSD = weight * pricePerGram;
+            totalAED = totalUSD * exchangeRate;
+            if (isTotalMode && itemQty > 1) {
+                document.getElementById('jewelFormula').textContent =
+                    `${weight}g × $${pricePerGram}/g = $${totalUSD.toFixed(2)} for ${itemQty} pcs → $${(totalUSD/itemQty).toFixed(2)}/pc`;
+                document.getElementById('jewelPriceUSD').textContent =
+                    `$${totalUSD.toFixed(2)} × ${exchangeRate}  |  AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+            } else {
+                document.getElementById('jewelFormula').textContent = `${weight}g × $${pricePerGram}/g = $${totalUSD.toFixed(2)}`;
+                document.getElementById('jewelPriceUSD').textContent = `USD $${totalUSD.toFixed(2)} × ${exchangeRate}`;
+            }
+        } else {
+            totalAED = weight * pricePerGram;
+            totalUSD = totalAED / exchangeRate;
+            if (isTotalMode && itemQty > 1) {
+                document.getElementById('jewelFormula').textContent =
+                    `${weight}g × AED ${pricePerGram}/g = AED ${totalAED.toFixed(2)} for ${itemQty} pcs → AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+                document.getElementById('jewelPriceUSD').textContent =
+                    `USD $${totalUSD.toFixed(2)}  |  AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+            } else {
+                document.getElementById('jewelFormula').textContent = `${weight}g × AED ${pricePerGram}/g = AED ${totalAED.toFixed(2)}`;
+                document.getElementById('jewelPriceUSD').textContent = `USD $${totalUSD.toFixed(2)}`;
+            }
+        }
+        document.getElementById('jewelPriceAED').textContent = `AED ${totalAED.toFixed(2)}`;
+
+        // ── Discount ──────────────────────────────────────────────
+        // discountOnDisplayed = discount applied to what totalAED represents
+        // (per-piece price in per-piece mode, full-set price in total-set mode)
+        let discountOnDisplayed = 0;
+        if (discType === 'percent' && discValue > 0) {
+            discountOnDisplayed = totalAED * (discValue / 100);
+        } else if (discType === 'pergram' && discValue > 0) {
+            discountOnDisplayed = weight * discValue; // always AED/gram
+        } else if (discType === 'flat' && discValue > 0) {
+            discountOnDisplayed = discValue; // flat off the displayed total
+        }
+        discountOnDisplayed = Math.min(discountOnDisplayed, totalAED);
+
+        // Total discount across all pieces for calcTotals()
+        // flat is always a one-time amount; percent/pergram scale with qty in per-piece mode
+        let totalDiscountAED;
+        if (discType === 'flat') {
+            totalDiscountAED = discountOnDisplayed;
+        } else if (isTotalMode) {
+            totalDiscountAED = discountOnDisplayed;          // totalAED already covers all pcs
+        } else {
+            totalDiscountAED = discountOnDisplayed * itemQty; // per-piece → scale by qty
+        }
+
+        const discLine    = document.getElementById('jewelDiscountLine');
+        const finalLine   = document.getElementById('jewelFinalLine');
+        if (discountOnDisplayed > 0) {
+            let discLabel = '';
+            if (discType === 'percent') discLabel = `−${discValue}%`;
+            else if (discType === 'pergram') discLabel = `−AED ${discValue}/g × ${weight}g`;
+            else if (discType === 'flat')    discLabel = `−AED ${discValue} flat`;
+            discLine.textContent  = `Discount (${discLabel}): −AED ${discountOnDisplayed.toFixed(2)}`;
+            discLine.style.display = 'block';
+            finalLine.textContent  = `After discount: AED ${(totalAED - discountOnDisplayed).toFixed(2)}`;
+            finalLine.style.display = 'block';
+        } else {
+            discLine.style.display  = 'none';
+            finalLine.style.display = 'none';
+        }
+
+        resultDiv.style.display = 'block';
+
+        // ── Sync back to active cart item ─────────────────────────
+        if (activeCartItemId !== null) {
+            const item = cart.find(x => x.cartItemId === activeCartItemId);
+            if (item) {
+                // item.price = undiscounted per-piece price (calcTotals multiplies by qty)
+                item.price                  = isTotalMode ? totalAED / itemQty : totalAED;
+                item.jewelleryWeight        = weight;
+                item.jewelleryPricePerGram  = pricePerGram;
+                item.jewelleryCurrency      = currency;
+                item.jewelleryTotalMode     = isTotalMode;
+                item.jewelleryDiscType      = discType;
+                item.jewelleryDiscValue     = discValue;
+                // calculatedDiscount is subtracted from sub in calcTotals()
+                item.calculatedDiscount     = totalDiscountAED;
+                item.originalDiscount       = totalDiscountAED;
+            }
+        }
+
+        calcTotals();
+    }
+
+    function toggleWalkInName() {
+        const select = document.getElementById('customerId');
+        const group = document.getElementById('walkInNameGroup');
+        if (select.value === '') {
+            group.style.display = 'block';
+        } else {
+            group.style.display = 'none';
+            document.getElementById('walkInCustomerName').value = '';
+        }
+    }
+
+    function calcTotals() {
+        const sub      = cart.reduce((s,i) => s + i.price * i.qty, 0);
+        const discount = cart.reduce((s,i) => s + (i.calculatedDiscount || 0), 0);
+        const discountedSub = Math.max(0, sub - discount);
+        const applyVat = document.getElementById('vatToggle').checked;
+        const vat   = applyVat ? discountedSub * 0.05 : 0;
+        const total = discountedSub + vat;
+        
+        // Logically correct cart count: Gram items count as 1 item, PCS items count as their qty!
+        const cartItemsCount = cart.reduce((s,i) => s + (i.unit === 'GRAM' ? 1 : i.qty), 0);
+        document.getElementById('cartCount').textContent = cartItemsCount;
+        
+        document.getElementById('subTotal').textContent  = Format.currency(sub);
+        
+        const discRow  = document.getElementById('discountRow');
+        if (discount > 0) {
+            document.getElementById('discountAmt').textContent = `- ${Format.currency(discount)}`;
+            discRow.style.display = 'flex';
+        } else {
+            discRow.style.display = 'none';
+        }
+        
+        const vatRow = document.getElementById('vatRow');
+        if (applyVat && vat > 0) {
+            document.getElementById('vatAmt').textContent = Format.currency(vat);
+            vatRow.style.display = 'flex';
+        } else {
+            vatRow.style.display = 'none';
+        }
+        
+        document.getElementById('totalAmt').textContent  = Format.currency(total);
+        calcChange();
+    }
+
+    function calcChange() {
+        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ',''))||0;
+        const received = parseFloat(document.getElementById('receiveAmt').value)||0;
+        if (received >= total) {
+            document.getElementById('changeAmt').value = (received - total).toFixed(2);
+            document.getElementById('dueAmt').value = '0.00';
+        } else {
+            document.getElementById('changeAmt').value = '0.00';
+            document.getElementById('dueAmt').value = (total - received).toFixed(2);
+        }
+    }
+
+    // ── SUBMIT SALE ───────────────────────────────────────────────
+    let _pendingSaleResults = [];
+    let _pendingTotal       = 0;
+    let _pendingReceived    = 0;
+
+    function setSaleLoading(loading) {
+        const btn = document.getElementById('completeSaleBtn');
+        if (loading) { saleInProgress = true; btn.disabled = true; btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> &nbsp;Processing…'; }
+        else { saleInProgress = false; btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle"></i> Transaction Complete!'; }
+    }
+
+    async function submitSale() {
+        if (!cart.length) { Toast.error('Cart is empty.'); return; }
+        if (saleInProgress) return;
+        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ',''))||0;
+        const received = parseFloat(document.getElementById('receiveAmt').value)||0;
+
+        setSaleLoading(true);
+        try {
+            const paymentMethod = document.getElementById('paymentType').value;
+            const amtReceived = parseFloat(document.getElementById('receiveAmt').value) || 0;
+            const cashierName = Auth.getUserName();
+            const custSelect = document.getElementById('customerId');
+            const customerId = custSelect.value ? parseInt(custSelect.value) : null;
+            const walkInName = document.getElementById('walkInCustomerName').value.trim();
+            const customerName = custSelect.value ? custSelect.options[custSelect.selectedIndex].text : (walkInName || null);
+
+            const discount = cart.reduce((s,i) => s + (i.calculatedDiscount || 0), 0);
+            const applyVat = document.getElementById('vatToggle').checked;
+            const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+            const ozRate = parseFloat(document.getElementById('ozRate').value) || 0;
+
+            const tx = await API.post(`${SALES_API}/transaction`, {
+                items: cart.map(item => ({ productId: item.id, quantity: item.qty, price: item.price })),
+                paymentMethod, amountReceived: amtReceived > 0 ? amtReceived : null, cashierName,
+                customerId, customerName,
+                discountAmount: discount,
+                vatPercent: applyVat ? 5.0 : 0.0,
+                exchangeRate: exchangeRate,
+                goldOzRate: ozRate,
+                pricingMethod: "Gold/Silver Bullion"
+            });
+
+            await loadProducts();
+            _pendingSaleResults = [tx]; _pendingTotal = total; _pendingReceived = received;
+
+            const saleItems = cart.map(item => ({ productId: item.id, quantitySold: item.qty }));
+            const deductions = await API.post(`${TEMPLATE_API}/preview`, saleItems);
+
+            if (deductions && deductions.length > 0) { showSupplyDeductionModal(deductions); }
+            else { showReceipt([tx], total, received); }
+        } catch(e) { Toast.error(e.message||'Failed to complete sale.'); }
+        finally { setSaleLoading(false); }
+    }
+
+    // ── RECEIPT ───────────────────────────────────────────────────
+    let _cachedSettings = null;
+    async function loadReceiptSettings() {
+        if (_cachedSettings) return _cachedSettings;
+        try {
+            _cachedSettings = await API.get('/api/business/settings');
+        } catch (e) {
+            _cachedSettings = {};
+        }
+        return _cachedSettings;
+    }
+
+    async function showReceipt(txArr, total, received) {
+        const tx = txArr[0];
+        const bizName = Auth.getBusinessName();
+        const branch = tx.branchName || Auth.getBranchName() || '';
+        const receiptNo = tx.receiptNumber || '';
+        const cashier = tx.cashierName || Auth.getUserName() || '';
+        const customerName = tx.customerName || '';
+        const paymentMethod = tx.paymentMethod || '';
+        const change = tx.changeGiven != null ? Number(tx.changeGiven).toFixed(2) : (received > total ? (received - total).toFixed(2) : '0.00');
+        const dueAmount = tx.dueAmount != null ? Number(tx.dueAmount).toFixed(2) : (received < total ? (total - received).toFixed(2) : '0.00');
+        const items = tx.items || [];
+        const when = Format.datetime(tx.createdAt || new Date());
+
+        // Load saved branding
+        const settings = await loadReceiptSettings();
+        const savedLogo = settings && settings.receiptLogoBase64;
+        const savedFooter = (settings && settings.receiptFooter) || 'Thank you for your business!';
+
+        document.getElementById('receiptBizName').textContent = bizName;
+        document.getElementById('receiptBranchName').textContent = branch;
+
+        // Logo (image if configured, icon placeholder otherwise)
+        const logoEl = document.getElementById('receiptLogo');
+        logoEl.innerHTML = savedLogo
+            ? `<img src="${savedLogo}" alt="Logo">`
+            : `<i class="fas fa-store"></i>`;
+
+        // Receipt body — structurally identical to Settings preview
+        document.getElementById('receiptItems').innerHTML = `
+            <div class="receipt-meta">
+                <div class="receipt-no">${receiptNo}</div>
+                <div>${when}</div>
+            </div>
+            <div class="receipt-block">
+                <div class="row"><span>Cashier:</span><span style="font-weight:600">${cashier}</span></div>
+                ${customerName ? `<div class="row"><span>Customer:</span><span style="font-weight:600">${customerName}</span></div>` : ''}
+                ${paymentMethod ? `<div class="row"><span>Payment:</span><span style="font-weight:600">${paymentMethod}</span></div>` : ''}
+            </div>
+            <div class="receipt-items">
+                ${items.map(item => `
+                    <div class="row">
+                        <span>${item.productName} × ${item.quantitySold}</span>
+                        <span>${Format.currency(item.totalAmount)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            <div class="receipt-totals">
+                <div class="row"><span>Subtotal</span><span>${Format.currency(tx.subtotal)}</span></div>
+                <div class="row"><span>VAT (5%)</span><span>${Format.currency(tx.vatAmount)}</span></div>
+                <div class="row total"><span>TOTAL</span><span>${Format.currency(tx.totalAmount || total)}</span></div>
+                ${received > 0 ? `
+                    <div class="row" style="margin-top:6px"><span>Received</span><span>${Format.currency(received)}</span></div>
+                ` : ''}
+                ${Number(change) > 0 ? `
+                    <div class="row" style="color:#0a7a2f; font-weight:600"><span>Change</span><span>${Format.currency(change)}</span></div>
+                ` : ''}
+                ${Number(dueAmount) > 0 ? `
+                    <div class="row" style="color:var(--danger); font-weight:600"><span>Due Amount</span><span>${Format.currency(dueAmount)}</span></div>
+                ` : ''}
+            </div>
+            <div class="receipt-footer">${savedFooter}</div>
+        `;
+
+        // WhatsApp share text (clean, formatted)
+        let waText = `🧾 *${bizName}*\n`
+            + (branch ? `${branch}\n` : '')
+            + `\nReceipt: *${receiptNo || 'N/A'}*\n`
+            + `${when}\n\n`
+            + items.map(i => `• ${i.productName} × ${i.quantitySold} — ${Format.currency(i.totalAmount)}`).join('\n')
+            + `\n\nSubtotal: ${Format.currency(tx.subtotal)}\n`
+            + `VAT (5%): ${Format.currency(tx.vatAmount)}\n`
+            + `*TOTAL: ${Format.currency(tx.totalAmount || total)}*\n`
+            + (received > 0 ? `Received: ${Format.currency(received)}\n` : '')
+            + (Number(change) > 0 ? `Change: ${Format.currency(change)}\n` : '')
+            + (Number(dueAmount) > 0 ? `Due Amount: ${Format.currency(dueAmount)}\n` : '')
+            + (customerName ? `\nCustomer: ${customerName}\n` : '')
+            + `Served by: ${cashier}\n\n`
+            + savedFooter;
+        document.getElementById('whatsappReceiptBtn').dataset.shareText = waText;
+
+        Modal.open('receiptModal');
+    }
+
+    async function shareReceiptWhatsApp() {
+        const btn = document.getElementById('whatsappReceiptBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparing...';
+
+        try {
+            const receiptEl = document.querySelector('#receiptContent .receipt-card') ||
+                              document.getElementById('receiptContent');
+
+            // Capture the receipt HTML as a canvas image
+            const canvas = await html2canvas(receiptEl, {
+                backgroundColor: '#ffffff',
+                scale: 2,          // 2× for sharp retina quality
+                useCORS: true,
+                logging: false
+            });
+
+            // Convert canvas to a Blob (PNG)
+            const blob = await new Promise(resolve =>
+                canvas.toBlob(resolve, 'image/png'));
+
+            const file = new File([blob], 'receipt.png', { type: 'image/png' });
+
+            // Try native share (works on mobile, shares directly to WhatsApp etc.)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({
+                    files: [file],
+                    title: 'Receipt',
+                });
+            } else {
+                // Desktop fallback: download the image + open WhatsApp Web
+                const url = URL.createObjectURL(blob);
+                const a   = document.createElement('a');
+                a.href     = url;
+                a.download = 'receipt.png';
+                a.click();
+                URL.revokeObjectURL(url);
+
+                // Small delay then open WhatsApp Web so user can attach manually
+                setTimeout(() => {
+                    const text = btn.dataset.shareText || '';
+                    window.open(`https://wa.me/?text=${encodeURIComponent('Receipt image downloaded — attach it in the chat.')}`, '_blank');
+                }, 600);
+            }
+        } catch (e) {
+            // User cancelled share or something failed — fallback to text
+            const text = btn.dataset.shareText || '';
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fab fa-whatsapp"></i> <span data-i18n="btn_share">Share</span>';
+        }
+    }
+
+    // Close receipt + clear cart + return to POS
+    function endSale() {
+        Modal.close('receiptModal');
+        clearCart();
+    }
+
+    // ── SUPPLY DEDUCTION ──────────────────────────────────────────
+    let pendingDeductions = [];
+
+    function showSupplyDeductionModal(deductions) {
+        pendingDeductions = deductions.map(d=>({...d}));
+        document.getElementById('deductionBody').innerHTML = deductions.map((d,i) => `
+            <div class="flex items-center gap-3 mb-3" style="padding:var(--space-3) var(--space-4);background:var(--surface-2);border:1px solid ${d.insufficient?'rgba(239,68,68,0.3)':'var(--border)'};border-radius:var(--radius-md)">
+                <div class="flex-1">
+                    <div class="text-sm font-semibold text-primary">${d.supplyName}</div>
+                    <div class="text-xs text-muted">Current: ${d.currentStock} ${d.unit} → After: ${d.stockAfter} ${d.unit}${d.insufficient?'<span style="color:var(--danger);font-weight:600"> ⚠ Low stock</span>':''}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-muted">Deduct:</span>
+                    <input type="number" class="form-control" style="width:64px;padding:4px 8px;font-size:var(--text-sm)" value="${d.toDeduct}" min="0" onchange="updateDeduction(${i},this.value)">
+                    <span class="text-xs text-muted">${d.unit}</span>
+                </div>
+            </div>`).join('');
+        Modal.open('supplyDeductionModal');
+    }
+
+    function updateDeduction(index, value) { pendingDeductions[index].toDeduct = parseInt(value)||0; }
+
+    async function confirmDeductions() {
+        try {
+            const toApply = pendingDeductions.filter(d => d.toDeduct>0);
+            if (toApply.length>0) {
+                await API.post(`${TEMPLATE_API}/apply`, { performedBy: Auth.getUserName(), deductions: toApply.map(d=>({ supplyId: d.supplyId, toDeduct: d.toDeduct })) });
+                Toast.success('Supplies updated.');
+            }
+            Modal.close('supplyDeductionModal');
+            showReceipt(_pendingSaleResults, _pendingTotal, _pendingReceived);
+        } catch(err) { Toast.error('Failed to update supplies.'); }
+    }
+
+    function skipDeductions() {
+        Modal.close('supplyDeductionModal');
+        showReceipt(_pendingSaleResults, _pendingTotal, _pendingReceived);
+    }
+
+    // ── PREVENT ACCIDENTAL DISMISSAL OF SUPPLY MODAL ──────────────
+    document.getElementById('supplyDeductionModal').addEventListener('click', function(e) { if (e.target === this) e.stopPropagation(); });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && document.getElementById('supplyDeductionModal').classList.contains('open')) e.stopImmediatePropagation();
+    }, true);
+
+    // ── FETCH CUSTOMERS ───────────────────────────────────────────
+    async function loadCustomers() {
+        try {
+            const custs = await API.get('/api/customers');
+            const select = document.getElementById('customerId');
+            custs.forEach(c => {
+                select.options.add(new Option(c.fullName, c.id));
+            });
+        } catch(e) { console.warn('Could not load customers', e); }
+    }
+
+    // ── INIT ──────────────────────────────────────────────────────
+    const savedOzRate       = localStorage.getItem('smartpos_global_oz_rate');
+    const savedSilverOzRate = localStorage.getItem('smartpos_global_silver_oz_rate');
+    const savedExchangeRate = localStorage.getItem('smartpos_global_exchange_rate');
+    if (savedOzRate)       document.getElementById('globalOzRate').value       = savedOzRate;
+    if (savedSilverOzRate) document.getElementById('globalSilverOzRate').value = savedSilverOzRate;
+    if (savedExchangeRate) document.getElementById('globalExchangeRate').value = savedExchangeRate;
+
+    Scanner.init();
+    loadProducts();
+    loadCustomers();
+    toggleWalkInName();
+    setTimeout(syncGlobalRates, 400);
+
+    // PWA service worker registration and offline sync are handled
+    // centrally in smartpos.js (PWA.init + SyncManager.init).
+</script>
+</body>
+</html>

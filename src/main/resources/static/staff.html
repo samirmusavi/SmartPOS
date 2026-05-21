@@ -1,0 +1,840 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Staff Management – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item active">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="nav_staff">Staff</div>
+            <div class="page-breadcrumb">SmartPOS / Team / Staff</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- PLAN BANNER -->
+    <div id="planBanner" style="display:none;margin-bottom:var(--space-5)"></div>
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="staff_kpi_total">Total Staff</div>
+                <div class="stat-icon indigo"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub" id="statLimit">Members in your team</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="staff_kpi_active">Active</div>
+                <div class="stat-icon green"><i class="fas fa-user-check"></i></div>
+            </div>
+            <div class="stat-value" id="statActive">—</div>
+            <div class="stat-sub">Currently active members</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="staff_kpi_managers">Managers</div>
+                <div class="stat-icon amber"><i class="fas fa-user-tie"></i></div>
+            </div>
+            <div class="stat-value" id="statManagers">—</div>
+            <div class="stat-sub">Manager role accounts</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="staff_kpi_cashiers">Cashiers</div>
+                <div class="stat-icon blue"><i class="fas fa-cash-register"></i></div>
+            </div>
+            <div class="stat-value" id="statCashiers">—</div>
+            <div class="stat-sub">Cashier role accounts</div>
+        </div>
+    </div>
+
+    <!-- STAFF TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-users" style="color:var(--primary);margin-right:8px"></i>
+                Team Members
+            </span>
+            <button class="btn btn-primary btn-sm" id="addStaffBtn"
+                    onclick="openAddModal()">
+                <i class="fas fa-plus"></i> Add Staff
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search by name or email..."
+                           style="width:260px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="roleFilter"
+                        style="width:140px" onchange="renderTable()">
+                    <option value="">All Roles</option>
+                    <option value="OWNER">Owner</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="CASHIER">Cashier</option>
+                </select>
+                <select class="form-control" id="statusFilter"
+                        style="width:140px" onchange="renderTable()">
+                    <option value="">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th data-i18n="staff_th_name">Full Name</th>
+                    <th data-i18n="staff_th_email">Email</th>
+                    <th data-i18n="staff_th_role">Role</th>
+                    <th data-i18n="prod_th_status">Status</th>
+                    <th data-i18n="staff_th_branch">Branches</th>
+                    <th data-i18n="staff_th_joined">Joined</th>
+                    <th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="staffTableBody">
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- ADD STAFF MODAL -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="staff_modal_add_title">Add Staff Member</span>
+            <button class="modal-close" onclick="Modal.close('addModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Full Name *</label>
+                        <input type="text" id="addFullName" class="form-control"
+                               placeholder="e.g. Sarah Ahmed">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="addEmail" class="form-control"
+                               placeholder="e.g. sarah@example.com">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Password *</label>
+                        <input type="password" id="addPassword" class="form-control"
+                               placeholder="Min. 8 characters">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Role *</label>
+                        <select id="addRole" class="form-control"
+                                onchange="updateRoleInfo()">
+                            <option value="CASHIER">Cashier</option>
+                            <option value="MANAGER">Manager</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div id="rolePermissionsInfo"
+                         style="background:var(--surface-2);border:1px solid var(--border);
+                                border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                                font-size:var(--text-xs);color:var(--text-secondary)">
+                    </div>
+                </div>
+
+                <!-- BRANCH ASSIGNMENT — at least one required -->
+                <div class="form-group">
+                    <label class="form-label">
+                        Assign to Branch(es) *
+                        <span class="text-muted"
+                              style="font-weight:400;text-transform:none;letter-spacing:0">
+                            — at least one required
+                        </span>
+                    </label>
+                    <div id="addBranchList"
+                         style="border:1px solid var(--border);
+                                border-radius:var(--radius-md);
+                                padding:var(--space-3) var(--space-4);
+                                background:var(--surface-2);
+                                max-height:180px;overflow-y:auto">
+                    </div>
+                    <div id="branchValidationMsg"
+                         style="display:none;color:var(--danger);
+                                font-size:var(--text-xs);margin-top:4px">
+                        <i class="fas fa-exclamation-circle"></i>
+                        Please select at least one branch.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('addModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveStaff()">
+                <i class="fas fa-user-plus"></i> Add Staff Member
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ASSIGN BRANCHES MODAL -->
+<div class="modal-overlay" id="assignBranchesModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-code-branch"
+                   style="color:var(--primary);margin-right:8px"></i>
+                Assign Branches
+            </span>
+            <button class="modal-close" onclick="Modal.close('assignBranchesModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--surface-2);border:1px solid var(--border);
+                        border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                        margin-bottom:var(--space-4)">
+                <div class="text-xs text-muted">Staff Member</div>
+                <div class="text-sm font-semibold text-primary"
+                     id="assignBranchesName">—</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Select Branches</label>
+                <div id="assignBranchList"
+                     style="border:1px solid var(--border);
+                            border-radius:var(--radius-md);
+                            padding:var(--space-3) var(--space-4);
+                            background:var(--surface-2);
+                            max-height:200px;overflow-y:auto">
+                </div>
+            </div>
+            <div class="text-xs text-muted mt-2">
+                <i class="fas fa-info-circle"
+                   style="color:var(--primary);margin-right:4px"></i>
+                The staff member will only see data from their assigned branches.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('assignBranchesModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveAssignBranches()">
+                <i class="fas fa-check"></i> Save Assignments
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT ROLE MODAL -->
+<div class="modal-overlay" id="editRoleModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Change Role</span>
+            <button class="modal-close" onclick="Modal.close('editRoleModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editRoleUserId">
+            <div class="form-group">
+                <label class="form-label">Staff Member</label>
+                <input type="text" id="editRoleName" class="form-control"
+                       disabled style="opacity:0.6">
+            </div>
+            <div class="form-group mt-4">
+                <label class="form-label">New Role *</label>
+                <select id="editRoleSelect" class="form-control">
+                    <option value="CASHIER">Cashier</option>
+                    <option value="MANAGER">Manager</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('editRoleModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveRole()">
+                <i class="fas fa-check"></i> Save Role
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Remove Staff Member</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-user-minus"></i>
+            </div>
+            <div class="empty-state-title mb-2">Remove this staff member?</div>
+            <div class="empty-state-text">
+                <strong id="deleteStaffName"
+                        style="color:var(--text-primary)"></strong>
+                will lose access to this business portal immediately.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-user-minus"></i> Remove
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    Auth.requireClient();
+
+    const STAFF_API  = '/api/staff';
+    const BRANCH_API = '/api/branches';
+
+    let allStaff    = [];
+    let allBranches = [];
+    let deleteId    = null;
+    let assignId    = null;
+
+    const PLAN_LIMITS = { BASIC: 3, BUSINESS: 10, ENTERPRISE: 999 };
+
+    const ROLE_PERMISSIONS = {
+        CASHIER: 'Can access the POS to record sales. Cannot manage products, view reports, or manage staff.',
+        MANAGER: 'Can manage products, view reports, and use the POS. Cannot manage staff or billing.',
+        OWNER:   'Full access to all features including staff management and billing.'
+    };
+
+    const ROLE_BADGE = {
+        OWNER:   '<span class="badge" style="background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)"><i class="fas fa-crown"></i> Owner</span>',
+        MANAGER: '<span class="badge badge-primary"><i class="fas fa-user-tie"></i> Manager</span>',
+        CASHIER: '<span class="badge badge-neutral"><i class="fas fa-cash-register"></i> Cashier</span>'
+    };
+
+    const STATUS_BADGE = {
+        ACTIVE:   '<span class="badge badge-active">Active</span>',
+        INACTIVE: '<span class="badge badge-inactive">Inactive</span>'
+    };
+
+    async function loadStaff() {
+        try {
+            [allStaff, allBranches] = await Promise.all([
+                API.get(STAFF_API),
+                API.get(`${BRANCH_API}/active`)
+            ]);
+            renderStats();
+            renderTable();
+            renderPlanBanner();
+            buildBranchCheckboxes('addBranchList');
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load staff.');
+        }
+    }
+
+    // ── BRANCH CHECKBOX BUILDER ───────────────────────────────────
+    function buildBranchCheckboxes(containerId, checkedIds = []) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        if (!allBranches.length) {
+            container.innerHTML =
+                '<div class="text-xs text-muted">No branches found.</div>';
+            return;
+        }
+        container.innerHTML = allBranches.map(b => `
+            <label style="display:flex;align-items:center;gap:8px;
+                          padding:6px 0;cursor:pointer;font-size:var(--text-sm)">
+                <input type="checkbox"
+                       value="${b.id}"
+                       ${checkedIds.includes(b.id) ? 'checked' : ''}
+                       style="accent-color:var(--primary)">
+                <span>${b.name}</span>
+                ${b.isMainBranch
+            ? '<span class="badge badge-primary" style="font-size:0.6rem">Main</span>'
+            : ''}
+            </label>`).join('');
+    }
+
+    function getCheckedBranchIds(containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return [];
+        return Array.from(
+            container.querySelectorAll('input[type=checkbox]:checked')
+        ).map(cb => parseInt(cb.value));
+    }
+
+    // ── STATS — branch-aware ──────────────────────────────────────
+    // When a branch is selected, counts reflect only staff assigned
+    // to that branch. Owner always counted. Plan limit always global.
+    function renderStats() {
+        const currentBranchId = Auth.getBranchId()
+            ? parseInt(Auth.getBranchId()) : null;
+
+        const visible = currentBranchId
+            ? allStaff.filter(s => {
+                if (s.role === 'OWNER') return true;
+                return (s.assignedBranches || [])
+                    .some(b => b.branchId === currentBranchId);
+            })
+            : allStaff;
+
+        const active   = visible.filter(s => s.status === 'ACTIVE').length;
+        const managers = visible.filter(s => s.role === 'MANAGER').length;
+        const cashiers = visible.filter(s => s.role === 'CASHIER').length;
+        const plan     = Auth.getPlan();
+        const limit    = PLAN_LIMITS[plan] || 3;
+
+        document.getElementById('statTotal').textContent    = visible.length;
+        document.getElementById('statActive').textContent   = active;
+        document.getElementById('statManagers').textContent = managers;
+        document.getElementById('statCashiers').textContent = cashiers;
+        // Plan limit sub-text always shows global count (limits are business-wide)
+        document.getElementById('statLimit').textContent    =
+            `${allStaff.length} / ${limit === 999 ? '\u221e' : limit} staff used`;
+    }
+
+    // ── PLAN BANNER ───────────────────────────────────────────────
+    function renderPlanBanner() {
+        const plan   = Auth.getPlan();
+        const limit  = PLAN_LIMITS[plan] || 3;
+        const banner = document.getElementById('planBanner');
+        const addBtn = document.getElementById('addStaffBtn');
+
+        if (limit !== 999 && allStaff.length >= limit) {
+            banner.style.display = 'block';
+            banner.innerHTML = `
+                <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
+                            border-radius:var(--radius-md);padding:var(--space-3) var(--space-5);
+                            display:flex;align-items:center;justify-content:space-between">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-triangle-exclamation"
+                           style="color:var(--warning);font-size:1rem"></i>
+                        <div>
+                            <div class="text-sm font-semibold" style="color:var(--warning)">
+                                Staff limit reached
+                            </div>
+                            <div class="text-xs text-muted">
+                                Your ${plan} plan allows up to ${limit} staff members.
+                                Upgrade to add more.
+                            </div>
+                        </div>
+                    </div>
+                    <span class="badge badge-warning">${allStaff.length} / ${limit} used</span>
+                </div>`;
+            addBtn.disabled = true;
+            addBtn.style.opacity = '0.5';
+            addBtn.style.cursor  = 'not-allowed';
+        } else {
+            banner.style.display = 'none';
+            addBtn.disabled = false;
+            addBtn.style.opacity = '1';
+            addBtn.style.cursor  = 'pointer';
+        }
+    }
+
+    // ── TABLE — branch-filtered ───────────────────────────────────
+    // If a branch is selected (non-owner context), only show staff
+    // whose assignedBranches includes the current branch.
+    // Owner with no branch selected sees all staff.
+    function renderTable() {
+        const q           = document.getElementById('searchInput').value.toLowerCase();
+        const role        = document.getElementById('roleFilter').value;
+        const status      = document.getElementById('statusFilter').value;
+        const currentBranchId = Auth.getBranchId()
+            ? parseInt(Auth.getBranchId()) : null;
+
+        let filtered = allStaff.filter(s => {
+            const matchQ = s.fullName.toLowerCase().includes(q) ||
+                s.email.toLowerCase().includes(q);
+            const matchR = !role   || s.role   === role;
+            const matchS = !status || s.status === status;
+
+            // Branch filter — only apply when a branch is selected
+            // Owner is always shown regardless of branch assignment
+            let matchB = true;
+            if (currentBranchId && s.role !== 'OWNER') {
+                const branches = s.assignedBranches || [];
+                matchB = branches.some(b => b.branchId === currentBranchId);
+            }
+
+            return matchQ && matchR && matchS && matchB;
+        });
+
+        document.getElementById('countLabel').textContent =
+            `${filtered.length} member${filtered.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('staffTableBody');
+
+        if (!filtered.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-users"></i></div>
+                        <div class="empty-state-title">No staff members found</div>
+                        <div class="empty-state-text">
+                            ${currentBranchId
+                ? 'No staff are assigned to this branch yet.'
+                : 'Add your first staff member to get started.'}
+                        </div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((s, i) => {
+            const isOwner  = s.role === 'OWNER';
+            const isActive = s.status === 'ACTIVE';
+            const isMe     = s.email === sessionStorage.getItem('sp_user_email');
+
+            const branches    = s.assignedBranches || [];
+            const branchTags  = branches.length
+                ? branches.map(b =>
+                    `<span style="display:inline-flex;align-items:center;
+                                  gap:3px;font-size:0.6rem;font-weight:700;
+                                  padding:2px 6px;border-radius:var(--radius-full);
+                                  background:rgba(99,102,241,0.1);color:var(--primary);
+                                  border:1px solid rgba(99,102,241,0.2);margin-right:3px">
+                        <i class="fas fa-store" style="font-size:0.5rem"></i>
+                        ${b.branchName}
+                    </span>`).join('')
+                : '<span class="text-muted text-xs">No branches</span>';
+
+            return `
+                <tr>
+                    <td class="text-muted">${i + 1}</td>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <div class="avatar"
+                                 style="width:30px;height:30px;
+                                        font-size:var(--text-xs);flex-shrink:0">
+                                ${s.fullName.trim().split(' ')
+                .map(w => w[0]).slice(0,2).join('')
+                .toUpperCase()}
+                            </div>
+                            <span class="cell-primary">
+                                ${escapeHtml(s.fullName)}
+                                ${isMe ? '<span class="badge badge-primary" style="margin-left:6px;font-size:0.6rem">You</span>' : ''}
+                            </span>
+                        </div>
+                    </td>
+                    <td class="text-secondary">${escapeHtml(s.email)}</td>
+                    <td>${ROLE_BADGE[s.role] || s.role}</td>
+                    <td>${STATUS_BADGE[s.status] || s.status}</td>
+                    <td>${branchTags}</td>
+                    <td class="text-muted">${Format.date(s.createdAt)}</td>
+                    <td>
+                        ${isOwner || isMe
+                ? '<span class="text-xs text-muted">—</span>'
+                : `<div class="flex gap-2">
+                                <button class="btn btn-secondary btn-sm btn-icon-only"
+                                        onclick="openEditRole(${s.id}, '${escapeHtml(s.fullName)}', '${s.role}')"
+                                        title="Change Role">
+                                    <i class="fas fa-user-edit"></i>
+                                </button>
+                                <button class="btn btn-secondary btn-sm btn-icon-only"
+                                        onclick="openAssignBranches(${s.id}, '${escapeHtml(s.fullName)}')"
+                                        title="Assign Branches">
+                                    <i class="fas fa-code-branch"></i>
+                                </button>
+                                <button class="btn btn-sm ${isActive ? 'btn-warning' : 'btn-success'}"
+                                        onclick="toggleStatus(${s.id}, '${s.status}')"
+                                        title="${isActive ? 'Deactivate' : 'Activate'}">
+                                    <i class="fas fa-${isActive ? 'ban' : 'check'}"></i>
+                                </button>
+                                <button class="btn btn-danger btn-sm btn-icon-only"
+                                        onclick="openDelete(${s.id}, '${escapeHtml(s.fullName)}')"
+                                        title="Remove">
+                                    <i class="fas fa-user-minus"></i>
+                                </button>
+                               </div>`}
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    // ── ADD STAFF ─────────────────────────────────────────────────
+    function openAddModal() {
+        const plan  = Auth.getPlan();
+        const limit = PLAN_LIMITS[plan] || 3;
+        if (limit !== 999 && allStaff.length >= limit) {
+            Toast.warning('Staff limit reached. Upgrade your plan to add more.');
+            return;
+        }
+        document.getElementById('addFullName').value = '';
+        document.getElementById('addEmail').value    = '';
+        document.getElementById('addPassword').value = '';
+        document.getElementById('addRole').value     = 'CASHIER';
+        document.getElementById('branchValidationMsg').style.display = 'none';
+        buildBranchCheckboxes('addBranchList');
+        updateRoleInfo();
+        Modal.open('addModal');
+    }
+
+    function updateRoleInfo() {
+        const role = document.getElementById('addRole').value;
+        document.getElementById('rolePermissionsInfo').textContent =
+            ROLE_PERMISSIONS[role] || '';
+    }
+
+    async function saveStaff() {
+        const fullName  = document.getElementById('addFullName').value.trim();
+        const email     = document.getElementById('addEmail').value.trim();
+        const password  = document.getElementById('addPassword').value;
+        const role      = document.getElementById('addRole').value;
+        const branchIds = getCheckedBranchIds('addBranchList');
+
+        if (!fullName || !email || !password || !role) {
+            Toast.error('Please fill in all required fields.');
+            return;
+        }
+        if (password.length < 8) {
+            Toast.error('Password must be at least 8 characters.');
+            return;
+        }
+
+        // ── Mandatory branch validation ───────────────────────────
+        if (branchIds.length === 0) {
+            document.getElementById('branchValidationMsg').style.display = 'block';
+            Toast.error('Please assign at least one branch.');
+            return;
+        }
+        document.getElementById('branchValidationMsg').style.display = 'none';
+
+        try {
+            await API.post(STAFF_API, { fullName, email, password, role, branchIds });
+            Modal.close('addModal');
+            Toast.success(`${fullName} added to your team.`);
+            loadStaff();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to add staff member.');
+        }
+    }
+
+    // ── ASSIGN BRANCHES ───────────────────────────────────────────
+    function openAssignBranches(id, name) {
+        assignId = id;
+        document.getElementById('assignBranchesName').textContent = name;
+        const staff      = allStaff.find(s => s.id === id);
+        const currentIds = (staff?.assignedBranches || []).map(b => b.branchId);
+        buildBranchCheckboxes('assignBranchList', currentIds);
+        Modal.open('assignBranchesModal');
+    }
+
+    async function saveAssignBranches() {
+        const branchIds = getCheckedBranchIds('assignBranchList');
+        try {
+            await API.put(`${STAFF_API}/${assignId}/branches`, { branchIds });
+            Modal.close('assignBranchesModal');
+            Toast.success('Branch assignments updated.');
+            assignId = null;
+            loadStaff();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to assign branches.');
+        }
+    }
+
+    // ── EDIT ROLE ─────────────────────────────────────────────────
+    function openEditRole(id, name, currentRole) {
+        document.getElementById('editRoleUserId').value = id;
+        document.getElementById('editRoleName').value   = name;
+        document.getElementById('editRoleSelect').value = currentRole;
+        Modal.open('editRoleModal');
+    }
+
+    async function saveRole() {
+        const id   = document.getElementById('editRoleUserId').value;
+        const role = document.getElementById('editRoleSelect').value;
+        try {
+            await API.put(`${STAFF_API}/${id}/role`, { role });
+            Modal.close('editRoleModal');
+            Toast.success('Role updated successfully.');
+            loadStaff();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to update role.');
+        }
+    }
+
+    // ── TOGGLE STATUS ─────────────────────────────────────────────
+    async function toggleStatus(id, currentStatus) {
+        const newStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+        try {
+            await API.put(`${STAFF_API}/${id}/status`, { status: newStatus });
+            Toast.success(`Staff member ${newStatus === 'ACTIVE' ? 'activated' : 'deactivated'}.`);
+            loadStaff();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to update status.');
+        }
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────
+    function openDelete(id, name) {
+        deleteId = id;
+        document.getElementById('deleteStaffName').textContent = name;
+        Modal.open('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            await API.delete(`${STAFF_API}/${deleteId}`);
+            Modal.close('deleteModal');
+            Toast.success('Staff member removed.');
+            deleteId = null;
+            loadStaff();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to remove staff member.');
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadStaff();
+</script>
+</body>
+</html>
+

@@ -1,0 +1,774 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Customers – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item active">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="cust_title">Customers</div>
+            <div class="page-breadcrumb">SmartPOS / Customers</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="cust_kpi_total">Total Customers</div>
+                <div class="stat-icon indigo"><i class="fas fa-user-group"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub">Registered customers</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="rep_kpi_revenue">Total Revenue</div>
+                <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <div class="stat-value" id="statRevenue">—</div>
+            <div class="stat-sub">From tracked customers</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Avg. Spend</div>
+                <div class="stat-icon amber"><i class="fas fa-calculator"></i></div>
+            </div>
+            <div class="stat-value" id="statAvg">—</div>
+            <div class="stat-sub">Per customer lifetime</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="rep_kpi_margin">Top Customer</div>
+                <div class="stat-icon blue"><i class="fas fa-crown"></i></div>
+            </div>
+            <div class="stat-value" id="statTopName" style="font-size:var(--text-xl)">—</div>
+            <div class="stat-sub" id="statTopSpend">Highest lifetime spend</div>
+        </div>
+    </div>
+
+    <!-- CUSTOMER TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-user-group"
+                   style="color:var(--primary);margin-right:8px"></i>
+                Customer Directory
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                <i class="fas fa-plus"></i> Add Customer
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search by name, phone or email..."
+                           style="width:280px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="sortFilter"
+                        style="width:180px" onchange="renderTable()">
+                    <option value="name">Sort by Name</option>
+                    <option value="spend">Sort by Spend</option>
+                    <option value="visits">Sort by Visits</option>
+                    <option value="recent">Sort by Recent</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th data-i18n="cust_th_id">#</th>
+                    <th data-i18n="cust_th_name">Customer</th>
+                    <th data-i18n="cust_th_loyalty">Loyalty</th>
+                    <th data-i18n="cust_th_contact">Contact</th>
+                    <th data-i18n="cust_th_spent">Total Spent</th>
+                    <th data-i18n="cust_th_visits">Visits</th>
+                    <th data-i18n="cust_th_last">Last Visit</th>
+                    <th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="customerTableBody">
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-overlay" id="customerModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">Add Customer</span>
+            <button class="modal-close" onclick="Modal.close('customerModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="customerId">
+            <div class="flex flex-col gap-4">
+
+                <div class="form-group">
+                    <label class="form-label">Full Name *</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-user input-icon"></i>
+                        <input type="text" id="fFullName" class="form-control"
+                               placeholder="e.g. Mohammed Al Rashid">
+                    </div>
+                </div>
+
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-phone input-icon"></i>
+                            <input type="text" id="fPhone" class="form-control"
+                                   placeholder="+971501234567">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-envelope input-icon"></i>
+                            <input type="email" id="fEmail" class="form-control"
+                                   placeholder="customer@email.com">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" id="fNotes" class="form-control"
+                           placeholder="e.g. Prefers cash, Regular Friday shopper...">
+                </div>
+
+                <div id="linkSupplierSection" style="display:none">
+                    <hr style="border-color:var(--border);margin:var(--space-2) 0">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">
+                            <i class="fas fa-truck" style="color:var(--success);margin-right:6px"></i>Supplier Link
+                        </label>
+                        <div id="linkSupplierStatus"></div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('customerModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">
+                <i class="fas fa-check"></i>
+                <span id="saveBtn">Save Customer</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- VIEW MODAL -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="cust_title">Customer Profile</span>
+            <button class="modal-close" onclick="Modal.close('viewModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="viewModalBody">
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('viewModal')">Close</button>
+            <button class="btn btn-primary" id="viewEditBtn" onclick="">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Delete Customer</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-user-minus"></i>
+            </div>
+            <div class="empty-state-title mb-2">Delete this customer?</div>
+            <div class="empty-state-text">
+                <strong id="deleteCustomerName"
+                        style="color:var(--text-primary)"></strong>
+                and all their purchase history will be permanently removed.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- HISTORY MODAL -->
+<div class="modal-overlay" id="historyModal">
+    <div class="modal" style="max-width:800px">
+        <div class="modal-header">
+            <span class="modal-title" id="historyModalTitle">Customer History</span>
+            <button class="modal-close" onclick="Modal.close('historyModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="background:var(--bg)">
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead><tr><th>Receipt</th><th>Date</th><th>Branch</th><th>Total</th></tr></thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+    PlanGuard.guardCurrentPage();
+
+    const CUSTOMER_API = '/api/customers';
+    let allCustomers = [];
+    let allSuppliers = [];
+    let deleteId     = null;
+
+    async function loadCustomers() {
+        try {
+            const [customers, summary, suppliers] = await Promise.all([
+                API.get(CUSTOMER_API),
+                API.get(`${CUSTOMER_API}/summary`),
+                API.get('/api/suppliers')
+            ]);
+            allCustomers = customers;
+            allSuppliers = suppliers;
+            renderStats(summary);
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load customers.');
+        }
+    }
+
+    function renderStats(summary) {
+        document.getElementById('statTotal').textContent =
+            Number(summary.totalCustomers || 0).toLocaleString();
+        document.getElementById('statRevenue').textContent =
+            Format.currency(summary.totalRevenue || 0);
+        document.getElementById('statAvg').textContent =
+            Format.currency(summary.avgSpend || 0);
+
+        if (summary.topCustomer) {
+            document.getElementById('statTopName').textContent = summary.topCustomer;
+            document.getElementById('statTopSpend').textContent =
+                Format.currency(summary.topCustomerSpend || 0);
+        } else {
+            document.getElementById('statTopName').textContent = '—';
+            document.getElementById('statTopSpend').textContent = 'No purchases yet';
+        }
+    }
+
+    function renderTable() {
+        const q    = document.getElementById('searchInput').value.toLowerCase();
+        const sort = document.getElementById('sortFilter').value;
+
+        let filtered = allCustomers.filter(c => {
+            return c.fullName.toLowerCase().includes(q) ||
+                (c.phone || '').toLowerCase().includes(q) ||
+                (c.email || '').toLowerCase().includes(q);
+        });
+
+        // Sort
+        filtered.sort((a, b) => {
+            if (sort === 'spend')  return Number(b.totalSpent)  - Number(a.totalSpent);
+            if (sort === 'visits') return b.visitCount - a.visitCount;
+            if (sort === 'recent') {
+                const da = a.lastVisitAt ? new Date(a.lastVisitAt) : new Date(0);
+                const db = b.lastVisitAt ? new Date(b.lastVisitAt) : new Date(0);
+                return db - da;
+            }
+            return a.fullName.localeCompare(b.fullName);
+        });
+
+        document.getElementById('countLabel').textContent =
+            `${filtered.length} customer${filtered.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('customerTableBody');
+
+        if (!filtered.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-user-group"></i>
+                            </div>
+                            <div class="empty-state-title">No customers found</div>
+                            <div class="empty-state-text">
+                                Add your first customer to start building your
+                                customer directory.
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((c, i) => {
+            const spend      = Number(c.totalSpent || 0);
+            const isTopSpend = i === 0 && sort === 'spend' && spend > 0;
+
+            return `
+                <tr>
+                    <td class="text-muted">${i + 1}</td>
+                    <td>
+                        <div class="flex items-center gap-3">
+                            <div class="avatar"
+                                 style="width:30px;height:30px;font-size:var(--text-xs);flex-shrink:0">
+                                ${c.fullName.trim().split(' ')
+                .map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                            </div>
+                            <div>
+                                <div class="cell-primary">
+                                    ${c.fullName}
+                                    ${isTopSpend
+                ? '<span class="badge badge-warning" style="margin-left:6px;font-size:0.6rem"><i class="fas fa-crown"></i> Top</span>'
+                : ''}
+                                    ${c.linkedSupplierId ? '<span class="badge badge-success" style="margin-left:6px;font-size:0.6rem"><i class="fas fa-truck"></i> Supplier</span>' : ''}
+                                </div>
+                                ${c.notes
+                ? `<div class="text-xs text-muted" style="margin-top:2px">${c.notes.length > 30 ? c.notes.substring(0,30)+'...' : c.notes}</div>`
+                : ''}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="text-secondary">
+                        <div style="display:flex;flex-direction:column;gap:4px">
+                            ${getTierBadge(c.loyaltyPoints)}
+                            <span class="text-xs text-muted" style="font-weight:600">${Number(c.loyaltyPoints||0).toLocaleString()} pts</span>
+                        </div>
+                    </td>
+                    <td class="text-secondary">
+                        <div style="display:flex;flex-direction:column;gap:2px">
+                            ${c.phone ? `<a href="tel:${c.phone}" style="color:inherit;font-size:var(--text-xs)"><i class="fas fa-phone mr-1"></i>${c.phone}</a>` : ''}
+                            ${c.email ? `<a href="mailto:${c.email}" style="color:inherit;font-size:var(--text-xs)"><i class="fas fa-envelope mr-1"></i>${c.email}</a>` : ''}
+                            ${!c.phone && !c.email ? '<span class="text-muted">—</span>' : ''}
+                        </div>
+                    </td>
+                    <td class="font-medium" style="color:var(--success)">
+                        ${spend > 0 ? Format.currency(spend) : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td>
+                        ${c.visitCount > 0
+                ? `<span class="badge badge-primary">${c.visitCount} visit${c.visitCount !== 1 ? 's' : ''}</span>`
+                : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="text-muted">
+                        ${c.lastVisitAt ? Format.datetime(c.lastVisitAt) : '—'}
+                    </td>
+                    <td>
+                        <div class="flex gap-2">
+                            <button class="btn btn-ghost btn-sm btn-icon-only"
+                                    onclick="openView(${c.id})" title="View Profile">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-ghost btn-sm btn-icon-only"
+                                    onclick="openHistory(${c.id}, '${escapeHtml(c.fullName)}')" title="History">
+                                <i class="fas fa-clock-rotate-left"></i>
+                            </button>
+                            <button class="btn btn-secondary btn-sm btn-icon-only"
+                                    onclick="openEdit(${c.id})" title="Edit">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger btn-sm btn-icon-only"
+                                    onclick="openDelete(${c.id}, '${escapeHtml(c.fullName)}')"
+                                    title="Delete">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    function getTierBadge(points) {
+        if (!points) points = 0;
+        if (points >= 10000) return `<span class="badge" style="background:#fbbf24;color:#78350f"><i class="fas fa-crown"></i> Gold</span>`;
+        if (points >= 3000) return `<span class="badge" style="background:#e5e7eb;color:#374151"><i class="fas fa-medal"></i> Silver</span>`;
+        return `<span class="badge" style="background:#fef3c7;color:#92400e"><i class="fas fa-award"></i> Bronze</span>`;
+    }
+
+    function openAddModal() {
+        document.getElementById('customerId').value = '';
+        document.getElementById('fFullName').value  = '';
+        document.getElementById('fPhone').value     = '';
+        document.getElementById('fEmail').value     = '';
+        document.getElementById('fNotes').value     = '';
+        document.getElementById('linkSupplierSection').style.display = 'none';
+        document.getElementById('modalTitle').textContent = 'Add Customer';
+        document.getElementById('saveBtn').textContent    = 'Save Customer';
+        Modal.open('customerModal');
+    }
+
+    function openEdit(id) {
+        const c = allCustomers.find(c => c.id === id);
+        if (!c) return;
+        document.getElementById('customerId').value = c.id;
+        document.getElementById('fFullName').value  = c.fullName;
+        document.getElementById('fPhone').value     = c.phone   || '';
+        document.getElementById('fEmail').value     = c.email   || '';
+        document.getElementById('fNotes').value     = c.notes   || '';
+        document.getElementById('modalTitle').textContent = 'Edit Customer';
+        document.getElementById('saveBtn').textContent    = 'Save Changes';
+        document.getElementById('linkSupplierSection').style.display = '';
+        var lSup = document.getElementById('linkSupplierStatus');
+        if (c.linkedSupplierId) {
+            var sup = allSuppliers.find(function(s){ return s.id === c.linkedSupplierId; });
+            var supName = sup ? sup.name : ('Supplier #' + c.linkedSupplierId);
+            lSup.innerHTML = '<div class="flex items-center justify-between" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-2) var(--space-3)">'
+                + '<div class="flex items-center gap-2"><i class="fas fa-truck" style="color:var(--success)"></i>'
+                + '<span class="text-sm text-primary">' + supName + '</span>'
+                + '<span class="badge badge-success" style="font-size:0.6rem">Linked</span></div>'
+                + '<button class="btn btn-danger btn-sm" onclick="unlinkFromSupplier(' + c.id + ')">'
+                + '<i class="fas fa-unlink"></i> Unlink</button></div>';
+        } else {
+            lSup.innerHTML = '<div class="flex items-center gap-2">'
+                + '<select id="linkSupplierSelect" class="form-control" style="flex:1"><option value="">— Select Supplier —</option>'
+                + allSuppliers.map(function(s){ return '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>'; }).join('')
+                + '</select>'
+                + '<button class="btn btn-primary btn-sm" onclick="linkToSupplier(' + c.id + ')">'
+                + '<i class="fas fa-link"></i> Link</button></div>';
+        }
+        Modal.close('viewModal');
+        Modal.open('customerModal');
+    }
+
+    function openView(id) {
+        const c = allCustomers.find(c => c.id === id);
+        if (!c) return;
+
+        const spend = Number(c.totalSpent || 0);
+
+        document.getElementById('viewModalBody').innerHTML = `
+            <div class="flex items-center gap-4 mb-6">
+                <div class="avatar" style="width:52px;height:52px;font-size:var(--text-lg)">
+                    ${c.fullName.trim().split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase()}
+                </div>
+                <div>
+                    <div class="text-lg font-bold text-primary">${c.fullName}</div>
+                    <div class="text-xs text-muted">Customer since ${Format.date(c.createdAt)}</div>
+                </div>
+            </div>
+
+            <div class="grid-2 mb-5">
+                <div class="stat-card" style="padding:var(--space-4)">
+                    <div class="stat-label">Total Spent</div>
+                    <div class="stat-value" style="font-size:var(--text-xl);color:var(--success)">
+                        ${Format.currency(spend)}
+                    </div>
+                </div>
+                <div class="stat-card" style="padding:var(--space-4)">
+                    <div class="stat-label">Total Visits</div>
+                    <div class="stat-value" style="font-size:var(--text-xl)">
+                        ${c.visitCount}
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col gap-3">
+                ${c.phone ? `
+                <div class="flex items-center gap-3">
+                    <div class="stat-icon indigo" style="width:32px;height:32px;flex-shrink:0">
+                        <i class="fas fa-phone" style="font-size:0.75rem"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Phone</div>
+                        <div class="text-sm text-primary">${c.phone}</div>
+                    </div>
+                </div>` : ''}
+
+                ${c.email ? `
+                <div class="flex items-center gap-3">
+                    <div class="stat-icon green" style="width:32px;height:32px;flex-shrink:0">
+                        <i class="fas fa-envelope" style="font-size:0.75rem"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Email</div>
+                        <div class="text-sm text-primary">${c.email}</div>
+                    </div>
+                </div>` : ''}
+
+                ${c.lastVisitAt ? `
+                <div class="flex items-center gap-3">
+                    <div class="stat-icon amber" style="width:32px;height:32px;flex-shrink:0">
+                        <i class="fas fa-clock" style="font-size:0.75rem"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Last Visit</div>
+                        <div class="text-sm text-primary">${Format.datetime(c.lastVisitAt)}</div>
+                    </div>
+                </div>` : ''}
+
+                ${c.notes ? `
+                <div class="flex items-center gap-3">
+                    <div class="stat-icon blue" style="width:32px;height:32px;flex-shrink:0">
+                        <i class="fas fa-sticky-note" style="font-size:0.75rem"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-muted uppercase tracking">Notes</div>
+                        <div class="text-sm text-primary">${c.notes}</div>
+                    </div>
+                </div>` : ''}
+            </div>`;
+
+        document.getElementById('viewEditBtn').onclick = () => openEdit(id);
+        Modal.open('viewModal');
+    }
+
+    async function openHistory(id, name) {
+        document.getElementById('historyModalTitle').textContent = `${name} - History`;
+        const tbody = document.getElementById('historyTableBody');
+        tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state"><i class="fas fa-circle-notch fa-spin"></i> Loading...</div></td></tr>';
+        Modal.open('historyModal');
+
+        try {
+            const txs = await API.get(`${CUSTOMER_API}/${id}/history`);
+            if (!txs.length) {
+                tbody.innerHTML = '<tr><td colspan="4"><div class="empty-state">No transaction history.</div></td></tr>';
+                return;
+            }
+            tbody.innerHTML = txs.map(t => `
+                <tr>
+                    <td class="font-medium text-primary">${t.receiptNumber || '—'}</td>
+                    <td class="text-secondary">${Format.datetime(t.createdAt)}</td>
+                    <td class="text-muted">${t.branchId || 'Main'}</td>
+                    <td class="font-medium text-success">${Format.currency(t.totalAmount)}</td>
+                </tr>
+            `).join('');
+        } catch (e) {
+            tbody.innerHTML = '<tr><td colspan="4"><div class="text-danger p-4 text-center">Failed to load history.</div></td></tr>';
+        }
+    }
+
+    async function saveCustomer() {
+        const id       = document.getElementById('customerId').value;
+        const fullName = document.getElementById('fFullName').value.trim();
+        const phone    = document.getElementById('fPhone').value.trim();
+        const email    = document.getElementById('fEmail').value.trim();
+        const notes    = document.getElementById('fNotes').value.trim();
+
+        if (!fullName) {
+            Toast.error('Customer name is required.');
+            return;
+        }
+
+        try {
+            if (id) {
+                await API.put(`${CUSTOMER_API}/${id}`,
+                    { fullName, phone, email, notes });
+                Toast.success('Customer updated.');
+            } else {
+                await API.post(CUSTOMER_API,
+                    { fullName, phone, email, notes });
+                Toast.success(`${fullName} added to your customer directory.`);
+            }
+            Modal.close('customerModal');
+            loadCustomers();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to save customer.');
+        }
+    }
+
+    function openDelete(id, name) {
+        deleteId = id;
+        document.getElementById('deleteCustomerName').textContent = name;
+        Modal.open('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            await API.delete(`${CUSTOMER_API}/${deleteId}`);
+            Modal.close('deleteModal');
+            Toast.success('Customer deleted.');
+            deleteId = null;
+            loadCustomers();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to delete customer.');
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    async function linkToSupplier(customerId) {
+        var sel = document.getElementById('linkSupplierSelect');
+        var supplierId = sel ? sel.value : '';
+        if (!supplierId) { Toast.error('Please select a supplier.'); return; }
+        try {
+            await API.put(CUSTOMER_API + '/' + customerId + '/link-supplier/' + supplierId, {});
+            Toast.success('Customer linked to supplier.');
+            await loadCustomers();
+            openEdit(customerId);
+        } catch (e) { Toast.error(e.message || 'Failed to link.'); }
+    }
+
+    async function unlinkFromSupplier(customerId) {
+        try {
+            await API.delete(CUSTOMER_API + '/' + customerId + '/link-supplier');
+            Toast.success('Supplier link removed.');
+            await loadCustomers();
+            openEdit(customerId);
+        } catch (e) { Toast.error(e.message || 'Failed to unlink.'); }
+    }
+
+    loadCustomers();
+</script>
+</body>
+</html>
+

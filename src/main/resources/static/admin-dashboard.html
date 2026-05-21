@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard – SmartPOS Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <style>
+        .health-badge { display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:700; text-transform:uppercase; letter-spacing:0.04em; }
+        .health-healthy  { background:rgba(34,197,94,0.12);  color:var(--success); border:1px solid rgba(34,197,94,0.25); }
+        .health-at-risk  { background:rgba(239,68,68,0.12);  color:var(--danger);  border:1px solid rgba(239,68,68,0.25); }
+        .health-inactive { background:var(--surface-3);       color:var(--text-muted); border:1px solid var(--border); }
+        .expiry-row { background:rgba(239,68,68,0.04); }
+        .expiry-row td { border-bottom-color:rgba(239,68,68,0.15) !important; }
+        .arpa-value { font-size:var(--text-2xl); font-weight:700; color:var(--primary); }
+        .mrr-legend { display:flex; gap:var(--space-4); flex-wrap:wrap; margin-top:var(--space-3); }
+        .mrr-legend-item { display:flex; align-items:center; gap:6px; font-size:var(--text-xs); color:var(--text-secondary); }
+        .mrr-legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .top-biz-row { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); border-bottom:1px solid var(--border); }
+        .top-biz-row:last-child { border-bottom:none; }
+        .top-biz-rank { width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:var(--text-xs); font-weight:700; flex-shrink:0; }
+        .rank-1 { background:rgba(245,158,11,0.15); color:var(--warning); }
+        .rank-2 { background:rgba(100,116,139,0.12); color:var(--text-secondary); }
+        .rank-3 { background:rgba(168,131,97,0.12); color:#a88361; }
+        .rank-default { background:var(--surface-3); color:var(--text-muted); }
+        .expiry-alert-card { border-left:3px solid var(--danger); }
+        .expiry-timer { font-family:var(--font-mono); font-size:var(--text-xs); font-weight:700; color:var(--danger); letter-spacing:0.05em; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+        <span class="sidebar-badge">Admin</span>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/admin-dashboard.html" class="nav-item active">
+            <i class="fas fa-th-large"></i>
+            <span class="nav-label">Dashboard</span>
+        </a>
+
+        <div class="nav-group-label">Management</div>
+        <a href="/admin-businesses.html" class="nav-item">
+            <i class="fas fa-building"></i>
+            <span class="nav-label">Businesses</span>
+        </a>
+
+        <div class="nav-group-label">System</div>
+        <a href="/dashboard.html" class="nav-item" target="_blank">
+            <i class="fas fa-external-link-alt"></i>
+            <span class="nav-label">Client Portal</span>
+        </a>
+    </nav>
+
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" style="width:100%;border:none;cursor:pointer;background:none"
+                onclick="Auth.logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div>
+            <div class="page-title">Dashboard</div>
+            <div class="page-breadcrumb">SmartPOS Admin / Overview</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="adminAvatar">A</div>
+        <span class="text-sm text-secondary" id="adminName"></span>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- ROW 1: STAT CARDS -->
+    <div class="grid-4 mb-6">
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Businesses</div>
+                <div class="stat-icon indigo"><i class="fas fa-building"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub">All registered clients</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Active Now</div>
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            </div>
+            <div class="stat-value" id="statActive">—</div>
+            <div class="stat-sub">Currently active subscriptions</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Users</div>
+                <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+            </div>
+            <div class="stat-value" id="statUsers">—</div>
+            <div class="stat-sub">Across all businesses</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Monthly Revenue (MRR)</div>
+                <div class="stat-icon amber"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <div class="stat-value" id="statRevenue">—</div>
+            <div class="stat-sub">From active subscriptions</div>
+        </div>
+
+    </div>
+
+    <!-- ROW 2: ARPA + At-Risk -->
+    <div class="grid-4 mb-6">
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">ARPA</div>
+                <div class="stat-icon indigo"><i class="fas fa-chart-line"></i></div>
+            </div>
+            <div class="stat-value" id="statArpa">—</div>
+            <div class="stat-sub">Average Revenue Per Account</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">At Risk</div>
+                <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+            </div>
+            <div class="stat-value" id="statAtRisk" style="color:var(--danger)">—</div>
+            <div class="stat-sub">No sales in 3+ days</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Expiring Soon</div>
+                <div class="stat-icon amber"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="stat-value" id="statExpiring" style="color:var(--warning)">—</div>
+            <div class="stat-sub">Subscriptions within 7 days</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Plan Split</div>
+                <div class="stat-icon blue"><i class="fas fa-layer-group"></i></div>
+            </div>
+            <div class="stat-value" id="statPlanSplit" style="font-size:var(--text-lg)">—</div>
+            <div class="stat-sub">Basic / Business / Enterprise</div>
+        </div>
+
+    </div>
+
+    <!-- ROW 3: MRR Chart + Revenue Per Plan -->
+    <div class="grid-2 mb-6">
+
+        <!-- MRR Growth Chart -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-chart-line" style="color:var(--primary);margin-right:8px"></i>MRR Growth</span>
+            </div>
+            <div class="card-body">
+                <div style="height:240px">
+                    <canvas id="mrrChart"></canvas>
+                </div>
+                <div class="mrr-legend" id="mrrLegend"></div>
+            </div>
+        </div>
+
+        <!-- Revenue Per Plan Donut -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-chart-pie" style="color:var(--primary);margin-right:8px"></i>Revenue Per Plan</span>
+            </div>
+            <div class="card-body">
+                <div style="max-width:200px;margin:0 auto 16px">
+                    <canvas id="planChart" height="200"></canvas>
+                </div>
+                <div id="planLegend"></div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ROW 4: Plan Distribution Bars + Top 5 Businesses -->
+    <div class="grid-2 mb-6">
+
+        <!-- Plan Distribution -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">Plan Distribution</span>
+            </div>
+            <div class="card-body" id="planBars">
+                <div class="skeleton" style="height:24px;margin-bottom:12px"></div>
+                <div class="skeleton" style="height:24px;margin-bottom:12px"></div>
+                <div class="skeleton" style="height:24px"></div>
+            </div>
+        </div>
+
+        <!-- Top 5 Businesses -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title"><i class="fas fa-trophy" style="color:var(--warning);margin-right:8px"></i>Top 5 Businesses</span>
+                <span class="text-xs text-muted">Last 30 days revenue</span>
+            </div>
+            <div class="card-body" id="topBizBody">
+                <div class="empty-state">
+                    <div class="skeleton" style="width:200px;height:16px"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ROW 5: Expiry Alerts -->
+    <div class="card mb-6" id="expiryAlertCard" style="display:none">
+        <div class="card-header">
+            <span class="card-title"><i class="fas fa-exclamation-triangle" style="color:var(--danger);margin-right:8px"></i>Subscription Expiry Alerts</span>
+            <span class="badge badge-danger" id="expiryCount">0</span>
+        </div>
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>Business</th>
+                    <th>Owner</th>
+                    <th>Plan</th>
+                    <th>Expires</th>
+                    <th>Time Left</th>
+                    <th>Contact</th>
+                </tr>
+                </thead>
+                <tbody id="expiryBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ROW 6: Churn Risk & Upsell Leads -->
+    <div class="grid-2 mb-6">
+        <!-- Churn Alerts -->
+        <div class="card" id="churnAlertCard" style="border-left:3px solid var(--danger);">
+            <div class="card-header">
+                <span class="card-title" data-i18n="admin_churn_risk"><i class="fas fa-heart-broken" style="color:var(--danger);margin-right:8px"></i>Churn Risk</span>
+                <span class="badge badge-danger" id="churnCount">0</span>
+            </div>
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead>
+                    <tr>
+                        <th>Business</th>
+                        <th>Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="churnTableBody">
+                        <tr><td colspan="2" class="text-center text-muted" style="padding:var(--space-4)">No churn risks detected</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Upsell Leads -->
+        <div class="card" id="upsellLeadCard" style="border-left:3px solid var(--success);">
+            <div class="card-header">
+                <span class="card-title" data-i18n="admin_upsell_leads"><i class="fas fa-arrow-up" style="color:var(--success);margin-right:8px"></i>Upsell Leads</span>
+                <span class="badge badge-success" id="upsellCount">0</span>
+            </div>
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead>
+                    <tr>
+                        <th>Business (Basic)</th>
+                        <th>Usage</th>
+                    </tr>
+                    </thead>
+                    <tbody id="upsellTableBody">
+                         <tr><td colspan="2" class="text-center text-muted" style="padding:var(--space-4)">No current upsell leads</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROW 7: All Businesses Table Preview -->
+    <div class="card">
+        <div class="card-header" style="justify-content:space-between">
+            <span class="card-title">Recent Registrations</span>
+            <a href="/admin-businesses.html" class="btn btn-secondary btn-sm">View All</a>
+        </div>
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Business</th>
+                    <th>Owner</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Last Active</th>
+                    <th>Health</th>
+                    <th>Joined</th>
+                    <th>Expires</th>
+                    <th>Setup</th>
+                </tr>
+                </thead>
+                <tbody id="recentBody">
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    // Auth guard
+    Auth.requireAdmin();
+
+    // Set admin info
+    const name = Auth.getAdminName();
+    setAvatarInitials('adminAvatar', name);
+    document.getElementById('adminName').textContent = name;
+
+    // HTML escape helper (used by churn/upsell tables)
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // Chart colors
+    const COLORS = ['#38bdf8', '#6366f1', '#f59e0b'];
+
+    async function loadDashboard() {
+        try {
+            const [stats, businesses] = await Promise.all([
+                API.get('/api/admin/dashboard'),
+                API.get('/api/admin/businesses')
+            ]);
+
+            // ── Stat cards with animation ─────────────────────
+            animateCounter(document.getElementById('statTotal'),  stats.totalBusinesses    || 0);
+            animateCounter(document.getElementById('statActive'), stats.activeBusinesses   || 0);
+            animateCounter(document.getElementById('statUsers'),  stats.totalUsers         || 0);
+
+            document.getElementById('statRevenue').textContent = Format.currency(stats.estimatedMonthlyRevenue || 0);
+            document.getElementById('statArpa').textContent    = Format.currency(stats.arpa || 0);
+            document.getElementById('statAtRisk').textContent  = stats.atRiskCount || 0;
+            document.getElementById('statExpiring').textContent = (stats.expiryAlerts || []).length;
+
+            // Plan split
+            document.getElementById('statPlanSplit').textContent =
+                `${stats.basicPlanCount || 0} / ${stats.businessPlanCount || 0} / ${stats.enterprisePlanCount || 0}`;
+
+            // ── Plan bars ─────────────────────────────────────
+            const total = stats.totalBusinesses || 1;
+            const plans = [
+                { name: 'Basic',      count: stats.basicPlanCount      || 0, color: '#38bdf8' },
+                { name: 'Business',   count: stats.businessPlanCount   || 0, color: '#6366f1' },
+                { name: 'Enterprise', count: stats.enterprisePlanCount || 0, color: '#f59e0b' }
+            ];
+
+            document.getElementById('planBars').innerHTML = plans.map(p => {
+                const pct = total > 0 ? ((p.count / total) * 100).toFixed(1) : 0;
+                return `
+          <div class="mb-4">
+            <div class="flex justify-between mb-2">
+              <span class="text-sm font-medium text-primary">${p.name}</span>
+              <span class="text-sm text-secondary">${p.count} clients · ${pct}%</span>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" style="width:${pct}%;background:${p.color}"></div>
+            </div>
+          </div>`;
+            }).join('');
+
+            // ── MRR Growth Line Chart ─────────────────────────
+            const mrrTrend = stats.mrrTrend || [];
+            renderMrrChart(mrrTrend);
+
+            // ── Revenue Per Plan Donut ─────────────────────────
+            renderPlanDonut(stats.revenuePerPlan || {});
+
+            // ── Top 5 Businesses ──────────────────────────────
+            renderTopBusinesses(stats.topBusinesses || []);
+
+            // ── Expiry Alerts ─────────────────────────────────
+            renderExpiryAlerts(stats.expiryAlerts || []);
+
+            // ── Recent businesses table (with Last Active + Health) ──
+            const lastActiveMap = stats.lastActiveMap || {};
+            const healthMap     = stats.healthMap || {};
+            renderRecentBusinesses(businesses, lastActiveMap, healthMap);
+                
+                // --- CHURN ALERTS ---
+                if (stats.churnAlerts && stats.churnAlerts.length > 0) {
+                    document.getElementById('churnCount').textContent = stats.churnAlerts.length;
+                    const cTbody = document.getElementById('churnTableBody');
+                    cTbody.innerHTML = '';
+                    stats.churnAlerts.forEach(c => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><div class="font-bold">${escapeHtml(c.businessName)}</div><div class="text-xs text-muted">ID: ${escapeHtml(c.id)}</div></td>
+                            <td><span class="badge badge-danger">${escapeHtml(c.daysInactive)}</span></td>
+                        `;
+                        cTbody.appendChild(tr);
+                    });
+                }
+                
+                // --- UPSELL LEADS ---
+                if (stats.upsellLeads && stats.upsellLeads.length > 0) {
+                    document.getElementById('upsellCount').textContent = stats.upsellLeads.length;
+                    const uTbody = document.getElementById('upsellTableBody');
+                    uTbody.innerHTML = '';
+                    stats.upsellLeads.forEach(u => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><div class="font-bold">${escapeHtml(u.businessName)}</div><div class="text-xs text-muted">ID: ${escapeHtml(u.id)}</div></td>
+                            <td><div style="font-weight:700;color:var(--warning)">${escapeHtml(u.usage)}</div></td>
+                        `;
+                        uTbody.appendChild(tr);
+                    });
+                }
+                
+                // Refresh translations if enabled
+                if(window.Translations) window.Translations.apply();
+
+            } catch (e) {
+                Toast.error('Failed to load dashboard data.');
+                console.error(e);
+            }
+    }
+
+    // ── MRR GROWTH LINE CHART ─────────────────────────────────
+    function renderMrrChart(trend) {
+        const existing = Chart.getChart('mrrChart');
+        if (existing) existing.destroy();
+
+        const labels = trend.map(t => t.month);
+        const data   = trend.map(t => Number(t.mrr));
+
+        new Chart(document.getElementById('mrrChart').getContext('2d'), {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'MRR (AED)',
+                    data: data,
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,0.08)',
+                    borderWidth: 2.5,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#6366f1',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `MRR: AED ${Number(ctx.raw).toFixed(2)}`
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(100,116,139,0.08)' },
+                        ticks: {
+                            callback: v => 'AED ' + Number(v).toLocaleString(),
+                            font: { size: 11 }
+                        }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { font: { size: 11 } }
+                    }
+                }
+            }
+        });
+
+        // Legend
+        if (trend.length > 0) {
+            const latest = trend[trend.length - 1];
+            document.getElementById('mrrLegend').innerHTML = `
+                <div class="mrr-legend-item"><div class="mrr-legend-dot" style="background:#38bdf8"></div>Basic: ${latest.basic || 0}</div>
+                <div class="mrr-legend-item"><div class="mrr-legend-dot" style="background:#6366f1"></div>Business: ${latest.business || 0}</div>
+                <div class="mrr-legend-item"><div class="mrr-legend-dot" style="background:#f59e0b"></div>Enterprise: ${latest.enterprise || 0}</div>
+                <div class="mrr-legend-item" style="margin-left:auto;font-weight:600;color:var(--text-primary)">Total: ${latest.total || 0} businesses</div>`;
+        }
+    }
+
+    // ── REVENUE PER PLAN DONUT ─────────────────────────────────
+    function renderPlanDonut(revenuePerPlan) {
+        const existing = Chart.getChart('planChart');
+        if (existing) existing.destroy();
+
+        const basicRev = Number(revenuePerPlan.basic || 0);
+        const bizRev   = Number(revenuePerPlan.business || 0);
+        const entRev   = Number(revenuePerPlan.enterprise || 0);
+        const totalRev = Number(revenuePerPlan.total || 0);
+
+        new Chart(document.getElementById('planChart').getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Basic', 'Business', 'Enterprise'],
+                datasets: [{
+                    data: [basicRev, bizRev, entRev],
+                    backgroundColor: COLORS,
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                cutout: '72%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const val = ctx.raw;
+                                const pct = totalRev > 0 ? ((val / totalRev) * 100).toFixed(1) : 0;
+                                return `${ctx.label}: AED ${Number(val).toFixed(2)} (${pct}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        document.getElementById('planLegend').innerHTML = [
+            { name: 'Basic',      rev: basicRev, color: COLORS[0] },
+            { name: 'Business',   rev: bizRev,   color: COLORS[1] },
+            { name: 'Enterprise', rev: entRev,   color: COLORS[2] }
+        ].map(p => `
+        <div class="flex items-center gap-3 mb-2">
+          <div style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0"></div>
+          <span class="text-sm text-secondary flex-1">${p.name}</span>
+          <span class="text-sm font-medium text-primary">AED ${Number(p.rev).toFixed(2)}</span>
+        </div>`).join('');
+    }
+
+    // ── TOP 5 BUSINESSES ──────────────────────────────────────
+    function renderTopBusinesses(topBiz) {
+        const container = document.getElementById('topBizBody');
+
+        if (!topBiz.length) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-trophy"></i></div>
+                    <div class="empty-state-title">No revenue data yet</div>
+                    <div class="empty-state-text">Revenue will be tracked once businesses start making sales.</div>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = topBiz.map((b, i) => {
+            const rankClasses = ['rank-1', 'rank-2', 'rank-3'];
+            const rankClass   = i < 3 ? rankClasses[i] : 'rank-default';
+            const medals      = ['🥇', '🥈', '🥉'];
+            const medal       = i < 3 ? medals[i] : `${i + 1}`;
+
+            return `
+                <div class="top-biz-row">
+                    <div class="top-biz-rank ${rankClass}">${medal}</div>
+                    <div class="flex-1">
+                        <div class="text-sm font-semibold text-primary">${b.businessName}</div>
+                        <div class="text-xs text-muted">${Format.planBadge(b.plan)}</div>
+                    </div>
+                    <div class="text-sm font-bold" style="color:var(--success)">${Format.currency(b.revenue)}</div>
+                </div>`;
+        }).join('');
+    }
+
+    // ── EXPIRY ALERTS TABLE ───────────────────────────────────
+    function renderExpiryAlerts(alerts) {
+        const card = document.getElementById('expiryAlertCard');
+
+        if (!alerts.length) {
+            card.style.display = 'none';
+            return;
+        }
+
+        card.style.display = 'block';
+        document.getElementById('expiryCount').textContent = alerts.length;
+
+        document.getElementById('expiryBody').innerHTML = alerts.map(a => {
+            const expiryDate = a.expiryDate ? new Date(a.expiryDate) : null;
+            const now = new Date();
+            let timeLeft = '—';
+            if (expiryDate) {
+                const diff = Math.max(0, Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24)));
+                timeLeft = diff === 0 ? 'TODAY' : diff === 1 ? '1 day' : `${diff} days`;
+            }
+
+            return `
+                <tr class="expiry-row">
+                    <td class="cell-primary">${a.businessName}</td>
+                    <td class="text-secondary">${a.ownerName}</td>
+                    <td>${Format.planBadge(a.plan)}</td>
+                    <td class="text-muted">${Format.date(a.expiryDate)}</td>
+                    <td><span class="expiry-timer"><i class="fas fa-clock" style="margin-right:4px"></i>${timeLeft}</span></td>
+                    <td>
+                        <a href="mailto:${a.email}" class="btn btn-secondary btn-sm" title="Send reminder email">
+                            <i class="fas fa-envelope"></i> Remind
+                        </a>
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    // ── RECENT BUSINESSES TABLE (with Last Active + Health) ───
+    function renderRecentBusinesses(businesses, lastActiveMap, healthMap) {
+        const tbody = document.getElementById('recentBody');
+
+        if (!businesses.length) {
+            tbody.innerHTML = `
+          <tr>
+            <td colspan="9">
+              <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-building"></i></div>
+                <div class="empty-state-title">No businesses yet</div>
+                <div class="empty-state-text">Registered businesses will appear here.</div>
+              </div>
+            </td>
+          </tr>`;
+            return;
+        }
+
+        const recent = [...businesses].reverse().slice(0, 8);
+        tbody.innerHTML = recent.map((b, i) => {
+            // Last Active
+            const lastActive = lastActiveMap[b.id];
+            const lastActiveDisplay = lastActive
+                ? Format.datetime(lastActive)
+                : '<span class="text-muted">Never</span>';
+
+            // Health badge
+            const health = healthMap[b.id] || 'INACTIVE';
+            let healthBadge;
+            if (health === 'HEALTHY') {
+                healthBadge = '<span class="health-badge health-healthy"><i class="fas fa-check-circle"></i>Healthy</span>';
+            } else if (health === 'AT_RISK') {
+                healthBadge = '<span class="health-badge health-at-risk"><i class="fas fa-exclamation-triangle"></i>At Risk</span>';
+            } else {
+                healthBadge = '<span class="health-badge health-inactive"><i class="fas fa-minus-circle"></i>Inactive</span>';
+            }
+
+            return `
+        <tr>
+          <td class="text-muted">${i + 1}</td>
+          <td class="cell-primary">${b.businessName}</td>
+          <td class="text-secondary">${b.ownerName}</td>
+          <td>${Format.planBadge(b.plan)}</td>
+          <td>${Format.statusBadge(b.status)}</td>
+          <td class="text-muted" style="font-size:var(--text-xs)">${lastActiveDisplay}</td>
+          <td>${healthBadge}</td>
+          <td class="text-muted">${Format.date(b.joinedDate)}</td>
+          <td class="text-muted">${Format.date(b.expiryDate)}</td>
+          <td>
+            <div style="display:flex;gap:4px">
+                <button class="btn btn-sm btn-secondary" title="Coffee Shop" onclick="applyTemplate(${b.id}, 'COFFEE_SHOP')"><i class="fas fa-coffee"></i></button>
+                <button class="btn btn-sm btn-secondary" title="Electronics" onclick="applyTemplate(${b.id}, 'ELECTRONICS')"><i class="fas fa-laptop"></i></button>
+                <button class="btn btn-sm btn-secondary" title="Grocery" onclick="applyTemplate(${b.id}, 'GROCERY')"><i class="fas fa-shopping-basket"></i></button>
+            </div>
+          </td>
+        </tr>`;
+        }).join('');
+    }
+
+    async function applyTemplate(bizId, niche) {
+        if (!confirm('Apply ' + niche + ' sample catalog? This will add ~20 products.')) return;
+        try {
+            await API.post('/api/admin/businesses/' + bizId + '/niche-template?niche=' + niche, {});
+            Toast.success('Template applied successfully');
+        } catch (e) {
+            Toast.error('Failed to apply template');
+        }
+    }
+
+    loadDashboard();
+</script>
+</body>
+</html>

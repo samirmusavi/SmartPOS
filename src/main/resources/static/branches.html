@@ -1,0 +1,432 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Branches – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item active">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="nav_branches">Branches</div>
+            <div class="page-breadcrumb">SmartPOS / Management / Branches</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="br_title">Branch Management</span>
+            <button class="btn btn-primary btn-sm" onclick="Modal.open('addModal')">
+                <i class="fas fa-plus"></i> <span data-i18n="br_btn_add">Add Branch</span>
+            </button>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th data-i18n="br_th_name">Branch Name</th>
+                    <th data-i18n="br_th_city">City</th>
+                    <th data-i18n="br_th_country">Country</th>
+                    <th data-i18n="cust_th_phone">Phone</th>
+                    <th data-i18n="br_th_type">Type</th>
+                    <th data-i18n="prod_th_status">Status</th>
+                    <th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="branchTableBody">
+                <tr><td colspan="8">
+                    <div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div>
+                </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- ADD BRANCH MODAL -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-code-branch"
+                   style="color:var(--primary);margin-right:8px"></i>
+                Add New Branch
+            </span>
+            <button class="modal-close" onclick="Modal.close('addModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Branch Name *</label>
+                        <input type="text" id="addName" class="form-control"
+                               placeholder="e.g. Dubai Mall Branch">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">City *</label>
+                        <input type="text" id="addCity" class="form-control"
+                               placeholder="e.g. Dubai">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Country</label>
+                        <input type="text" id="addCountry" class="form-control"
+                               value="UAE" placeholder="e.g. UAE">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" id="addPhone" class="form-control"
+                               placeholder="e.g. +971 4 123 4567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <input type="text" id="addAddress" class="form-control"
+                           placeholder="e.g. Shop 12, Dubai Mall, Downtown Dubai">
+                </div>
+                <div style="background:rgba(99,102,241,0.08);
+                            border:1px solid rgba(99,102,241,0.2);
+                            border-radius:var(--radius-md);
+                            padding:var(--space-3) var(--space-4);
+                            font-size:var(--text-xs);color:var(--text-secondary)">
+                    <i class="fas fa-info-circle"
+                       style="color:var(--primary);margin-right:6px"></i>
+                    All existing products will be added to this branch with
+                    0 stock. Use Stock Transfers or Stock Adjustments to
+                    add inventory to the new branch.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('addModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="addBranch()">
+                <i class="fas fa-check"></i> Create Branch
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT BRANCH MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title">Edit Branch</span>
+            <button class="modal-close" onclick="Modal.close('editModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <input type="hidden" id="editIsMain">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Branch Name *</label>
+                        <input type="text" id="editName" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">City</label>
+                        <input type="text" id="editCity" class="form-control">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Country</label>
+                        <input type="text" id="editCountry" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone</label>
+                        <input type="text" id="editPhone" class="form-control">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Address</label>
+                    <input type="text" id="editAddress" class="form-control">
+                </div>
+                <div class="form-group" id="statusGroup">
+                    <label class="form-label">Status</label>
+                    <select id="editStatus" class="form-control">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('editModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveBranch()">
+                <i class="fas fa-check"></i> Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    // Only OWNER can manage branches
+    if (Auth.getUserRole() !== 'OWNER') {
+        window.location.href = '/dashboard.html';
+    }
+
+    const BRANCH_API = '/api/branches';
+    let allBranches = [];
+
+    async function loadBranches() {
+        try {
+            allBranches = await API.get(BRANCH_API);
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch(e) {
+            Toast.error('Failed to load branches.');
+        }
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('branchTableBody');
+        if (!allBranches.length) {
+            tbody.innerHTML = `<tr><td colspan="8">
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-code-branch"></i>
+                    </div>
+                    <div class="empty-state-title">No branches yet</div>
+                    <div class="empty-state-text">Add your first branch above.</div>
+                </div>
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = allBranches.map((b, i) => `
+            <tr>
+                <td class="text-muted">${i + 1}</td>
+                <td class="cell-primary">
+                    ${b.name}
+                    ${b.isMainBranch
+            ? `<span class="badge badge-neutral" style="margin-left:6px;font-size:0.6rem">
+                               <i class="fas fa-star"
+                                  style="font-size:0.55rem;margin-right:2px"></i>
+                               Main
+                           </span>`
+            : ''}
+                </td>
+                <td class="text-secondary">${b.city || '—'}</td>
+                <td>
+                    <span class="badge badge-neutral">${b.country || 'UAE'}</span>
+                </td>
+                <td class="text-secondary">${b.phone || '—'}</td>
+                <td>
+                    ${b.isMainBranch
+            ? '<span class="badge badge-active">Main Branch</span>'
+            : '<span class="badge badge-neutral">Branch</span>'}
+                </td>
+                <td>
+                    ${b.status === 'ACTIVE'
+            ? '<span class="badge badge-active">Active</span>'
+            : '<span class="badge badge-inactive">Inactive</span>'}
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm btn-icon-only"
+                                onclick="openEdit(${b.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    }
+
+    async function addBranch() {
+        const name    = document.getElementById('addName').value.trim();
+        const city    = document.getElementById('addCity').value.trim();
+        const country = document.getElementById('addCountry').value.trim();
+        const phone   = document.getElementById('addPhone').value.trim();
+        const address = document.getElementById('addAddress').value.trim();
+
+        if (!name || !city) {
+            Toast.error('Branch name and city are required.');
+            return;
+        }
+        try {
+            await API.post(BRANCH_API, { name, city, country, phone, address });
+            Modal.close('addModal');
+            Toast.success('Branch created successfully.');
+            ['addName','addCity','addCountry','addPhone','addAddress']
+                .forEach(id => document.getElementById(id).value = '');
+            document.getElementById('addCountry').value = 'UAE';
+            loadBranches();
+        } catch(err) {
+            Toast.error(err.message || 'Failed to create branch.');
+        }
+    }
+
+    function openEdit(id) {
+        const b = allBranches.find(x => x.id === id);
+        if (!b) return;
+        document.getElementById('editId').value      = b.id;
+        document.getElementById('editIsMain').value  = b.isMainBranch;
+        document.getElementById('editName').value    = b.name;
+        document.getElementById('editCity').value    = b.city || '';
+        document.getElementById('editCountry').value = b.country || 'UAE';
+        document.getElementById('editPhone').value   = b.phone || '';
+        document.getElementById('editAddress').value = b.address || '';
+        document.getElementById('editStatus').value  = b.status;
+
+        // Main branch cannot be deactivated
+        document.getElementById('statusGroup').style.display =
+            b.isMainBranch ? 'none' : 'block';
+
+        Modal.open('editModal');
+    }
+
+    async function saveBranch() {
+        const id      = document.getElementById('editId').value;
+        const isMain  = document.getElementById('editIsMain').value === 'true';
+        const name    = document.getElementById('editName').value.trim();
+        const city    = document.getElementById('editCity').value.trim();
+        const country = document.getElementById('editCountry').value.trim();
+        const phone   = document.getElementById('editPhone').value.trim();
+        const address = document.getElementById('editAddress').value.trim();
+        const status  = isMain ? 'ACTIVE'
+            : document.getElementById('editStatus').value;
+
+        if (!name) { Toast.error('Branch name is required.'); return; }
+
+        try {
+            await API.put(`${BRANCH_API}/${id}`,
+                { name, city, country, phone, address, status });
+            Modal.close('editModal');
+            Toast.success('Branch updated.');
+            loadBranches();
+        } catch(err) {
+            Toast.error(err.message || 'Failed to update branch.');
+        }
+    }
+
+    loadBranches();
+</script>
+</body>
+</html>
+

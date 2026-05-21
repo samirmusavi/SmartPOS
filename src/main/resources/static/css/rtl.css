@@ -1,0 +1,306 @@
+/* ============================================================
+   rtl.css — Arabic / Right-to-Left overrides for SmartPOS
+   Loaded AFTER smartpos.css. All rules scoped to [dir="rtl"].
+   Overrides physical properties (left/right/margin-left/…)
+   because the base CSS uses physical not logical properties.
+   ============================================================ */
+
+html[dir="rtl"] body,
+[dir="rtl"] {
+    direction: rtl;
+    text-align: right;
+}
+
+/* Keep numbers, prices, currency, codes visually LTR */
+[dir="rtl"] .stat-value,
+[dir="rtl"] .kpi-value,
+[dir="rtl"] .product-card-price,
+[dir="rtl"] .receipt,
+[dir="rtl"] .receipt *,
+[dir="rtl"] .ltr-text,
+[dir="rtl"] .font-mono,
+[dir="rtl"] code,
+[dir="rtl"] .receipt-no {
+    direction: ltr;
+}
+
+/* ---------- SIDEBAR ---------- */
+[dir="rtl"] .sidebar {
+    left: auto;
+    right: 0;
+    border-right: none;
+    border-left: 1px solid var(--border);
+}
+
+/* ---------- TOPBAR ----------
+   LTR left→right: [sidebar] | [☰  Title  Badge .............. 🔔  E]
+   RTL right→left: [sidebar] | [☰  Title  Badge .............. E   🔔]
+
+   Reading RTL (right to left):
+   Far right = sidebar brand (Eman Sweets + logo) — part of sidebar, not topbar
+   Then: [☰] [page title + breadcrumb] [Main Branch badge]
+   Then: spacer pushes the rest to the far left
+   Far left: [E avatar] [🔔 bell]
+
+   FIX: justify-content:space-between ignores `order`, so we use
+   flex-start + margin-left:auto on the title group to push it right.
+
+   topbar-right (bell+E) → order:1 → sits at LEFT edge
+     Internal order: E first (far left), then bell (to its right)
+     So NO row-reverse inside — HTML order is [bell][E], we want [E][bell]
+     Therefore: row-reverse on topbar-right puts E on left, bell on right ✓
+
+   topbar-left (hamburger+title+badge) → order:2 → margin-left:auto pushes to RIGHT
+     Internal order in HTML: [☰][title div]
+     We want: [☰][title][badge] reading left→right when on the right side
+     So NO reverse inside — keep natural HTML order
+     BUT badge is injected after title div, so order is [☰][title][badge] ✓
+*/
+[dir="rtl"] .topbar {
+    left: 0;
+    right: var(--sidebar-width);
+    justify-content: flex-start;
+}
+
+[dir="rtl"] .topbar.shifted {
+    right: var(--sidebar-collapsed);
+    left: 0;
+}
+
+/* E + bell group on the FAR LEFT
+   row-reverse: HTML is [bell][E avatar], reversed = [E avatar][bell] ✓ */
+[dir="rtl"] .topbar-right {
+    order: 1;
+    flex-direction: row-reverse;
+    margin-right: 0;
+}
+
+/* Hamburger + title + badge group pushed to FAR RIGHT
+   Natural HTML order [☰][title div][badge] — no reverse needed
+   margin-left:auto pushes the whole group to the right edge */
+[dir="rtl"] .topbar-left {
+    order: 2;
+    flex-direction: row;
+    margin-left: auto;
+}
+
+[dir="rtl"] .page-title,
+[dir="rtl"] .page-breadcrumb {
+    text-align: right;
+}
+
+/* ---------- MAIN CONTENT ---------- */
+[dir="rtl"] .main-content {
+    margin-left: 0;
+    margin-right: var(--sidebar-width);
+}
+
+[dir="rtl"] .main-content.shifted {
+    margin-left: 0;
+    margin-right: var(--sidebar-collapsed);
+}
+
+/* ---------- NAV ITEMS ---------- */
+[dir="rtl"] .nav-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] .nav-item i {
+    margin: 0;
+}
+
+[dir="rtl"] .sidebar-footer > a,
+[dir="rtl"] .sidebar-footer > button {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+/* ---------- FORM / INPUT ICONS ---------- */
+[dir="rtl"] .input-icon-wrap .input-icon {
+    left: auto;
+    right: 12px;
+}
+
+[dir="rtl"] .input-icon-wrap input,
+[dir="rtl"] .input-icon-wrap .form-control {
+    padding-left: var(--space-3);
+    padding-right: 36px;
+    text-align: right;
+}
+
+/* ---------- CARDS / STATS ---------- */
+[dir="rtl"] .stat-card,
+[dir="rtl"] .card {
+    text-align: right;
+}
+
+/* stat-card-top: keep natural RTL flow (label right, icon left),
+   but ensure the label has enough breathing room so it doesn't
+   visually collide with the icon when the Arabic text is long. */
+[dir="rtl"] .stat-card-top {
+    flex-direction: row;
+    gap: var(--space-3);
+}
+
+[dir="rtl"] .stat-card-top .stat-label {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+[dir="rtl"] .stat-card-top .stat-icon {
+    flex-shrink: 0;
+}
+
+[dir="rtl"] .card-header {
+    flex-direction: row-reverse;
+}
+
+/* Reports page — icon uses position:absolute with right:16px.
+   In RTL, that collides with the right-aligned Arabic title.
+   Flip to left side. */
+[dir="rtl"] .kpi-icon {
+    right: auto;
+    left: var(--space-4);
+}
+
+[dir="rtl"] .kpi-card {
+    text-align: right;
+}
+
+[dir="rtl"] .toolbar {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .toolbar-left,
+[dir="rtl"] .toolbar-right {
+    flex-direction: row-reverse;
+}
+
+/* ---------- BUTTON ICONS ---------- */
+[dir="rtl"] .btn i {
+    margin-left: 6px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .btn {
+    flex-direction: row-reverse;
+}
+
+/* ---------- MODAL ---------- */
+[dir="rtl"] .modal-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .modal-title i {
+    margin-left: 8px;
+    margin-right: 0;
+}
+
+[dir="rtl"] .modal-footer {
+    flex-direction: row-reverse;
+}
+
+/* ---------- TOAST ---------- */
+[dir="rtl"] .toast-container {
+    left: 24px;
+    right: auto;
+}
+
+[dir="rtl"] .toast {
+    animation: slideInRTL 0.3s ease-out forwards;
+}
+
+@keyframes slideInRTL {
+    from { opacity: 0; transform: translateX(-30px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------- TABLES ---------- */
+[dir="rtl"] .sp-table th,
+[dir="rtl"] .sp-table td {
+    text-align: right;
+}
+
+[dir="rtl"] .sp-table th[style*="center"],
+[dir="rtl"] .sp-table td[style*="center"] {
+    text-align: center;
+}
+
+/* ---------- FLEX / UTILITY OVERRIDES ---------- */
+[dir="rtl"] .ml-auto {
+    margin-left: 0;
+    margin-right: auto;
+}
+
+[dir="rtl"] .mr-auto {
+    margin-right: 0;
+    margin-left: auto;
+}
+
+[dir="rtl"] .text-right { text-align: left; }
+[dir="rtl"] .text-left  { text-align: right; }
+
+/* ---------- SECTION HEADERS (settings page) ---------- */
+[dir="rtl"] .section-header {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+/* ---------- PASSWORD TOGGLE ---------- */
+[dir="rtl"] .pw-toggle-btn {
+    right: auto;
+    left: 10px;
+}
+
+/* ---------- APPEARANCE SETTINGS CARDS ---------- */
+[dir="rtl"] .appearance-row {
+    flex-direction: row-reverse;
+}
+[dir="rtl"] .appearance-info {
+    text-align: right;
+}
+
+/* ---------- NOTIFICATION DROPDOWN ---------- */
+[dir="rtl"] .notif-header {
+    flex-direction: row-reverse;
+}
+
+[dir="rtl"] .notif-item {
+    flex-direction: row-reverse;
+    text-align: right;
+}
+
+[dir="rtl"] .notif-item-arrow {
+    transform: scaleX(-1);
+}
+
+[dir="rtl"] .notif-count-badge {
+    right: auto;
+    left: -4px;
+}
+
+/* ---------- MOBILE ---------- */
+@media (max-width: 768px) {
+    [dir="rtl"] .main-content,
+    [dir="rtl"] .main-content.shifted {
+        margin-right: 0;
+        margin-left: 0;
+    }
+    [dir="rtl"] .topbar,
+    [dir="rtl"] .topbar.shifted {
+        right: 0;
+        left: 0;
+    }
+    /* On mobile, sidebar slides in so topbar spans full width.
+       Keep the order-based swap so bell+E stay on the left. */
+    [dir="rtl"] .sidebar {
+        transform: translateX(100%);
+    }
+    [dir="rtl"] .sidebar.open {
+        transform: translateX(0);
+    }
+}

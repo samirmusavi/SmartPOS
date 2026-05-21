@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Products – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .barcode-wrap { display:flex; gap:var(--space-2); align-items:center; }
+        .barcode-wrap .form-control { flex:1; font-family:var(--font-mono); letter-spacing:0.05em; }
+        .btn-scan {
+            width:38px; height:38px; flex-shrink:0; border-radius:var(--radius-md);
+            border:1px solid var(--border); background:var(--surface-2);
+            color:var(--text-secondary); display:flex; align-items:center;
+            justify-content:center; cursor:pointer; font-size:0.9rem;
+            transition:all var(--transition-fast);
+        }
+        .btn-scan:hover { background:var(--primary-light); color:var(--primary); border-color:rgba(99,102,241,0.3); }
+        .btn-scan.active { background:var(--primary); color:#fff; border-color:var(--primary); box-shadow:0 0 12px var(--primary-glow); animation:scanPulse 1s infinite; }
+        .btn-scan.success { background:var(--success); color:#fff; border-color:var(--success); }
+        @keyframes scanPulse {
+            0%,100% { box-shadow:0 0 8px var(--primary-glow); }
+            50%      { box-shadow:0 0 20px var(--primary-glow); }
+        }
+        .scan-hint { font-size:var(--text-xs); color:var(--primary); margin-top:var(--space-1); display:none; align-items:center; gap:var(--space-1); }
+        .scan-hint.visible { display:flex; }
+        .supplier-tag {
+            display:inline-flex; align-items:center; gap:4px;
+            font-size:0.65rem; font-weight:600; padding:2px 8px;
+            border-radius:var(--radius-full); background:rgba(99,102,241,0.08);
+            color:var(--primary); border:1px solid rgba(99,102,241,0.2); white-space:nowrap;
+        }
+        /* Branch context badge in card header */
+        .branch-context-badge {
+            display:inline-flex; align-items:center; gap:6px;
+            font-size:var(--text-xs); font-weight:600; padding:4px 10px;
+            border-radius:var(--radius-full); background:var(--primary-light);
+            color:var(--primary); border:1px solid rgba(99,102,241,0.2);
+        }
+        .branch-context-badge.global {
+            background:rgba(100,116,139,0.08);
+            color:var(--text-secondary);
+            border-color:var(--border);
+        }
+        /* Product image styles */
+        .product-thumb {
+            width:28px; height:28px; border-radius:var(--radius-sm);
+            object-fit:cover; flex-shrink:0;
+            border:1px solid var(--border);
+        }
+        .product-thumb-placeholder {
+            width:28px; height:28px; border-radius:var(--radius-sm);
+            background:var(--surface-2); display:flex; align-items:center;
+            justify-content:center; flex-shrink:0; font-size:0.65rem;
+            color:var(--text-muted); border:1px solid var(--border);
+        }
+        .image-upload-area {
+            width:120px; height:120px; border-radius:var(--radius-lg);
+            border:2px dashed var(--border); display:flex; flex-direction:column;
+            align-items:center; justify-content:center; margin:0 auto var(--space-3);
+            overflow:hidden; background:var(--surface-2); cursor:pointer;
+            transition:all var(--transition-fast); position:relative;
+        }
+        .image-upload-area:hover {
+            border-color:var(--primary); background:var(--primary-light);
+        }
+        .image-upload-area img {
+            width:100%; height:100%; object-fit:cover;
+        }
+        .image-upload-area .upload-placeholder {
+            text-align:center; color:var(--text-muted);
+        }
+        .image-upload-area .upload-placeholder i { font-size:1.5rem; margin-bottom:4px; }
+        .image-upload-area .upload-placeholder span { font-size:var(--text-xs); }
+        .image-upload-actions { display:flex; gap:var(--space-2); justify-content:center; }
+        .image-uploading {
+            position:absolute; inset:0; background:rgba(0,0,0,0.5);
+            display:flex; align-items:center; justify-content:center;
+            border-radius:var(--radius-lg); color:#fff; font-size:1.2rem;
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item active">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="nav_products">Products</div>
+            <div class="page-breadcrumb">SmartPOS / Inventory / Products</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+    <div class="card">
+        <div class="card-header">
+            <div class="flex items-center gap-3">
+                <span class="card-title" data-i18n="prod_list">Product List</span>
+                <!-- Shows which branch stock is currently displayed -->
+                <span class="branch-context-badge" id="branchContextBadge" style="display:none"></span>
+            </div>
+            <div class="flex gap-2">
+                <a href="/stock-adjustments.html" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-clock-rotate-left"></i> Adjustment History
+                </a>
+                <button class="btn btn-secondary btn-sm" onclick="openImportModal()">
+                    <i class="fas fa-file-import"></i> <span data-i18n="prod_import">Import</span>
+                </button>
+                <button class="btn btn-primary btn-sm" onclick="Modal.open('addModal')">
+                    <i class="fas fa-plus"></i> <span data-i18n="prod_add">Add Product</span>
+                </button>
+            </div>
+        </div>
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search products..." data-i18n="pos_search_products" style="width:240px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="categoryFilter" style="width:160px" onchange="renderTable()">
+                    <option value="">All Categories</option>
+                </select>
+                <select class="form-control" id="stockFilter" style="width:140px" onchange="renderTable()">
+                    <option value="">All Stock</option>
+                    <option value="out">Out of Stock</option>
+                    <option value="low">Low Stock</option>
+                    <option value="ok">In Stock</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th><th data-i18n="prod_th_name">Product Name</th><th data-i18n="prod_th_barcode">Barcode</th><th data-i18n="prod_th_cat">Category</th>
+                    <th data-i18n="prod_th_sup">Supplier</th><th data-i18n="prod_th_cost">Cost Price</th><th data-i18n="prod_th_price">Selling Price</th>
+                    <th data-i18n="prod_lbl_margin">Margin</th>
+                    <!-- Stock column header is updated dynamically by setStockColumnHeader() -->
+                    <th id="stockColHeader" data-i18n="prod_th_stock">Stock</th>
+                    <th data-i18n="prod_th_status">Status</th><th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="productTableBody">
+                <tr><td colspan="11">
+                    <div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div>
+                </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="toolbar">
+            <span class="text-sm text-muted" id="paginationInfo">—</span>
+            <div class="pagination" id="paginationPages"></div>
+        </div>
+    </div>
+</main>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="prod_add">Add New Product</span>
+            <button class="modal-close" onclick="closeAddModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="prod_lbl_name">Product Name *</label>
+                        <input type="text" id="addName" class="form-control" placeholder="e.g. Coca Cola 500ml">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Barcode <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional, type or scan</span></label>
+                        <div class="barcode-wrap">
+                            <input type="text" id="addBarcode" class="form-control" placeholder="e.g. 5000112637922" autocomplete="off" spellcheck="false">
+                            <button class="btn-scan" id="addScanBtn" onclick="BarcodeScanner.activate('add')" title="Click then scan barcode">
+                                <i class="fas fa-barcode"></i>
+                            </button>
+                        </div>
+                        <div class="scan-hint" id="addScanHint">
+                            <i class="fas fa-circle-notch fa-spin"></i> Waiting for scan...
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="prod_lbl_cat">Category *</label>
+                        <input type="text" id="addCategory" class="form-control" placeholder="e.g. Beverages">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Unit Type *</label>
+                        <select id="addUnitType" class="form-control" onchange="toggleAddQtyUnit()">
+                            <option value="PCS">PCS — Pieces</option>
+                            <option value="GRAM">GRAM — Weight (g)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Purity <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                        <select id="addPurity" class="form-control" onchange="syncPurityInput('add')">
+                            <option value="">No purity</option>
+                            <option value="585">14k / 585</option>
+                            <option value="750">18k / 750</option>
+                            <option value="875">21k / 875</option>
+                            <option value="920">22k / 920</option>
+                            <option value="999.9">24k / 999.9</option>
+                            <option value="995">995.0 Bullion</option>
+                            <option value="custom">Custom…</option>
+                        </select>
+                        <input type="number" id="addPurityCustom" class="form-control" placeholder="e.g. 750" step="0.1" min="0" max="1000" style="margin-top:6px;display:none" oninput="syncPurityLabel('add')">
+                        <div id="addPurityLabel" class="text-xs text-muted" style="margin-top:4px"></div>
+                    </div>
+                </div>
+                <div class="grid-2" style="display:none"><!-- spacer kept for layout -->
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="prod_lbl_sup">Supplier <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                        <select id="addSupplier" class="form-control">
+                            <option value="">No supplier selected</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4)">
+                    <div class="text-xs font-semibold text-muted uppercase tracking mb-3" style="margin-bottom:12px">
+                        <i class="fas fa-tag" style="margin-right:6px"></i>Pricing
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">Cost Price (AED) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-shopping-basket input-icon"></i>
+                                <input type="number" id="addCostPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateAddMargin()">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Selling Price (AED) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-dollar-sign input-icon"></i>
+                                <input type="number" id="addPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateAddMargin()">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="addMarginPreview" style="margin-top:10px;display:none;padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);background:var(--surface-3)"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" id="addQtyLabel">Initial Quantity (PCS) *</label>
+                    <input type="number" id="addQuantity" class="form-control" placeholder="0" min="0" step="1">
+                </div>
+                <div class="text-xs text-muted" style="padding:var(--space-2) 0">
+                    <i class="fas fa-info-circle" style="color:var(--primary);margin-right:4px"></i>
+                    You can upload a product image after saving the product.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()" data-i18n="btn_cancel">Cancel</button>
+            <button class="btn btn-primary" onclick="saveProduct()"><i class="fas fa-check"></i> <span data-i18n="btn_save">Save Product</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" data-i18n="btn_edit">Edit Product</span>
+            <button class="modal-close" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <input type="hidden" id="editBarcode">
+            <div class="flex flex-col gap-4">
+                <!-- Product Image Upload -->
+                <div class="form-group" style="text-align:center">
+                    <label class="form-label" style="text-align:center" data-i18n="prod_lbl_image">Product Image</label>
+                    <div class="image-upload-area" id="editImageArea"
+                         onclick="document.getElementById('editImageFile').click()">
+                        <div class="upload-placeholder" id="editImagePlaceholder">
+                            <i class="fas fa-camera"></i>
+                            <span>Click to upload</span>
+                        </div>
+                    </div>
+                    <input type="file" id="editImageFile" accept="image/jpeg,image/png,image/webp,image/gif"
+                           style="display:none" onchange="uploadProductImage()">
+                    <div class="image-upload-actions" id="editImageActions" style="display:none">
+                        <button class="btn btn-secondary btn-sm"
+                                onclick="document.getElementById('editImageFile').click()">
+                            <i class="fas fa-camera"></i> Change
+                        </button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteProductImage()">
+                            <i class="fas fa-trash"></i> <span data-i18n="btn_delete">Remove</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="prod_lbl_name">Product Name</label>
+                        <input type="text" id="editName" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Barcode <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— type or scan to update</span></label>
+                        <div class="barcode-wrap">
+                            <input type="text" id="editBarcodeDisplay" class="form-control" autocomplete="off" spellcheck="false" oninput="syncEditBarcode()">
+                            <button class="btn-scan" id="editScanBtn" onclick="BarcodeScanner.activate('edit')" title="Click then scan barcode">
+                                <i class="fas fa-barcode"></i>
+                            </button>
+                        </div>
+                        <div class="scan-hint" id="editScanHint">
+                            <i class="fas fa-circle-notch fa-spin"></i> Waiting for scan...
+                        </div>
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label" data-i18n="prod_lbl_cat">Category</label>
+                        <input type="text" id="editCategory" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Supplier <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                        <select id="editSupplier" class="form-control">
+                            <option value="">No supplier selected</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4)">
+                    <div class="text-xs font-semibold text-muted uppercase tracking" style="margin-bottom:12px">
+                        <i class="fas fa-tag" style="margin-right:6px"></i>Pricing
+                    </div>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label" data-i18n="prod_lbl_cost">Cost Price (AED)</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-shopping-basket input-icon"></i>
+                                <input type="number" id="editCostPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateEditMargin()">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Selling Price (AED)</label>
+                            <div class="input-icon-wrap">
+                                <i class="fas fa-dollar-sign input-icon"></i>
+                                <input type="number" id="editPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateEditMargin()">
+                            </div>
+                        </div>
+                    </div>
+                    <div id="editMarginPreview" style="margin-top:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);background:var(--surface-3)"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" id="editQuantity" class="form-control" min="0">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEdit()"><i class="fas fa-check"></i> Save Changes</button>
+        </div>
+    </div>
+</div>
+
+<!-- ADJUST STOCK MODAL -->
+<div class="modal-overlay" id="adjustModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-sliders" style="color:var(--primary);margin-right:8px"></i>Adjust Stock</span>
+            <button class="modal-close" onclick="Modal.close('adjustModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="adjustProductId">
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4);margin-bottom:var(--space-4)">
+                <div class="text-xs text-muted uppercase tracking mb-2">Product</div>
+                <div class="text-md font-semibold text-primary" id="adjustProductName">—</div>
+                <!-- Label changes to "Current Branch Stock" or "Current System Stock" -->
+                <div class="flex items-center gap-4 mt-3">
+                    <div>
+                        <div class="text-xs text-muted" id="adjustCurrentQtyLabel">Current System Stock</div>
+                        <div class="text-2xl font-bold text-primary" id="adjustCurrentQty">—</div>
+                    </div>
+                    <div style="font-size:1.5rem;color:var(--text-muted)"><i class="fas fa-arrow-right"></i></div>
+                    <div>
+                        <div class="text-xs text-muted">New Stock</div>
+                        <div class="text-2xl font-bold" id="adjustPreview" style="color:var(--primary)">—</div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div class="form-group">
+                    <label class="form-label">Actual Physical Count *</label>
+                    <input type="number" id="adjustNewQty" class="form-control" placeholder="Enter actual count" min="0" oninput="updateAdjustPreview()">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Reason *</label>
+                    <select id="adjustReason" class="form-control">
+                        <option value="MANUAL_COUNT">Manual Count — physical stock check</option>
+                        <option value="DAMAGED">Damaged — items found damaged</option>
+                        <option value="STOLEN">Stolen / Theft — shrinkage</option>
+                        <option value="SUPPLIER_RETURN">Supplier Return — returned to supplier</option>
+                        <option value="RECEIVED_STOCK">Received Stock — new stock arrived</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <input type="text" id="adjustNotes" class="form-control" placeholder="Optional notes...">
+                </div>
+                <div id="adjustDiffBox" style="display:none;padding:var(--space-3) var(--space-4);border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:600;text-align:center"></div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('adjustModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveAdjustment()"><i class="fas fa-check"></i> Apply Adjustment</button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Delete Product</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-trash"></i>
+            </div>
+            <div class="empty-state-title mb-2">Delete this product?</div>
+            <div class="empty-state-text">This action cannot be undone.</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<!-- SUPPLY TEMPLATE MODAL -->
+<div class="modal-overlay" id="templateModal">
+    <div class="modal" style="max-width:540px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-boxes-stacked" style="color:var(--primary);margin-right:8px"></i>Supply Template
+            </span>
+            <button class="modal-close" onclick="Modal.close('templateModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4)">
+                <div class="text-xs text-muted">Product</div>
+                <div class="text-sm font-semibold text-primary" id="templateProductName">—</div>
+                <div class="text-xs text-muted" style="margin-top:4px">
+                    When this product is sold, the system will suggest deducting the supplies below from your supply inventory.
+                </div>
+            </div>
+            <div id="templateRows"></div>
+            <div style="border-top:1px solid var(--border);padding-top:var(--space-4);margin-top:var(--space-4)">
+                <div class="text-xs font-semibold text-muted uppercase tracking mb-3">Add Supply to Template</div>
+                <div class="flex gap-2">
+                    <select id="templateSupplySelect" class="form-control" style="flex:1">
+                        <option value="">— Select a supply —</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="addTemplateRow()">
+                        <i class="fas fa-plus"></i> Add
+                    </button>
+                </div>
+                <div class="text-xs text-muted mt-2">
+                    Don't see a supply? Add it first in the <a href="/supplies.html" style="color:var(--primary)">Supplies page</a>.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('templateModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveTemplate()"><i class="fas fa-check"></i> Save Template</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+
+<!-- IMPORT CSV MODAL -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal" style="max-width:520px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-file-import" style="color:var(--success);margin-right:8px"></i>
+                Import Products
+            </span>
+            <button class="modal-close" onclick="Modal.close('importModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="text-sm text-muted mb-4">
+                Upload a CSV or Excel (.xlsx) file to bulk-import products. This is useful
+                when migrating from another POS system or adding products in bulk.
+            </div>
+
+            <div style="background:var(--surface-2);border:1px solid var(--border);
+                        border-radius:var(--radius-md);padding:var(--space-4);margin-bottom:var(--space-4)">
+                <div class="text-xs font-bold text-muted uppercase tracking mb-2">
+                    Required CSV Format
+                </div>
+                <code class="text-xs" style="color:var(--primary);word-break:break-all;line-height:1.8">
+                    Name, Barcode, Category, CostPrice, SellingPrice, Quantity
+                </code>
+                <div class="text-xs text-muted" style="margin-top:var(--space-3);line-height:1.6">
+                    <div><strong>Required columns:</strong> Name, SellingPrice</div>
+                    <div><strong>Optional columns:</strong> Barcode, Category, CostPrice, Quantity</div>
+                </div>
+            </div>
+
+            <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);
+                        border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                        margin-bottom:var(--space-4);font-size:var(--text-xs);color:var(--text-secondary);line-height:1.6">
+                <i class="fas fa-info-circle" style="color:var(--primary);margin-right:6px"></i>
+                <strong>How it works:</strong>
+                The first row must be column headers. Each subsequent row creates one product.
+                Products with duplicate barcodes (already in the system or repeated in the file) are skipped.
+                Quantity is assigned to your current branch — all other branches start at 0.
+                You can upload product images individually after import.
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Select File</label>
+                <input type="file" id="importFile" class="form-control" accept=".csv,.xlsx,.xls">
+            </div>
+            <div id="importResult" style="display:none;margin-top:var(--space-4)"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('importModal')">Close</button>
+            <button class="btn btn-primary" id="importBtn" onclick="importCsv()">
+                <i class="fas fa-file-import"></i> Import
+            </button>
+        </div>
+    </div>
+</div>
+<script>
+
+    // ── CSV IMPORT ────────────────────────────────────────────────
+    function openImportModal() {
+        document.getElementById('importFile').value = '';
+        document.getElementById('importResult').style.display = 'none';
+        const btn = document.getElementById('importBtn');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-import"></i> Import';
+        Modal.open('importModal');
+    }
+
+    async function importCsv() {
+        const fileInput = document.getElementById('importFile');
+        if (!fileInput.files.length) {
+            Toast.error('Please select a CSV file.');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const ext = file.name.toLowerCase();
+        if (!ext.endsWith('.csv') && !ext.endsWith('.xlsx') && !ext.endsWith('.xls')) {
+            Toast.error('Only .csv, .xlsx, and .xls files are supported.');
+            return;
+        }
+
+        const btn = document.getElementById('importBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Build headers manually — FormData must NOT have Content-Type
+            const headers = {};
+            const token = Auth.getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+            const bizId = Auth.getBusinessId();
+            if (bizId) headers['X-Business-Id'] = bizId;
+            const branchId = Auth.getBranchId();
+            if (branchId) headers['X-Branch-Id'] = branchId;
+
+            const res = await fetch('/api/products/import', {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+
+            const result = await res.json();
+
+            if (result.error) {
+                Toast.error(result.error);
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-file-import"></i> Import';
+                return;
+            }
+
+            // Show results
+            const resultDiv = document.getElementById('importResult');
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = `
+                <div style="padding:var(--space-4);background:var(--surface-2);
+                            border:1px solid var(--border);border-radius:var(--radius-md)">
+                    <div class="flex items-center gap-3" style="margin-bottom:var(--space-3)">
+                        <div style="width:32px;height:32px;border-radius:50%;
+                                    background:${result.imported > 0 ? 'var(--success-light)' : 'var(--warning-light)'};
+                                    color:${result.imported > 0 ? 'var(--success)' : 'var(--warning)'};
+                                    display:flex;align-items:center;justify-content:center;flex-shrink:0">
+                            <i class="fas fa-${result.imported > 0 ? 'check' : 'exclamation'}"></i>
+                        </div>
+                        <div>
+                            <div class="text-sm font-bold text-primary">Import Complete</div>
+                            <div class="text-xs text-muted">
+                                ${result.imported} imported, ${result.skipped} skipped
+                                out of ${result.total} total rows
+                            </div>
+                        </div>
+                    </div>
+                    ${result.errors && result.errors.length ? `
+                        <div class="text-xs text-muted mb-2 font-semibold uppercase tracking">Skipped rows:</div>
+                        <div style="max-height:150px;overflow-y:auto;font-size:var(--text-xs)">
+                            ${result.errors.map(e =>
+                '<div style="padding:4px 0;border-bottom:1px solid var(--border)">' +
+                '<span class="text-danger font-semibold">Row ' + e.row + ':</span> ' +
+                '<span class="text-muted">' + e.reason + '</span>' +
+                '</div>'
+            ).join('')}
+                        </div>
+                    ` : ''}
+                </div>`;
+
+            if (result.imported > 0) {
+                Toast.success(result.imported + ' products imported successfully.');
+                loadData();
+            }
+
+        } catch (err) {
+            Toast.error('Import failed: ' + (err.message || 'Unknown error'));
+        }
+
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-file-import"></i> Import';
+    }
+    RoleGuard.guardCurrentPage();
+
+    const PRODUCTS_API = '/api/products';
+    const SUPPLIER_API = '/api/suppliers';
+    const ADJ_API      = '/api/stock-adjustments';
+    const TEMPLATE_API = '/api/supply-templates';
+    const SUPPLY_API   = '/api/supplies';
+    const BRANCH_API   = '/api/branches';
+
+    let allProducts  = [];
+    let allSuppliers = [];
+    let allSupplies  = [];
+    let currentPage  = 1;
+    let deleteId     = null;
+    const perPage    = 10;
+    const canAdjust  = ['OWNER', 'MANAGER'].includes(Auth.getUserRole());
+
+    // ── BRANCH STOCK MAP ─────────────────────────────────────────────
+    // Populated when a branch is selected. Key = productId, value = branch qty.
+    // Remains empty ({}) when owner is in global view — we fall back to product.quantity.
+    let branchInventoryMap = {};
+
+    // Returns the quantity to display for a product:
+    // - Branch selected → branch_inventory.quantity for that branch
+    // - Global view     → product.quantity (total across all branches)
+    function getDisplayQty(product) {
+        const branchQty = branchInventoryMap[product.id];
+        return branchQty !== undefined ? branchQty : product.quantity;
+    }
+
+    // Updates the stock column header and branch context badge
+    function setStockColumnHeader() {
+        const branchName = Auth.getBranchName();
+        const header     = document.getElementById('stockColHeader');
+        const badge      = document.getElementById('branchContextBadge');
+
+        if (branchName) {
+            header.textContent = 'Branch Stock';
+            badge.innerHTML = `<i class="fas fa-code-branch"></i> ${branchName}`;
+            badge.className = 'branch-context-badge';
+            badge.style.display = 'inline-flex';
+        } else {
+            header.textContent = 'Stock (All Branches)';
+            badge.innerHTML = `<i class="fas fa-globe"></i> All Branches`;
+            badge.className = 'branch-context-badge global';
+            badge.style.display = 'inline-flex';
+        }
+    }
+
+    // ── BARCODE SCANNER ───────────────────────────────────────────
+    const BarcodeScanner = {
+        activeModal: null, _autoCancel: null, _keyListener: null,
+
+        activate(modal) {
+            this.activeModal = modal;
+            const btn   = document.getElementById(`${modal}ScanBtn`);
+            const hint  = document.getElementById(`${modal}ScanHint`);
+            const input = document.getElementById(modal === 'add' ? 'addBarcode' : 'editBarcodeDisplay');
+            btn.classList.add('active');
+            btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+            hint.classList.add('visible');
+            input.value = '';
+            input.focus();
+            this._keyListener = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const val = input.value.trim();
+                    if (val.length >= 3) this.onScanned(val);
+                }
+            };
+            input.addEventListener('keydown', this._keyListener);
+            this._autoCancel = setTimeout(() => this.deactivate(), 15000);
+            Toast.info('Scanner active — scan or type the barcode then press Enter.');
+        },
+
+        onScanned(barcode) {
+            const modal   = this.activeModal;
+            const inputId = modal === 'add' ? 'addBarcode' : 'editBarcodeDisplay';
+            document.getElementById(inputId).value = barcode;
+            if (modal === 'edit') document.getElementById('editBarcode').value = barcode;
+            const btn  = document.getElementById(`${modal}ScanBtn`);
+            const hint = document.getElementById(`${modal}ScanHint`);
+            btn.classList.remove('active'); btn.classList.add('success');
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            hint.classList.remove('visible');
+            Toast.success(`Barcode scanned: ${barcode}`);
+            setTimeout(() => { btn.classList.remove('success'); btn.innerHTML = '<i class="fas fa-barcode"></i>'; }, 2000);
+            this.deactivate();
+        },
+
+        deactivate() {
+            clearTimeout(this._autoCancel);
+            this.activeModal = null;
+            ['add', 'edit'].forEach(modal => {
+                const btn  = document.getElementById(`${modal}ScanBtn`);
+                const hint = document.getElementById(`${modal}ScanHint`);
+                if (btn && !btn.classList.contains('success')) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-barcode"></i>'; }
+                if (hint) hint.classList.remove('visible');
+            });
+        }
+    };
+
+    function syncEditBarcode() { document.getElementById('editBarcode').value = document.getElementById('editBarcodeDisplay').value; }
+    function closeAddModal() { BarcodeScanner.deactivate(); Modal.close('addModal'); }
+    function closeEditModal() { BarcodeScanner.deactivate(); Modal.close('editModal'); }
+
+    // ── LOAD DATA ─────────────────────────────────────────────────
+    async function loadData() {
+        try {
+            [allProducts, allSuppliers, allSupplies] = await Promise.all([
+                API.get(PRODUCTS_API),
+                API.get(SUPPLIER_API),
+                API.get(SUPPLY_API)
+            ]);
+
+            // If a specific branch is selected, fetch its inventory and build the map.
+            // Owner in global view (branchId = null) → fetch summed totals across all branches.
+            const branchId = Auth.getBranchId();
+            if (branchId) {
+                try {
+                    const inventory = await API.get(`${BRANCH_API}/${branchId}/inventory`);
+                    branchInventoryMap = {};
+                    inventory.forEach(item => {
+                        branchInventoryMap[item.productId] = item.quantity;
+                    });
+                } catch (e) {
+                    // Non-fatal — fall back to global quantity if inventory fetch fails
+                    branchInventoryMap = {};
+                    Toast.warning('Could not load branch stock levels. Showing global totals.');
+                }
+            } else {
+                // Global owner view: load real summed totals from all branches
+                try {
+                    branchInventoryMap = await API.get(`${PRODUCTS_API}/total-stock`);
+                } catch (e) {
+                    branchInventoryMap = {};
+                }
+            }
+
+            setStockColumnHeader();
+            populateCategoryFilter();
+            populateSupplierDropdowns();
+            buildTemplateSupplyOptions();
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load products.');
+        }
+    }
+
+    function populateSupplierDropdowns() {
+        const base = '<option value="">No supplier selected</option>';
+        const opts = allSuppliers.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+        document.getElementById('addSupplier').innerHTML  = base + opts;
+        document.getElementById('editSupplier').innerHTML = base + opts;
+    }
+
+    function populateCategoryFilter() {
+        const cats = [...new Set(allProducts.map(p => p.category))];
+        const sel  = document.getElementById('categoryFilter');
+        sel.innerHTML = '<option value="">All Categories</option>';
+        cats.forEach(c => sel.innerHTML += `<option value="${c}">${c}</option>`);
+    }
+
+    function buildTemplateSupplyOptions() {
+        const base = '<option value="">— Select a supply —</option>';
+        const opts = allSupplies.map(s => `<option value="${s.id}">${s.name} (${s.unit})</option>`).join('');
+        const sel  = document.getElementById('templateSupplySelect');
+        if (sel) sel.innerHTML = base + opts;
+    }
+
+    // ── MARGIN ────────────────────────────────────────────────────
+    function calcMargin(cost, sell) {
+        cost = parseFloat(cost)||0; sell = parseFloat(sell)||0;
+        if (sell <= 0) return null;
+        return { profit: sell-cost, margin: ((sell-cost)/sell*100).toFixed(1) };
+    }
+    function marginHTML(m) {
+        if (!m) return '';
+        const color = m.margin>=40?'var(--success)':m.margin>=20?'var(--warning)':'var(--danger)';
+        return `<span style="color:${color};font-weight:600"><i class="fas fa-${m.profit>0?'arrow-up':'arrow-down'}" style="font-size:.65rem"></i> Profit: AED ${m.profit.toFixed(2)} &nbsp;·&nbsp; Margin: ${m.margin}%</span><span style="color:var(--text-muted);margin-left:8px">per unit</span>`;
+    }
+    function updateAddMargin() {
+        const m = calcMargin(document.getElementById('addCostPrice').value, document.getElementById('addPrice').value);
+        const el = document.getElementById('addMarginPreview');
+        if (m) { el.style.display='block'; el.innerHTML=marginHTML(m); } else el.style.display='none';
+    }
+    function updateEditMargin() {
+        const m = calcMargin(document.getElementById('editCostPrice').value, document.getElementById('editPrice').value);
+        document.getElementById('editMarginPreview').innerHTML = m ? marginHTML(m) : '';
+    }
+
+    // ── RENDER TABLE ──────────────────────────────────────────────
+    function renderTable() {
+        const q     = document.getElementById('searchInput').value.toLowerCase();
+        const cat   = document.getElementById('categoryFilter').value;
+        const stock = document.getElementById('stockFilter').value;
+
+        let filtered = allProducts.filter(p => {
+            const displayQty = getDisplayQty(p);
+            const matchQ = p.name.toLowerCase().includes(q) || p.barcode.toLowerCase().includes(q) ||
+                p.category.toLowerCase().includes(q) || (p.supplierName||'').toLowerCase().includes(q);
+            const matchC = !cat   || p.category === cat;
+            // Stock filter uses branch quantity when a branch is selected
+            const matchS = !stock ||
+                (stock==='out' && displayQty===0) ||
+                (stock==='low' && displayQty>0 && displayQty<10) ||
+                (stock==='ok'  && displayQty>=10);
+            return matchQ && matchC && matchS;
+        });
+
+        const total = filtered.length;
+        const pages = Math.ceil(total/perPage)||1;
+        currentPage = Math.min(currentPage, pages);
+        const start = (currentPage-1)*perPage;
+        const slice = filtered.slice(start, start+perPage);
+
+        document.getElementById('countLabel').textContent = `${total} product${total!==1?'s':''}`;
+        document.getElementById('paginationInfo').textContent = total ? `Showing ${start+1}–${Math.min(start+perPage,total)} of ${total}` : 'No results';
+
+        const tbody = document.getElementById('productTableBody');
+        if (!slice.length) {
+            tbody.innerHTML = `<tr><td colspan="11"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-box-open"></i></div><div class="empty-state-title">No products found</div><div class="empty-state-text">Try adjusting your search or filters.</div></div></td></tr>`;
+        } else {
+            tbody.innerHTML = slice.map((p,i) => {
+                const displayQty  = getDisplayQty(p);
+                const cost        = parseFloat(p.costPrice||0);
+                const sell        = parseFloat(p.price||0);
+                const profit      = sell-cost;
+                const margin      = sell>0?(profit/sell*100).toFixed(1):0;
+                const marginColor = margin>=40?'var(--success)':margin>=20?'var(--warning)':'var(--danger)';
+                const adjustBtn   = (canAdjust && Auth.getBranchId()) ? `<button class="btn btn-secondary btn-sm btn-icon-only" onclick="openAdjust(${p.id})" title="Adjust Stock"><i class="fas fa-sliders"></i></button>` : '';
+                const thumbHtml   = p.imagePath
+                    ? `<img src="${p.imagePath}" alt="" class="product-thumb">`
+                    : `<div class="product-thumb-placeholder"><i class="fas fa-box-open"></i></div>`;
+                return `<tr>
+                    <td class="text-muted">${start+i+1}</td>
+                    <td class="cell-primary"><div class="flex items-center gap-2">${thumbHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span></div></td>
+                    <td class="cell-mono">${p.barcode}</td>
+                    <td><span class="badge badge-neutral">${p.category}</span></td>
+                    <td>${p.supplierName?`<span class="supplier-tag"><i class="fas fa-truck" style="font-size:0.6rem"></i>${p.supplierName}</span>`:'<span class="text-muted">—</span>'}</td>
+                    <td class="text-secondary">${cost>0?Format.currency(cost):'<span class="text-muted">—</span>'}</td>
+                    <td class="font-medium text-primary">${Format.currency(sell)}</td>
+                    <td>${cost>0&&sell>0?`<span style="color:${marginColor};font-size:var(--text-xs);font-weight:600">${margin}%</span>`:'<span class="text-muted">—</span>'}</td>
+                    <td class="font-medium ${displayQty===0?'text-danger':displayQty<10?'text-warning':'text-success'}">${displayQty}</td>
+                    <td>${Format.stockBadge(displayQty)}</td>
+                    <td>
+                        <div class="flex gap-2">
+                            ${adjustBtn}
+                            <button class="btn btn-ghost btn-sm btn-icon-only" onclick="openTemplate(${p.id},'${escapeHtml(p.name)}')" title="Supply Template"><i class="fas fa-boxes-stacked"></i></button>
+                            <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openEdit(${p.id})" title="Edit"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-icon-only" onclick="openDelete(${p.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        let html = '';
+        if (currentPage>1) html+=`<button class="page-btn" onclick="goPage(${currentPage-1})"><i class="fas fa-chevron-left"></i></button>`;
+        for (let p=1;p<=pages;p++) html+=`<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p}</button>`;
+        if (currentPage<pages) html+=`<button class="page-btn" onclick="goPage(${currentPage+1})"><i class="fas fa-chevron-right"></i></button>`;
+        document.getElementById('paginationPages').innerHTML = html;
+    }
+
+    function goPage(p) { currentPage=p; renderTable(); }
+
+    // ── ADD PRODUCT ───────────────────────────────────────────────
+    function toggleAddQtyUnit() {
+        const unitType = document.getElementById('addUnitType').value;
+        const qtyInput = document.getElementById('addQuantity');
+        const qtyLabel = document.getElementById('addQtyLabel');
+        if (unitType === 'GRAM') {
+            qtyInput.step = '0.01';
+            qtyInput.placeholder = '0.00';
+            qtyLabel.textContent = 'Initial Quantity (grams) *';
+        } else {
+            qtyInput.step = '1';
+            qtyInput.placeholder = '0';
+            qtyLabel.textContent = 'Initial Quantity (PCS) *';
+        }
+    }
+
+    function syncPurityInput(modal) {
+        const select = document.getElementById(modal + 'Purity');
+        const customInput = document.getElementById(modal + 'PurityCustom');
+        const label = document.getElementById(modal + 'PurityLabel');
+        if (select.value === 'custom') {
+            customInput.style.display = 'block';
+            label.textContent = '';
+        } else {
+            customInput.style.display = 'none';
+            if (select.value) {
+                const map = {'585':'14k / 585','750':'18k / 750','875':'21k / 875','920':'22k / 920','999.9':'24k / 999.9','995':'995.0 Bullion'};
+                label.textContent = '→ ' + (map[select.value] || select.value);
+            } else {
+                label.textContent = '';
+            }
+        }
+    }
+
+    function syncPurityLabel(modal) {
+        const val = document.getElementById(modal + 'PurityCustom').value;
+        const label = document.getElementById(modal + 'PurityLabel');
+        if (!val) { label.textContent = ''; return; }
+        const v = parseFloat(val);
+        let karat = '';
+        if (v === 585) karat = '14k';
+        else if (v === 750) karat = '18k';
+        else if (v === 875) karat = '21k';
+        else if (v === 920) karat = '22k';
+        else if (v >= 999) karat = '24k';
+        label.textContent = karat ? `→ ${karat} / ${val}` : `→ ${val}`;
+    }
+
+    async function saveProduct() {
+        const name      = document.getElementById('addName').value.trim();
+        const barcode   = document.getElementById('addBarcode').value.trim() || null;
+        const category  = document.getElementById('addCategory').value.trim();
+        const costPrice = document.getElementById('addCostPrice').value;
+        const price     = document.getElementById('addPrice').value;
+        const quantity  = document.getElementById('addQuantity').value;
+        const supplierId = document.getElementById('addSupplier').value||null;
+        const unitType  = document.getElementById('addUnitType').value || 'PCS';
+
+        // Purity
+        const puritySelect = document.getElementById('addPurity').value;
+        let purity = null;
+        if (puritySelect === 'custom') {
+            purity = document.getElementById('addPurityCustom').value || null;
+        } else if (puritySelect) {
+            purity = puritySelect;
+        }
+
+        if (!name||!category||!quantity) { Toast.error('Please fill in all required fields (Name, Category, Quantity).'); return; }
+        if (costPrice && price && parseFloat(costPrice)>parseFloat(price)) Toast.warning('Cost price is higher than selling price — you will make a loss.');
+
+        const isGram = unitType === 'GRAM';
+        const parsedQty = isGram ? parseFloat(quantity) : parseInt(quantity);
+
+        try {
+            await API.post(PRODUCTS_API, {
+                name,
+                barcode,
+                category,
+                costPrice: costPrice ? parseFloat(costPrice) : 0,
+                price: price ? parseFloat(price) : 0,
+                quantity: parsedQty,
+                supplierId: supplierId ? parseInt(supplierId) : null,
+                unitType,
+                purity: purity ? purity.toString() : null
+            });
+            closeAddModal();
+            Toast.success('Product added successfully.');
+            ['addName','addBarcode','addCategory','addCostPrice','addPrice','addQuantity'].forEach(id => document.getElementById(id).value='');
+            document.getElementById('addSupplier').value='';
+            document.getElementById('addUnitType').value='PCS';
+            document.getElementById('addPurity').value='';
+            document.getElementById('addPurityCustom').style.display='none';
+            document.getElementById('addPurityLabel').textContent='';
+            document.getElementById('addMarginPreview').style.display='none';
+            toggleAddQtyUnit();
+            loadData();
+        } catch(err) { Toast.error(err.message||'Failed to add product.'); }
+    }
+
+    // ── EDIT PRODUCT ──────────────────────────────────────────────
+    function openEdit(id) {
+        const p = allProducts.find(p=>p.id===id); if (!p) return;
+        document.getElementById('editId').value              = p.id;
+        document.getElementById('editBarcode').value         = p.barcode;
+        document.getElementById('editBarcodeDisplay').value  = p.barcode;
+        document.getElementById('editName').value            = p.name;
+        document.getElementById('editCategory').value        = p.category;
+        document.getElementById('editCostPrice').value       = p.costPrice||'';
+        document.getElementById('editPrice').value           = p.price;
+        // Edit modal shows global product.quantity — edits affect global quantity,
+        // branch inventory is synced by the backend via sync pattern.
+        document.getElementById('editQuantity').value        = p.quantity;
+        document.getElementById('editSupplier').value        = p.supplierId||'';
+
+        // Set product image preview
+        updateEditImagePreview(p.imagePath);
+
+        updateEditMargin(); Modal.open('editModal');
+    }
+    async function saveEdit() {
+        const id        = document.getElementById('editId').value;
+        const barcode   = document.getElementById('editBarcode').value;
+        const name      = document.getElementById('editName').value.trim();
+        const category  = document.getElementById('editCategory').value.trim();
+        const costPrice = document.getElementById('editCostPrice').value;
+        const price     = document.getElementById('editPrice').value;
+        const quantity  = document.getElementById('editQuantity').value;
+        const supplierId = document.getElementById('editSupplier').value||null;
+        if (!name||!category||!costPrice||!price||!quantity) { Toast.error('Please fill in all fields.'); return; }
+        if (parseFloat(costPrice)>parseFloat(price)) Toast.warning('Cost price is higher than selling price — you will make a loss.');
+        try {
+            await API.put(`${PRODUCTS_API}/${id}`, { name, barcode, category, costPrice:parseFloat(costPrice), price:parseFloat(price), quantity:parseInt(quantity), supplierId:supplierId?parseInt(supplierId):null });
+            closeEditModal(); Toast.success('Product updated successfully.'); loadData();
+        } catch(err) { Toast.error('Failed to update product.'); }
+    }
+
+    // ── PRODUCT IMAGE UPLOAD ──────────────────────────────────────
+    function updateEditImagePreview(imagePath) {
+        const area        = document.getElementById('editImageArea');
+        const placeholder = document.getElementById('editImagePlaceholder');
+        const actions     = document.getElementById('editImageActions');
+
+        if (imagePath) {
+            // Show image — add cache-buster to force refresh after re-upload
+            area.innerHTML = `<img src="${imagePath}?t=${Date.now()}" alt="Product image">`;
+            actions.style.display = 'flex';
+        } else {
+            area.innerHTML = `<div class="upload-placeholder" id="editImagePlaceholder">
+                <i class="fas fa-camera"></i><span>Click to upload</span>
+            </div>`;
+            actions.style.display = 'none';
+        }
+    }
+
+    async function uploadProductImage() {
+        const id = document.getElementById('editId').value;
+        if (!id) return;
+
+        const fileInput = document.getElementById('editImageFile');
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            Toast.error('Image must be under 5MB.');
+            fileInput.value = '';
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Show uploading state
+        const area = document.getElementById('editImageArea');
+        area.innerHTML += '<div class="image-uploading"><i class="fas fa-circle-notch fa-spin"></i></div>';
+
+        try {
+            // Use raw fetch — FormData must NOT have Content-Type set manually.
+            // Copy business/branch headers from API helper, skip Content-Type.
+            const apiHeaders = API._headers ? API._headers() : {};
+            const headers = {};
+            if (apiHeaders['Authorization']) headers['Authorization'] = apiHeaders['Authorization'];
+            if (apiHeaders['X-Business-Id']) headers['X-Business-Id'] = apiHeaders['X-Business-Id'];
+            if (apiHeaders['X-Branch-Id'])   headers['X-Branch-Id']   = apiHeaders['X-Branch-Id'];
+
+            const response = await fetch(`${PRODUCTS_API}/${id}/image`, {
+                method: 'POST',
+                headers: headers,
+                body: formData
+            });
+
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(err || 'Upload failed');
+            }
+
+            const data = await response.json();
+            updateEditImagePreview(data.imagePath);
+            Toast.success('Image uploaded successfully.');
+            loadData(); // Refresh table thumbnails
+        } catch(e) {
+            Toast.error(e.message || 'Failed to upload image.');
+            // Restore preview to current state
+            const product = allProducts.find(p => p.id == id);
+            updateEditImagePreview(product ? product.imagePath : null);
+        }
+
+        fileInput.value = '';
+    }
+
+    async function deleteProductImage() {
+        const id = document.getElementById('editId').value;
+        if (!id) return;
+
+        try {
+            await API.delete(`${PRODUCTS_API}/${id}/image`);
+            updateEditImagePreview(null);
+            Toast.success('Image removed.');
+            loadData();
+        } catch(e) {
+            Toast.error('Failed to remove image.');
+        }
+    }
+
+    // ── ADJUST STOCK ──────────────────────────────────────────────
+    function openAdjust(id) {
+        const p = allProducts.find(p=>p.id===id); if (!p) return;
+        // Use the branch-aware quantity as the starting point for the adjustment
+        const displayQty = getDisplayQty(p);
+        document.getElementById('adjustProductId').value    = p.id;
+        document.getElementById('adjustProductName').textContent = p.name;
+        document.getElementById('adjustCurrentQty').textContent  = displayQty;
+        // Update label based on context
+        document.getElementById('adjustCurrentQtyLabel').textContent =
+            Auth.getBranchId() ? 'Current Branch Stock' : 'Current System Stock';
+        document.getElementById('adjustNewQty').value       = '';
+        document.getElementById('adjustNotes').value        = '';
+        document.getElementById('adjustReason').value       = 'MANUAL_COUNT';
+        document.getElementById('adjustPreview').textContent = '—';
+        document.getElementById('adjustDiffBox').style.display = 'none';
+        Modal.open('adjustModal');
+    }
+    function updateAdjustPreview() {
+        const cur    = parseInt(document.getElementById('adjustCurrentQty').textContent)||0;
+        const newQty = parseInt(document.getElementById('adjustNewQty').value);
+        const prev   = document.getElementById('adjustPreview');
+        const diff   = document.getElementById('adjustDiffBox');
+        if (isNaN(newQty)||newQty<0) { prev.textContent='—'; prev.style.color='var(--primary)'; diff.style.display='none'; return; }
+        prev.textContent = newQty;
+        const delta = newQty-cur;
+        if (delta===0) { prev.style.color='var(--text-muted)'; diff.style.display='block'; diff.style.background='var(--surface-2)'; diff.style.color='var(--text-muted)'; diff.textContent='No change — stock count matches system'; }
+        else if (delta>0) { prev.style.color='var(--success)'; diff.style.display='block'; diff.style.background='rgba(34,197,94,0.08)'; diff.style.color='var(--success)'; diff.textContent=`+${delta} units will be added to stock`; }
+        else { prev.style.color='var(--danger)'; diff.style.display='block'; diff.style.background='rgba(239,68,68,0.08)'; diff.style.color='var(--danger)'; diff.textContent=`${delta} units will be removed from stock`; }
+    }
+    async function saveAdjustment() {
+        const productId  = document.getElementById('adjustProductId').value;
+        const newQty     = document.getElementById('adjustNewQty').value;
+        const reason     = document.getElementById('adjustReason').value;
+        const notes      = document.getElementById('adjustNotes').value.trim();
+        const adjustedBy = Auth.getUserName();
+        if (newQty===''||parseInt(newQty)<0) { Toast.error('Please enter a valid quantity.'); return; }
+        const cur = parseInt(document.getElementById('adjustCurrentQty').textContent)||0;
+        if (parseInt(newQty)===cur) { Toast.warning('No change — quantity is the same.'); return; }
+        try {
+            await API.post(ADJ_API, { productId, newQuantity:newQty, reason, notes, adjustedBy });
+            Modal.close('adjustModal'); Toast.success('Stock adjusted and audit trail recorded.'); loadData();
+        } catch(err) { Toast.error(err.message||'Failed to adjust stock.'); }
+    }
+
+    // ── DELETE ────────────────────────────────────────────────────
+    function openDelete(id) { deleteId=id; Modal.open('deleteModal'); }
+    async function confirmDelete() {
+        try {
+            const result = await API.delete(`${PRODUCTS_API}/${deleteId}`);
+            Modal.close('deleteModal');
+            if (result.action === 'BRANCH_ARCHIVED') {
+                const branchName = Auth.getBranchName();
+                Toast.success(`Product archived at ${branchName || 'this branch'}. It remains active at other branches.`);
+            } else if (result.action === 'ARCHIVED') {
+                Toast.success('Product moved to Archived Products.');
+            } else {
+                Toast.success('Product deleted.');
+            }
+            loadData();
+        } catch(err) { Toast.error('Failed to delete product.'); }
+    }
+
+    // ── SUPPLY TEMPLATE ───────────────────────────────────────────
+    let templateProductId=null, currentTemplateRows=[];
+
+    async function openTemplate(productId, productName) {
+        templateProductId = productId;
+        document.getElementById('templateProductName').textContent = productName;
+        document.getElementById('templateRows').innerHTML = '<div class="text-sm text-muted" style="padding:var(--space-4)">Loading...</div>';
+        Modal.open('templateModal');
+        try {
+            const template = await API.get(`${TEMPLATE_API}/${productId}`);
+            currentTemplateRows = template.map(t=>({ supplyId:t.supplyId, supplyName:t.supplyName, supplyUnit:t.supplyUnit, quantityPerUnit:t.quantityPerUnit }));
+            renderTemplateRows();
+        } catch(e) { currentTemplateRows=[]; renderTemplateRows(); }
+    }
+
+    function renderTemplateRows() {
+        const container = document.getElementById('templateRows');
+        if (!currentTemplateRows.length) {
+            container.innerHTML = '<div class="text-sm text-muted" style="padding:var(--space-4) 0">No supplies in template yet. Add one below.</div>';
+            return;
+        }
+        container.innerHTML = currentTemplateRows.map((r,i) => `
+            <div class="flex items-center gap-3" style="padding:var(--space-2) 0;border-bottom:1px solid var(--border)">
+                <div style="flex:1">
+                    <div class="text-sm font-medium">${r.supplyName}</div>
+                    <div class="text-xs text-muted">${r.supplyUnit}</div>
+                </div>
+                <input type="number" class="form-control" style="width:80px" value="${r.quantityPerUnit||1}" min="0.1" step="0.1"
+                       oninput="updateTemplateRow(${i},this.value)" placeholder="Qty">
+                <button class="btn btn-danger btn-sm btn-icon-only" onclick="removeTemplateRow(${i})"><i class="fas fa-times"></i></button>
+            </div>`).join('');
+    }
+
+    function updateTemplateRow(index, value) { currentTemplateRows[index].quantityPerUnit=parseFloat(value)||1; }
+    function removeTemplateRow(index) { currentTemplateRows.splice(index,1); renderTemplateRows(); }
+    function addTemplateRow() {
+        const sel      = document.getElementById('templateSupplySelect');
+        const supplyId = parseInt(sel.value);
+        if (!supplyId) { Toast.error('Please select a supply.'); return; }
+        if (currentTemplateRows.find(r=>r.supplyId===supplyId)) { Toast.warning('This supply is already in the template.'); return; }
+        const supply = allSupplies.find(s=>s.id===supplyId);
+        if (!supply) return;
+        currentTemplateRows.push({ supplyId:supply.id, supplyName:supply.name, supplyUnit:supply.unit, quantityPerUnit:1 });
+        sel.value=''; renderTemplateRows();
+    }
+    async function saveTemplate() {
+        try {
+            const entries = currentTemplateRows.map(r=>({ supplyId:r.supplyId, quantityPerUnit:r.quantityPerUnit }));
+            await API.post(`${TEMPLATE_API}/${templateProductId}`, entries);
+            Modal.close('templateModal'); Toast.success('Supply template saved.');
+        } catch(err) { Toast.error(err.message||'Failed to save template.'); }
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    document.addEventListener('DOMContentLoaded', () => setAvatarInitials('userAvatar', Auth.getUserName()));
+    loadData();
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,411 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Archived Products – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item active">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn">
+            <i class="fas fa-bars"></i>
+        </button>
+        <div>
+            <div class="page-title" data-i18n="nav_archived">Archived Products</div>
+            <div class="page-breadcrumb">SmartPOS / Inventory / Archived Products</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- INFO BANNER -->
+    <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);
+       border-radius:var(--radius-md);padding:var(--space-4) var(--space-5);
+       display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-6)">
+        <i class="fas fa-info-circle" style="color:var(--warning);font-size:1rem;flex-shrink:0"></i>
+        <div>
+            <div class="text-sm font-medium text-primary" id="bannerTitle" data-i18n="arch_banner_title">
+                Archived Products at This Branch
+            </div>
+            <div class="text-xs text-secondary" style="margin-top:2px" id="bannerText" data-i18n="arch_banner_text">
+                These products are archived at this branch only — they remain active
+                at other branches. Restore a product to make it available here again.
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-box-archive"
+                   style="color:var(--warning);margin-right:8px"></i>
+                <span data-i18n="nav_archived">Archived Products</span>
+                <span class="badge badge-warning"
+                      id="archivedCount"
+                      style="margin-left:8px">0</span>
+            </span>
+            <a href="/products.html" class="btn btn-secondary btn-sm">
+                <i class="fas fa-arrow-left"></i> <span data-i18n="btn_back_products">Back to Products</span>
+            </a>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search archived..." data-i18n="pos_search_products"
+                           style="width:240px" oninput="renderTable()">
+                </div>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th data-i18n="prod_th_id">#</th>
+                    <th data-i18n="prod_th_name">Product Name</th>
+                    <th data-i18n="prod_th_barcode">Barcode</th>
+                    <th data-i18n="prod_th_cat">Category</th>
+                    <th data-i18n="prod_th_cost">Cost Price</th>
+                    <th data-i18n="prod_th_price">Selling Price</th>
+                    <th data-i18n="prod_th_margin">Margin</th>
+                    <th data-i18n="prod_th_stock">Last Stock</th>
+                    <th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="archivedTableBody">
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</main>
+
+<!-- RESTORE MODAL -->
+<div class="modal-overlay" id="restoreModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title">Restore Product</span>
+            <button class="modal-close" onclick="Modal.close('restoreModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:rgba(34,197,94,0.1);
+                  color:var(--success);margin:0 auto 16px">
+                <i class="fas fa-rotate-left"></i>
+            </div>
+            <div class="empty-state-title mb-2">Restore this product?</div>
+            <div class="empty-state-text">
+                <strong id="restoreProductName"
+                        style="color:var(--text-primary)"></strong>
+                will be made active again and will appear
+                in your inventory and POS.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('restoreModal')">Cancel</button>
+            <button class="btn btn-success" id="confirmRestoreBtn"
+                    onclick="confirmRestore()">
+                <i class="fas fa-rotate-left"></i> Restore Product
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    Auth.requireClient();
+
+    const PRODUCTS_API   = '/api/products';
+    let allArchived      = [];
+    let pendingRestoreId = null;
+
+    // Set banner text based on whether a branch is selected
+    function setBanner() {
+        const branchName = Auth.getBranchName();
+        const title      = document.getElementById('bannerTitle');
+        const text       = document.getElementById('bannerText');
+        if (branchName) {
+            title.textContent = `Archived Products — ${branchName}`;
+            text.textContent  = `These products are archived at ${branchName} only. ` +
+                `They remain active at other branches. ` +
+                `Restore to make them available here again.`;
+        } else {
+            title.textContent = 'Globally Archived Products';
+            text.textContent  = 'Products with sales history that have been removed ' +
+                'from the entire catalog. You can restore them at any time.';
+        }
+    }
+
+    async function loadArchivedProducts() {
+        setBanner();
+        try {
+            allArchived = await API.get(`${PRODUCTS_API}/archived`);
+            renderTable(allArchived);
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load archived products.');
+            document.getElementById('archivedTableBody').innerHTML = `
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="empty-state-icon" style="color:var(--danger)">
+                                <i class="fas fa-triangle-exclamation"></i>
+                            </div>
+                            <div class="empty-state-title">Failed to load</div>
+                            <div class="empty-state-text">
+                                Please refresh the page and try again.
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+        }
+    }
+
+    function renderTable(products) {
+        document.getElementById('archivedCount').textContent = products.length;
+        document.getElementById('countLabel').textContent =
+            `${products.length} archived product${products.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('archivedTableBody');
+
+        if (!products.length) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="9">
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-box-open"></i>
+                            </div>
+                            <div class="empty-state-title">No archived products</div>
+                            <div class="empty-state-text">
+                                Products you delete that have sales history will appear here.
+                                You can restore them at any time.
+                            </div>
+                        </div>
+                    </td>
+                </tr>`;
+            return;
+        }
+
+        tbody.innerHTML = products.map((p, i) => {
+            const cost   = parseFloat(p.costPrice || 0);
+            const sell   = parseFloat(p.price     || 0);
+            const profit = sell - cost;
+            const margin = sell > 0 ? (profit / sell * 100).toFixed(1) : 0;
+            const marginColor = margin >= 40 ? 'var(--success)'
+                : margin >= 20 ? 'var(--warning)'
+                    : 'var(--danger)';
+            return `
+                <tr>
+                    <td class="text-muted">${i + 1}</td>
+                    <td class="cell-primary">${p.name}</td>
+                    <td class="cell-mono">${p.barcode || '—'}</td>
+                    <td>
+                        <span class="badge badge-neutral">${p.category}</span>
+                    </td>
+                    <td class="text-secondary">
+                        ${cost > 0 ? Format.currency(cost) : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td class="font-medium text-primary">
+                        ${Format.currency(sell)}
+                    </td>
+                    <td>
+                        ${cost > 0 && sell > 0 ? `
+                            <span style="color:${marginColor};
+                                         font-size:var(--text-xs);
+                                         font-weight:600">
+                                ${margin}%
+                            </span>` : '<span class="text-muted">—</span>'}
+                    </td>
+                    <td>
+                        <span class="font-medium text-warning">
+                            ${p.quantity} units
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn btn-success btn-sm"
+                                onclick="openRestoreModal(${p.id}, '${escapeHtml(p.name)}')">
+                            <i class="fas fa-rotate-left"></i> Restore
+                        </button>
+                    </td>
+                </tr>`;
+        }).join('');
+    }
+
+    function filterTable() {
+        const q = document.getElementById('searchInput').value.toLowerCase().trim();
+        if (!q) { renderTable(allArchived); return; }
+        const filtered = allArchived.filter(p =>
+            p.name.toLowerCase().includes(q) ||
+            p.category.toLowerCase().includes(q) ||
+            (p.barcode || '').toLowerCase().includes(q)
+        );
+        renderTable(filtered);
+    }
+
+    function openRestoreModal(id, name) {
+        pendingRestoreId = id;
+        document.getElementById('restoreProductName').textContent = name;
+        Modal.open('restoreModal');
+    }
+
+    async function confirmRestore() {
+        if (!pendingRestoreId) return;
+        const btn = document.getElementById('confirmRestoreBtn');
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring...';
+        try {
+            await API.put(`${PRODUCTS_API}/${pendingRestoreId}/restore`, {});
+            Modal.close('restoreModal');
+            const branchName = Auth.getBranchName();
+            Toast.success(branchName
+                ? `Product restored at ${branchName}.`
+                : 'Product restored successfully.');
+            pendingRestoreId = null;
+            await loadArchivedProducts();
+        } catch (err) {
+            Toast.error('Failed to restore product.');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-rotate-left"></i> Restore Product';
+        }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadArchivedProducts();
+</script>
+</body>
+</html>
+

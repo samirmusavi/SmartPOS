@@ -1,0 +1,851 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Stock Transfers – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .transfer-tabs {
+            display:flex; gap:var(--space-1); padding:var(--space-3) var(--space-5);
+            border-bottom:1px solid var(--border); background:var(--surface-1);
+            border-radius:var(--radius-lg) var(--radius-lg) 0 0;
+        }
+        .transfer-tab {
+            padding:var(--space-2) var(--space-5); border-radius:var(--radius-md);
+            font-size:var(--text-sm); font-weight:600; cursor:pointer;
+            color:var(--text-muted); border:1px solid transparent;
+            background:transparent; transition:all var(--transition-fast);
+            display:flex; align-items:center; gap:var(--space-2);
+        }
+        .transfer-tab:hover { color:var(--text-primary); background:var(--surface-2); }
+        .transfer-tab.active {
+            color:var(--primary); background:var(--primary-light);
+            border-color:rgba(99,102,241,0.2);
+        }
+        .transfer-tab .tab-count {
+            font-size:0.6rem; min-width:18px; height:18px; border-radius:var(--radius-full);
+            display:flex; align-items:center; justify-content:center; font-weight:700;
+            background:var(--surface-3); color:var(--text-muted);
+        }
+        .transfer-tab.active .tab-count {
+            background:var(--primary); color:#fff;
+        }
+        .tab-panel { display:none; }
+        .tab-panel.active { display:block; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item active">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="trf_title">Stock Transfers</div>
+            <div class="page-breadcrumb">SmartPOS / Operations / Stock Transfers</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- Pending incoming alert -->
+    <div id="pendingAlert" style="display:none;margin-bottom:var(--space-4);
+         padding:var(--space-3) var(--space-5);
+         background:rgba(245,158,11,0.1);
+         border:1px solid rgba(245,158,11,0.3);
+         border-radius:var(--radius-md);
+         align-items:center;gap:var(--space-3)">
+        <i class="fas fa-clock" style="color:var(--warning)"></i>
+        <span class="text-sm font-semibold text-primary" id="pendingAlertText"></span>
+        <button class="btn btn-sm btn-secondary" style="margin-left:auto"
+                onclick="filterByPending()">
+            View Pending
+        </button>
+    </div>
+
+    <div class="card" style="border-radius:var(--radius-lg);overflow:hidden">
+
+        <!-- ── TABS ── -->
+        <div class="transfer-tabs">
+            <button class="transfer-tab active" id="tabProducts" onclick="switchTab('products')">
+                <i class="fas fa-box-open"></i> Product Transfers
+                <span class="tab-count" id="tabProductCount">0</span>
+            </button>
+            <button class="transfer-tab" id="tabSupplies" onclick="switchTab('supplies')">
+                <i class="fas fa-boxes-stacked"></i> Supply Transfers
+                <span class="tab-count" id="tabSupplyCount">0</span>
+            </button>
+        </div>
+
+        <!-- ═══ PRODUCT TRANSFERS TAB ═══ -->
+        <div class="tab-panel active" id="panelProducts">
+            <div class="card-header" style="border-top:none">
+                <span class="card-title">
+                    <i class="fas fa-box-open" style="color:var(--primary);margin-right:8px"></i>
+                    Product Transfers
+                </span>
+                <button class="btn btn-primary btn-sm" onclick="openProductCreateModal()">
+                    <i class="fas fa-plus"></i> New Transfer
+                </button>
+            </div>
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <select class="form-control" id="pStatusFilter"
+                            style="width:160px" onchange="renderProductTable()">
+                        <option value="">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+                <span class="text-sm text-muted" id="pCountLabel">—</span>
+            </div>
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead>
+                    <tr>
+                        <th data-i18n="trf_th_id">#</th>
+                        <th data-i18n="trf_th_product">Product</th>
+                        <th data-i18n="trf_th_from">From</th>
+                        <th data-i18n="trf_th_to">To</th>
+                        <th data-i18n="trf_th_qty">Qty</th>
+                        <th data-i18n="trf_th_status">Status</th>
+                        <th data-i18n="trf_th_user">Created By</th>
+                        <th data-i18n="trf_th_date">Date</th>
+                        <th data-i18n="trf_th_actions">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="productTransferBody">
+                    <tr><td colspan="9"><div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ═══ SUPPLY TRANSFERS TAB ═══ -->
+        <div class="tab-panel" id="panelSupplies">
+            <div class="card-header" style="border-top:none">
+                <span class="card-title">
+                    <i class="fas fa-boxes-stacked" style="color:var(--primary);margin-right:8px"></i>
+                    Supply Transfers
+                </span>
+                <button class="btn btn-primary btn-sm" onclick="openSupplyCreateModal()">
+                    <i class="fas fa-plus"></i> New Transfer
+                </button>
+            </div>
+            <div class="toolbar">
+                <div class="toolbar-left">
+                    <select class="form-control" id="sStatusFilter"
+                            style="width:160px" onchange="renderSupplyTable()">
+                        <option value="">All Status</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="COMPLETED">Completed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                    </select>
+                </div>
+                <span class="text-sm text-muted" id="sCountLabel">—</span>
+            </div>
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead>
+                    <tr>
+                        <th>#</th><th>Supply</th><th>From</th><th>To</th>
+                        <th>Qty</th><th>Status</th><th>Created By</th>
+                        <th>Date</th><th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="supplyTransferBody">
+                    <tr><td colspan="9"><div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<!-- ═══ PRODUCT TRANSFER: CREATE MODAL ═══ -->
+<div class="modal-overlay" id="pCreateModal">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-right-left" style="color:var(--primary);margin-right:8px"></i>
+                New Product Transfer
+            </span>
+            <button class="modal-close" onclick="Modal.close('pCreateModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">From Branch *</label>
+                        <select id="pFromBranch" class="form-control" onchange="onPBranchChange()">
+                            <option value="">— Select branch —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To Branch *</label>
+                        <select id="pToBranch" class="form-control">
+                            <option value="">— Select branch —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Product *</label>
+                    <select id="pProduct" class="form-control" onchange="onPProductChange()">
+                        <option value="">— Select from branch first —</option>
+                    </select>
+                </div>
+                <div id="pStockInfo" style="display:none;padding:var(--space-3) var(--space-4);
+                     background:var(--surface-2);border:1px solid var(--border);
+                     border-radius:var(--radius-md);font-size:var(--text-sm);
+                     display:flex;justify-content:space-between;align-items:center">
+                    <span class="text-muted">Available at source:</span>
+                    <span class="font-bold text-primary" id="pStockInfoVal">—</span>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Quantity *</label>
+                        <input type="number" id="pQty" class="form-control"
+                               placeholder="e.g. 10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" id="pNotes" class="form-control" placeholder="Optional...">
+                    </div>
+                </div>
+                <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
+                            border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                            font-size:var(--text-xs);color:var(--text-secondary)">
+                    <i class="fas fa-info-circle" style="color:var(--primary);margin-right:6px"></i>
+                    Stock is deducted from the source branch immediately.
+                    The receiving branch confirms when stock arrives.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('pCreateModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createProductTransfer()">
+                <i class="fas fa-right-left"></i> Send Transfer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ SUPPLY TRANSFER: CREATE MODAL ═══ -->
+<div class="modal-overlay" id="sCreateModal">
+    <div class="modal" style="max-width:500px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-boxes-stacked" style="color:var(--primary);margin-right:8px"></i>
+                New Supply Transfer
+            </span>
+            <button class="modal-close" onclick="Modal.close('sCreateModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">From Branch *</label>
+                        <select id="sFromBranch" class="form-control" onchange="onSBranchChange()">
+                            <option value="">— Select branch —</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">To Branch *</label>
+                        <select id="sToBranch" class="form-control">
+                            <option value="">— Select branch —</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Supply *</label>
+                    <select id="sSupply" class="form-control" onchange="onSSupplyChange()">
+                        <option value="">— Select from branch first —</option>
+                    </select>
+                </div>
+                <div id="sStockInfo" style="display:none;padding:var(--space-3) var(--space-4);
+                     background:var(--surface-2);border:1px solid var(--border);
+                     border-radius:var(--radius-md);font-size:var(--text-sm);
+                     justify-content:space-between;align-items:center">
+                    <span class="text-muted">Available at source:</span>
+                    <span class="font-bold text-primary" id="sStockInfoVal">—</span>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Quantity *</label>
+                        <input type="number" id="sQty" class="form-control"
+                               placeholder="e.g. 10" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <input type="text" id="sNotes" class="form-control" placeholder="Optional...">
+                    </div>
+                </div>
+                <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
+                            border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);
+                            font-size:var(--text-xs);color:var(--text-secondary)">
+                    <i class="fas fa-info-circle" style="color:var(--primary);margin-right:6px"></i>
+                    Supply stock is deducted from the source branch immediately.
+                    The receiving branch confirms when supplies arrive.
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('sCreateModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="createSupplyTransfer()">
+                <i class="fas fa-boxes-stacked"></i> Send Transfer
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ CONFIRM RECEIPT MODAL (shared) ═══ -->
+<div class="modal-overlay" id="completeModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-circle-check" style="color:var(--success);margin-right:8px"></i>
+                Confirm Receipt
+            </span>
+            <button class="modal-close" onclick="Modal.close('completeModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <input type="hidden" id="completeTransferId">
+            <input type="hidden" id="completeTransferType">
+            <div class="empty-state-icon"
+                 style="background:rgba(34,197,94,0.1);color:var(--success);margin:0 auto 16px">
+                <i class="fas fa-boxes-stacked"></i>
+            </div>
+            <div class="empty-state-title mb-2" id="completeTitle">Confirm stock received?</div>
+            <div class="empty-state-text" id="completeSubtitle"></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('completeModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmComplete()"
+                    style="background:var(--success);border-color:var(--success)">
+                <i class="fas fa-circle-check"></i> Confirm Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const PRODUCT_TRANSFER_API = '/api/transfers';
+    const SUPPLY_TRANSFER_API  = '/api/supply-transfers';
+    const BRANCH_API           = '/api/branches';
+    const PRODUCT_API          = '/api/products';
+    const SUPPLY_API           = '/api/supplies';
+
+    let allProductTransfers = [];
+    let allSupplyTransfers  = [];
+    let allBranches         = [];
+    let pBranchInvMap       = {}; // branchId -> {productId -> qty}
+    let sBranchInvMap       = {}; // branchId -> [{supplyId, supplyName, qty}]
+    const role              = Auth.getUserRole();
+    const currentBranchId   = sessionStorage.getItem('sp_branch_id');
+    let activeTab           = 'products';
+
+    // ── TAB SWITCHING ─────────────────────────────────────────────
+    function switchTab(tab) {
+        activeTab = tab;
+        document.querySelectorAll('.transfer-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById(tab === 'products' ? 'tabProducts' : 'tabSupplies').classList.add('active');
+        document.getElementById(tab === 'products' ? 'panelProducts' : 'panelSupplies').classList.add('active');
+    }
+
+    // ── LOAD DATA ─────────────────────────────────────────────────
+    async function loadData() {
+        try {
+            const [productTransfers, supplyTransfers, branches] = await Promise.all([
+                API.get(PRODUCT_TRANSFER_API),
+                API.get(SUPPLY_TRANSFER_API),
+                API.get(`${BRANCH_API}/active`)
+            ]);
+            allProductTransfers = productTransfers;
+            allSupplyTransfers  = supplyTransfers;
+            allBranches         = branches;
+
+            populateBranchDropdowns();
+            renderProductTable();
+            renderSupplyTable();
+            updateTabCounts();
+            checkPendingIncoming();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch(e) {
+            Toast.error('Failed to load transfers.');
+            console.error(e);
+        }
+    }
+
+    function updateTabCounts() {
+        document.getElementById('tabProductCount').textContent = allProductTransfers.length;
+        document.getElementById('tabSupplyCount').textContent  = allSupplyTransfers.length;
+    }
+
+    function populateBranchDropdowns() {
+        const opts = allBranches.map(b =>
+            `<option value="${b.id}">${b.name}</option>`).join('');
+        const base = '<option value="">— Select branch —</option>';
+        // Product transfer dropdowns
+        document.getElementById('pFromBranch').innerHTML = base + opts;
+        document.getElementById('pToBranch').innerHTML   = base + opts;
+        // Supply transfer dropdowns
+        document.getElementById('sFromBranch').innerHTML = base + opts;
+        document.getElementById('sToBranch').innerHTML   = base + opts;
+
+        if (currentBranchId) {
+            document.getElementById('pFromBranch').value = currentBranchId;
+            document.getElementById('sFromBranch').value = currentBranchId;
+            onPBranchChange();
+            onSBranchChange();
+        }
+    }
+
+    async function checkPendingIncoming() {
+        if (!currentBranchId) return;
+        try {
+            const [pRes, sRes] = await Promise.all([
+                API.get(`${PRODUCT_TRANSFER_API}/pending-incoming/count`),
+                API.get(`${SUPPLY_TRANSFER_API}/pending-incoming/count`)
+            ]);
+            const total = (pRes.count || 0) + (sRes.count || 0);
+            if (total > 0) {
+                const alert = document.getElementById('pendingAlert');
+                alert.style.display = 'flex';
+                document.getElementById('pendingAlertText').textContent =
+                    `${total} incoming transfer${total > 1 ? 's' : ''} waiting for your confirmation`;
+            }
+        } catch(e) { /* silent */ }
+    }
+
+    function filterByPending() {
+        document.getElementById('pStatusFilter').value = 'PENDING';
+        document.getElementById('sStatusFilter').value = 'PENDING';
+        renderProductTable();
+        renderSupplyTable();
+    }
+
+    // ── STATUS BADGE HELPER ───────────────────────────────────────
+    const STATUS_BADGE = {
+        PENDING:   '<span class="badge badge-warning">Pending</span>',
+        COMPLETED: '<span class="badge badge-success">Completed</span>',
+        CANCELLED: '<span class="badge badge-danger">Cancelled</span>'
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    //  PRODUCT TRANSFERS
+    // ══════════════════════════════════════════════════════════════
+
+    function renderProductTable() {
+        const status   = document.getElementById('pStatusFilter').value;
+        let filtered   = allProductTransfers;
+        if (status) filtered = filtered.filter(t => t.status === status);
+
+        document.getElementById('pCountLabel').textContent =
+            `${filtered.length} transfer${filtered.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('productTransferBody');
+        if (!filtered.length) {
+            tbody.innerHTML = `<tr><td colspan="9">
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-box-open"></i></div>
+                    <div class="empty-state-title">No product transfers</div>
+                    <div class="empty-state-text">Transfer products between branches when one runs low.</div>
+                </div>
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((t, i) => {
+            const isPending  = t.status === 'PENDING';
+            const isReceiver = currentBranchId && String(t.toBranchId) === String(currentBranchId);
+            const isSender   = currentBranchId && String(t.fromBranchId) === String(currentBranchId);
+
+            let actions = '<span class="text-muted text-xs">—</span>';
+            if (isPending) {
+                const canComplete = role === 'OWNER' || isReceiver;
+                const canCancel   = role === 'OWNER' || isSender;
+                actions = `<div class="flex gap-2">
+                    ${canComplete ? `<button class="btn btn-success btn-sm"
+                        onclick="openCompleteModal(${t.id},'product','${escapeHtml(t.productName)}',${t.quantity},'${escapeHtml(t.fromBranchName)}','${escapeHtml(t.toBranchName)}')"
+                        style="background:var(--success);color:#fff;border-color:var(--success)">
+                        <i class="fas fa-circle-check"></i> Received</button>` : ''}
+                    ${canCancel ? `<button class="btn btn-danger btn-sm btn-icon-only"
+                        onclick="cancelProductTransfer(${t.id})" title="Cancel">
+                        <i class="fas fa-ban"></i></button>` : ''}
+                </div>`;
+            }
+
+            return `<tr>
+                <td class="text-muted">${i+1}</td>
+                <td class="cell-primary">${t.productName}</td>
+                <td><span style="font-size:var(--text-xs);color:var(--danger);font-weight:600">
+                    <i class="fas fa-arrow-right" style="font-size:0.6rem;margin-right:3px"></i>${t.fromBranchName}</span></td>
+                <td><span style="font-size:var(--text-xs);color:var(--success);font-weight:600">
+                    <i class="fas fa-arrow-right" style="font-size:0.6rem;margin-right:3px"></i>${t.toBranchName}</span></td>
+                <td class="font-medium text-primary">${t.quantity}</td>
+                <td>${STATUS_BADGE[t.status] || t.status}</td>
+                <td class="text-secondary">${t.createdBy}</td>
+                <td class="text-muted">${Format.date(t.createdAt)}</td>
+                <td>${actions}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openProductCreateModal() { Modal.open('pCreateModal'); }
+
+    async function onPBranchChange() {
+        const branchId = document.getElementById('pFromBranch').value;
+        const sel      = document.getElementById('pProduct');
+
+        if (!branchId) {
+            sel.innerHTML = '<option value="">— Select from branch first —</option>';
+            document.getElementById('pStockInfo').style.display = 'none';
+            return;
+        }
+
+        try {
+            const inv = await API.get(`${BRANCH_API}/${branchId}/inventory`);
+            pBranchInvMap[branchId] = {};
+            inv.forEach(i => pBranchInvMap[branchId][i.productId] = i.quantity);
+            sel.innerHTML = '<option value="">— Select product —</option>'
+                + inv.filter(i => i.quantity > 0)
+                    .map(i => `<option value="${i.productId}">${i.productName} (${i.quantity} available)</option>`)
+                    .join('');
+        } catch(e) { Toast.error('Failed to load branch inventory.'); }
+    }
+
+    function onPProductChange() {
+        const branchId  = document.getElementById('pFromBranch').value;
+        const productId = document.getElementById('pProduct').value;
+        const infoBox   = document.getElementById('pStockInfo');
+        if (branchId && productId && pBranchInvMap[branchId]) {
+            const qty = pBranchInvMap[branchId][parseInt(productId)] || 0;
+            infoBox.style.display = 'flex';
+            document.getElementById('pStockInfoVal').textContent = `${qty} units`;
+        } else { infoBox.style.display = 'none'; }
+    }
+
+    async function createProductTransfer() {
+        const from = document.getElementById('pFromBranch').value;
+        const to   = document.getElementById('pToBranch').value;
+        const prod = document.getElementById('pProduct').value;
+        const qty  = document.getElementById('pQty').value;
+        const notes = document.getElementById('pNotes').value.trim();
+
+        if (!from || !to || !prod || !qty) { Toast.error('All fields except notes are required.'); return; }
+        if (from === to) { Toast.error('Source and destination must be different.'); return; }
+
+        try {
+            await API.post(PRODUCT_TRANSFER_API, {
+                fromBranchId: from, toBranchId: to, productId: prod,
+                quantity: qty, notes, createdBy: Auth.getUserName()
+            });
+            Modal.close('pCreateModal');
+            Toast.success('Product transfer initiated. Stock deducted from source.');
+            loadData();
+        } catch(err) { Toast.error(err.message || 'Failed to create transfer.'); }
+    }
+
+    async function cancelProductTransfer(id) {
+        try {
+            await API.put(`${PRODUCT_TRANSFER_API}/${id}/cancel`, {});
+            Toast.success('Transfer cancelled. Stock returned to source.');
+            loadData();
+        } catch(err) { Toast.error(err.message || 'Failed to cancel transfer.'); }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  SUPPLY TRANSFERS
+    // ══════════════════════════════════════════════════════════════
+
+    function renderSupplyTable() {
+        const status   = document.getElementById('sStatusFilter').value;
+        let filtered   = allSupplyTransfers;
+        if (status) filtered = filtered.filter(t => t.status === status);
+
+        document.getElementById('sCountLabel').textContent =
+            `${filtered.length} transfer${filtered.length !== 1 ? 's' : ''}`;
+
+        const tbody = document.getElementById('supplyTransferBody');
+        if (!filtered.length) {
+            tbody.innerHTML = `<tr><td colspan="9">
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-boxes-stacked"></i></div>
+                    <div class="empty-state-title">No supply transfers</div>
+                    <div class="empty-state-text">Transfer supplies between branches when one runs low.</div>
+                </div>
+            </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((t, i) => {
+            const isPending  = t.status === 'PENDING';
+            const isReceiver = currentBranchId && String(t.toBranchId) === String(currentBranchId);
+            const isSender   = currentBranchId && String(t.fromBranchId) === String(currentBranchId);
+
+            let actions = '<span class="text-muted text-xs">—</span>';
+            if (isPending) {
+                const canComplete = role === 'OWNER' || isReceiver;
+                const canCancel   = role === 'OWNER' || isSender;
+                actions = `<div class="flex gap-2">
+                    ${canComplete ? `<button class="btn btn-success btn-sm"
+                        onclick="openCompleteModal(${t.id},'supply','${escapeHtml(t.supplyName)}',${t.quantity},'${escapeHtml(t.fromBranchName)}','${escapeHtml(t.toBranchName)}')"
+                        style="background:var(--success);color:#fff;border-color:var(--success)">
+                        <i class="fas fa-circle-check"></i> Received</button>` : ''}
+                    ${canCancel ? `<button class="btn btn-danger btn-sm btn-icon-only"
+                        onclick="cancelSupplyTransfer(${t.id})" title="Cancel">
+                        <i class="fas fa-ban"></i></button>` : ''}
+                </div>`;
+            }
+
+            return `<tr>
+                <td class="text-muted">${i+1}</td>
+                <td class="cell-primary">${t.supplyName}</td>
+                <td><span style="font-size:var(--text-xs);color:var(--danger);font-weight:600">
+                    <i class="fas fa-arrow-right" style="font-size:0.6rem;margin-right:3px"></i>${t.fromBranchName}</span></td>
+                <td><span style="font-size:var(--text-xs);color:var(--success);font-weight:600">
+                    <i class="fas fa-arrow-right" style="font-size:0.6rem;margin-right:3px"></i>${t.toBranchName}</span></td>
+                <td class="font-medium text-primary">${t.quantity}</td>
+                <td>${STATUS_BADGE[t.status] || t.status}</td>
+                <td class="text-secondary">${t.createdBy}</td>
+                <td class="text-muted">${Format.date(t.createdAt)}</td>
+                <td>${actions}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openSupplyCreateModal() { Modal.open('sCreateModal'); }
+
+    async function onSBranchChange() {
+        const branchId = document.getElementById('sFromBranch').value;
+        const sel      = document.getElementById('sSupply');
+
+        if (!branchId) {
+            sel.innerHTML = '<option value="">— Select from branch first —</option>';
+            document.getElementById('sStockInfo').style.display = 'none';
+            return;
+        }
+
+        try {
+            // Fetch supplies with branch-specific quantities
+            // Use custom fetch to override X-Branch-Id for the source branch
+            const apiHeaders = API._headers ? API._headers() : {};
+            const headers = { 'Content-Type': 'application/json' };
+            if (apiHeaders['Authorization']) headers['Authorization'] = apiHeaders['Authorization'];
+            if (apiHeaders['X-Business-Id']) headers['X-Business-Id'] = apiHeaders['X-Business-Id'];
+            headers['X-Branch-Id'] = String(branchId);
+
+            const res = await fetch(SUPPLY_API, { headers });
+            if (!res.ok) throw new Error('Failed to load supplies');
+            const supplies = await res.json();
+
+            sBranchInvMap[branchId] = {};
+            supplies.forEach(s => sBranchInvMap[branchId][s.id] = s.quantity);
+
+            sel.innerHTML = '<option value="">— Select supply —</option>'
+                + supplies.filter(s => s.quantity > 0)
+                    .map(s => `<option value="${s.id}">${s.name} (${s.quantity} ${s.unit})</option>`)
+                    .join('');
+        } catch(e) { Toast.error('Failed to load branch supply inventory.'); }
+    }
+
+    function onSSupplyChange() {
+        const branchId = document.getElementById('sFromBranch').value;
+        const supplyId = document.getElementById('sSupply').value;
+        const infoBox  = document.getElementById('sStockInfo');
+        if (branchId && supplyId && sBranchInvMap[branchId]) {
+            const qty = sBranchInvMap[branchId][parseInt(supplyId)] || 0;
+            infoBox.style.display = 'flex';
+            document.getElementById('sStockInfoVal').textContent = `${qty} units`;
+        } else { infoBox.style.display = 'none'; }
+    }
+
+    async function createSupplyTransfer() {
+        const from  = document.getElementById('sFromBranch').value;
+        const to    = document.getElementById('sToBranch').value;
+        const supply = document.getElementById('sSupply').value;
+        const qty   = document.getElementById('sQty').value;
+        const notes = document.getElementById('sNotes').value.trim();
+
+        if (!from || !to || !supply || !qty) { Toast.error('All fields except notes are required.'); return; }
+        if (from === to) { Toast.error('Source and destination must be different.'); return; }
+
+        try {
+            await API.post(SUPPLY_TRANSFER_API, {
+                fromBranchId: from, toBranchId: to, supplyId: supply,
+                quantity: parseInt(qty), notes, createdBy: Auth.getUserName()
+            });
+            Modal.close('sCreateModal');
+            Toast.success('Supply transfer initiated. Stock deducted from source.');
+            switchTab('supplies');
+            loadData();
+        } catch(err) { Toast.error(err.message || 'Failed to create transfer.'); }
+    }
+
+    async function cancelSupplyTransfer(id) {
+        try {
+            await API.put(`${SUPPLY_TRANSFER_API}/${id}/cancel`, {});
+            Toast.success('Transfer cancelled. Stock returned to source.');
+            loadData();
+        } catch(err) { Toast.error(err.message || 'Failed to cancel transfer.'); }
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    //  SHARED: COMPLETE MODAL
+    // ══════════════════════════════════════════════════════════════
+
+    function openCompleteModal(id, type, itemName, qty, fromBranch, toBranch) {
+        document.getElementById('completeTransferId').value   = id;
+        document.getElementById('completeTransferType').value = type;
+        document.getElementById('completeTitle').textContent  = `${qty} × ${itemName}`;
+        document.getElementById('completeSubtitle').textContent =
+            `From ${fromBranch} → ${toBranch}. Stock will be added to ${toBranch}.`;
+        Modal.open('completeModal');
+    }
+
+    async function confirmComplete() {
+        const id   = document.getElementById('completeTransferId').value;
+        const type = document.getElementById('completeTransferType').value;
+        const api  = type === 'supply' ? SUPPLY_TRANSFER_API : PRODUCT_TRANSFER_API;
+
+        try {
+            await API.put(`${api}/${id}/complete`, { completedBy: Auth.getUserName() });
+            Modal.close('completeModal');
+            Toast.success('Transfer completed. Inventory updated.');
+            loadData();
+        } catch(err) { Toast.error(err.message || 'Failed to complete transfer.'); }
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadData();
+</script>
+</body>
+</html>
+

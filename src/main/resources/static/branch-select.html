@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Select Branch – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg);
+            padding: var(--space-6);
+        }
+
+        .branch-select-wrapper {
+            width: 100%;
+            max-width: 720px;
+        }
+
+        .branch-header {
+            text-align: center;
+            margin-bottom: var(--space-6);
+        }
+
+        .branch-logo {
+            width: 56px; height: 56px;
+            background: var(--primary);
+            border-radius: var(--radius-lg);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto var(--space-4);
+            box-shadow: 0 8px 24px var(--primary-glow);
+            font-size: 1.4rem; color: #fff;
+        }
+
+        .branch-biz-name {
+            font-size: var(--text-xs);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--primary);
+            margin-bottom: var(--space-2);
+        }
+
+        .branch-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+        }
+
+        .branch-subtitle {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+        }
+
+        /* ── GLOBAL OVERVIEW (owner only) ── */
+        .global-overview {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-5) var(--space-6);
+            margin-bottom: var(--space-6);
+            position: relative;
+            overflow: hidden;
+        }
+        .global-overview::after {
+            content: '';
+            position: absolute; bottom: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--success), var(--warning));
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+        }
+        .global-overview-header {
+            display: flex; align-items: center; gap: var(--space-3);
+            margin-bottom: var(--space-5);
+        }
+        .global-overview-icon {
+            width: 32px; height: 32px;
+            background: var(--primary-light);
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem; color: var(--primary);
+        }
+        .global-overview-title {
+            font-size: var(--text-sm); font-weight: 700;
+            color: var(--text-primary);
+        }
+        .global-overview-sub {
+            font-size: var(--text-xs); color: var(--text-muted);
+        }
+        .overview-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-4);
+        }
+        @media (max-width: 600px) {
+            .overview-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        .overview-kpi {
+            text-align: center;
+            padding: var(--space-3);
+            background: var(--surface-2);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border);
+        }
+        .overview-kpi-value {
+            font-size: var(--text-lg); font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            letter-spacing: -0.02em;
+        }
+        .overview-kpi-label {
+            font-size: 0.6rem; font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+        .overview-kpi-value.revenue  { color: var(--primary); }
+        .overview-kpi-value.profit   { color: var(--success); }
+        .overview-kpi-value.margin   { color: var(--warning); }
+
+        /* ── BRANCH GRID ── */
+        .branch-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+
+        .branch-card {
+            background: var(--surface-1);
+            border: 2px solid var(--border);
+            border-radius: var(--radius-xl);
+            padding: var(--space-5);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            position: relative;
+        }
+
+        .branch-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 24px rgba(99,102,241,0.2);
+        }
+
+        .branch-card.main-branch {
+            border-color: rgba(99,102,241,0.3);
+        }
+
+        .branch-card-icon {
+            width: 44px; height: 44px;
+            background: var(--primary-light);
+            border-radius: var(--radius-md);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.1rem; color: var(--primary);
+            margin-bottom: var(--space-3);
+        }
+
+        .branch-card-name {
+            font-size: var(--text-base);
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: var(--space-1);
+        }
+
+        .branch-card-city {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            margin-bottom: var(--space-2);
+        }
+
+        .branch-card-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.65rem; font-weight: 700;
+            padding: 2px 8px; border-radius: var(--radius-full);
+            background: rgba(99,102,241,0.1); color: var(--primary);
+            border: 1px solid rgba(99,102,241,0.2);
+            text-transform: uppercase; letter-spacing: 0.05em;
+        }
+
+        .branch-card-arrow {
+            position: absolute; right: var(--space-4); top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted); font-size: 0.9rem;
+            transition: all var(--transition-fast);
+        }
+        .branch-card:hover .branch-card-arrow {
+            color: var(--primary);
+            transform: translateY(-50%) translateX(3px);
+        }
+
+        .all-branches-btn {
+            width: 100%; padding: var(--space-4);
+            background: transparent;
+            border: 2px dashed var(--border);
+            border-radius: var(--radius-xl);
+            color: var(--text-muted); cursor: pointer;
+            font-size: var(--text-sm); font-weight: 600;
+            display: flex; align-items: center;
+            justify-content: center; gap: var(--space-3);
+            transition: all var(--transition-fast);
+            margin-bottom: var(--space-6);
+        }
+        .all-branches-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-light);
+        }
+
+        .branch-footer { text-align: center; }
+        .logout-link {
+            font-size: var(--text-xs); color: var(--text-muted);
+            cursor: pointer; background: none; border: none; padding: 0;
+            text-decoration: underline; text-underline-offset: 3px;
+        }
+        .logout-link:hover { color: var(--danger); }
+
+        /* ── SKELETON SHIMMER ── */
+        .overview-shimmer {
+            background: linear-gradient(90deg,
+                var(--surface-3) 25%, var(--surface-2) 50%, var(--surface-3) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: var(--radius-sm);
+            height: 24px; width: 80px; margin: 0 auto 4px;
+        }
+        @keyframes shimmer {
+            0%   { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+    </style>
+</head>
+<body>
+<div class="branch-select-wrapper">
+
+    <div class="branch-header">
+        <div class="branch-logo"><i class="fas fa-store"></i></div>
+        <div class="branch-biz-name" id="bizName">—</div>
+        <div class="branch-title" id="welcomeTitle">Welcome</div>
+        <div class="branch-subtitle" data-i18n="br_select_sub">Choose a branch to manage today</div>
+    </div>
+
+    <!-- ── GLOBAL OVERVIEW (Owner only) ── -->
+    <div class="global-overview" id="globalOverview" style="display:none">
+        <div class="global-overview-header">
+            <div class="global-overview-icon"><i class="fas fa-globe"></i></div>
+            <div>
+                <div class="global-overview-title" data-i18n="br_global_overview">Global Overview</div>
+                <div class="global-overview-sub" data-i18n="br_all_branches">Access All Branches</div>
+            </div>
+        </div>
+        <div class="overview-kpi-grid">
+            <div class="overview-kpi">
+                <div class="overview-kpi-value revenue" id="ovRevenue">
+                    <div class="overview-shimmer"></div>
+                </div>
+                <div class="overview-kpi-label">Revenue</div>
+            </div>
+            <div class="overview-kpi">
+                <div class="overview-kpi-value profit" id="ovProfit">
+                    <div class="overview-shimmer"></div>
+                </div>
+                <div class="overview-kpi-label">Net Profit</div>
+            </div>
+            <div class="overview-kpi">
+                <div class="overview-kpi-value" id="ovTransactions">
+                    <div class="overview-shimmer"></div>
+                </div>
+                <div class="overview-kpi-label">Transactions</div>
+            </div>
+            <div class="overview-kpi">
+                <div class="overview-kpi-value margin" id="ovMargin">
+                    <div class="overview-shimmer"></div>
+                </div>
+                <div class="overview-kpi-label">Profit Margin</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OWNER only: view all branches combined -->
+    <button class="all-branches-btn" id="allBranchesBtn"
+            style="display:none" onclick="selectAllBranches()">
+        <i class="fas fa-chart-pie"></i>
+        View All Branches — Owner Dashboard
+    </button>
+
+    <div class="branch-grid" id="branchGrid">
+        <div style="grid-column:1/-1;text-align:center;
+                    padding:var(--space-8)">
+            <i class="fas fa-circle-notch fa-spin"
+               style="color:var(--primary);font-size:1.5rem"></i>
+        </div>
+    </div>
+
+    <div class="branch-footer">
+        <button class="logout-link" onclick="Auth.clientLogout()" data-i18n="nav_logout">
+            <i class="fas fa-sign-out-alt"
+               style="margin-right:4px"></i>
+            Sign out
+        </button>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    // Must be logged in
+    if (!Auth.isClient()) {
+        window.location.href = '/login.html';
+    }
+
+    const role     = Auth.getUserRole();
+    const userName = Auth.getUserName();
+    const bizName  = Auth.getBusinessName();
+
+    document.getElementById('bizName').textContent       = bizName;
+    document.getElementById('welcomeTitle').textContent  =
+        `Welcome, ${userName.split(' ')[0]}`;
+
+    // Owner gets the "all branches" option + global overview
+    if (role === 'OWNER') {
+        document.getElementById('allBranchesBtn').style.display = 'flex';
+        document.getElementById('globalOverview').style.display  = 'block';
+        loadGlobalOverview();
+    }
+
+    // ── GLOBAL OVERVIEW KPIs (owner only) ─────────────────────
+    async function loadGlobalOverview() {
+        try {
+            // Fetch global report WITHOUT X-Branch-Id → combined data
+            const headers = { 'Content-Type': 'application/json' };
+            const bizId = Auth.getBusinessId();
+            if (bizId) headers['X-Business-Id'] = bizId;
+            // Include JWT token for authentication
+            const token = Auth.getToken();
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            const res = await fetch('/api/sales/report', { headers });
+            if (!res.ok) throw new Error();
+            const report = await res.json();
+
+            const revenue  = Number(report.totalRevenue || 0);
+            const netProfit = Number(report.netProfit || 0);
+            const txCount  = Number(report.totalSalesCount || 0);
+            const margin   = revenue > 0
+                ? (netProfit / revenue * 100).toFixed(1) + '%'
+                : '0.0%';
+
+            document.getElementById('ovRevenue').textContent =
+                Format.currency(revenue);
+            document.getElementById('ovProfit').textContent =
+                Format.currency(netProfit);
+            document.getElementById('ovTransactions').textContent =
+                txCount.toLocaleString();
+            document.getElementById('ovMargin').textContent = margin;
+        } catch (e) {
+            // Graceful fallback — hide the overview on error
+            document.getElementById('globalOverview').style.display = 'none';
+        }
+    }
+
+    // ── LOAD BRANCHES ─────────────────────────────────────────
+    async function loadBranches() {
+        try {
+            const stored = sessionStorage.getItem('sp_branches');
+            let branches = stored ? JSON.parse(stored) : null;
+
+            if (!branches) {
+                branches = await API.get('/api/branches/active');
+            }
+
+            if (!branches || !branches.length) {
+                document.getElementById('branchGrid').innerHTML = `
+                    <div style="grid-column:1/-1;text-align:center;
+                                padding:var(--space-8)">
+                        <div class="empty-state-icon"
+                             style="margin:0 auto 16px">
+                            <i class="fas fa-store"></i>
+                        </div>
+                        <div class="empty-state-title">
+                            No branches found
+                        </div>
+                        <div class="empty-state-text">
+                            Contact your administrator.
+                        </div>
+                    </div>`;
+                return;
+            }
+
+            // Single branch + not owner → skip selection, go straight
+            if (branches.length === 1 && role !== 'OWNER') {
+                selectBranch(branches[0].id, branches[0].name);
+                return;
+            }
+
+            renderBranches(branches);
+
+        } catch (e) {
+            Toast.error('Failed to load branches.');
+        }
+    }
+
+    function renderBranches(branches) {
+        document.getElementById('branchGrid').innerHTML =
+            branches.map(b => `
+                <div class="branch-card
+                     ${b.isMainBranch ? 'main-branch' : ''}"
+                     onclick="selectBranch(${b.id},
+                              '${escapeHtml(b.name)}')">
+                    <div class="branch-card-icon">
+                        <i class="fas fa-store"></i>
+                    </div>
+                    <div class="branch-card-name">${b.name}</div>
+                    <div class="branch-card-city">
+                        <i class="fas fa-location-dot"
+                           style="font-size:0.65rem;
+                                  margin-right:4px"></i>
+                        ${b.city || b.country || 'UAE'}
+                    </div>
+                    ${b.isMainBranch
+                ? `<span class="branch-card-badge">
+                               <i class="fas fa-star"
+                                  style="font-size:0.55rem"></i>
+                               Main Branch
+                           </span>`
+                : ''}
+                    <i class="fas fa-chevron-right
+                               branch-card-arrow"></i>
+                </div>`).join('');
+    }
+
+    function selectBranch(branchId, branchName) {
+        Auth.setBranch(branchId, branchName);
+        sessionStorage.removeItem('sp_branches');
+        window.location.href = '/dashboard.html';
+    }
+
+    function selectAllBranches() {
+        Auth.clearBranch();
+        sessionStorage.removeItem('sp_branches');
+        window.location.href = '/dashboard.html';
+    }
+
+    function escapeHtml(str) {
+        return String(str).replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;',
+                '"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    loadBranches();
+</script>
+</body>
+</html>

@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Sales Return – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .return-badge   { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-full);font-family:monospace;font-size:0.7rem;font-weight:700;color:#d97706;white-space:nowrap; }
+        .receipt-badge  { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:var(--radius-full);font-family:monospace;font-size:0.7rem;font-weight:700;color:var(--primary);white-space:nowrap; }
+        .reason-badge   { display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-full);font-size:0.68rem;font-weight:600;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border);white-space:nowrap; }
+        .filter-bar     { display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-5); }
+        .filter-bar select,.filter-bar input { height:36px;padding:0 var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);outline:none; }
+        .filter-bar select:focus,.filter-bar input:focus { border-color:var(--primary); }
+        .custom-date-inputs { display:none;gap:var(--space-2);align-items:center; }
+        .custom-date-inputs.visible { display:flex; }
+        .pagination   { display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-5);justify-content:flex-end; }
+        .page-btn     { padding:4px 12px;border:1px solid var(--border);background:var(--surface-2);border-radius:var(--radius-sm);cursor:pointer;font-size:var(--text-sm);color:var(--text-secondary);transition:all .15s; }
+        .page-btn:hover   { background:var(--primary-light);color:var(--primary);border-color:rgba(99,102,241,0.3); }
+        .page-btn.active  { background:var(--primary);color:#fff;border-color:var(--primary); }
+        .page-btn:disabled{ opacity:.4;cursor:not-allowed; }
+        /* Return form */
+        .return-panel { background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-xl);padding:var(--space-6);margin-bottom:var(--space-6); }
+        .return-panel-header { display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:var(--space-5);gap:var(--space-4); }
+        .return-item-row { display:flex;align-items:center;gap:var(--space-4);padding:var(--space-3) var(--space-4);border:1px solid var(--border);border-radius:var(--radius-md);background:var(--surface-2);margin-bottom:var(--space-3); }
+        .return-item-info { flex:1;min-width:0; }
+        .return-qty-input { width:80px;padding:var(--space-1) var(--space-2);background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text-primary);font-size:var(--text-sm);text-align:center;outline:none; }
+        .return-qty-input:focus { border-color:var(--primary); }
+        .return-total-box { background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:var(--space-4) var(--space-5);margin-top:var(--space-4); }
+        .return-total-row { display:flex;justify-content:space-between;align-items:center;padding:var(--space-2) 0;font-size:var(--text-sm); }
+        .return-total-row.grand { border-top:1px solid var(--border);padding-top:var(--space-3);margin-top:var(--space-2);font-size:var(--text-base);font-weight:700;color:var(--danger); }
+        /* Transaction summary */
+        .tx-summary-grid { display:grid;grid-template-columns:1fr 1fr;gap:var(--space-5); }
+        @media (max-width:640px) { .tx-summary-grid { grid-template-columns:1fr; } }
+        .tx-meta-row { display:flex;justify-content:space-between;align-items:center;padding:3px 0;font-size:var(--text-sm); }
+        /* Print */
+        @media print {
+            .sidebar,.topbar,.filter-bar,.pagination,#returnListSection,#returnFormSection .return-form-actions { display:none !important; }
+            .main-content { margin:0 !important;padding:1rem !important; }
+            #printInvoice { display:block !important; }
+        }
+        #printInvoice { display:none; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item"><i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span></a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child"><i class="fas fa-cash-register"></i><span class="nav-label">POS</span></a>
+                <a href="/sales-list.html" class="nav-item nav-child"><i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span></a>
+                <a href="/sales-return.html" class="nav-item nav-child"><i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span></a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item"><i class="fas fa-box-open"></i><span class="nav-label">Products</span></a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item"><i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span></a>
+        <a href="/stock-adjustments.html" class="nav-item"><i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span></a>
+        <a href="/stockout.html" class="nav-item"><i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span></a>
+        <a href="/predictions.html" class="nav-item"><i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span></a>
+        <a href="/suppliers.html" class="nav-item"><i class="fas fa-truck"></i><span class="nav-label">Suppliers</span></a>
+        <a href="/purchase-orders.html" class="nav-item"><i class="fas fa-file-invoice"></i><span class="nav-label">Purchase Orders</span></a>
+        <a href="/returns.html" class="nav-item"><i class="fas fa-rotate-left"></i><span class="nav-label">Returns</span></a>
+        <a href="/supplies.html" class="nav-item"><i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span></a>
+        <a href="/stock-transfers.html" class="nav-item"><i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span></a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item"><i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span></a>
+        <a href="/expenses.html" class="nav-item"><i class="fas fa-receipt"></i><span class="nav-label">Expenses</span></a>
+        <div class="nav-group-label">Customers</div>
+        <a href="/customers.html" class="nav-item"><i class="fas fa-user-group"></i><span class="nav-label">Customers</span></a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item"><i class="fas fa-code-branch"></i><span class="nav-label">Branches</span></a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item"><i class="fas fa-users"></i><span class="nav-label">Staff</span></a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item"><i class="fas fa-cog"></i><span class="nav-label">Settings</span></a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i><span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Sales Return</div>
+            <div class="page-breadcrumb">SmartPOS / Sales / Sales Return</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- ── RETURN FORM (shown when ?receipt= param present) ──── -->
+    <div id="returnFormSection" style="display:none">
+
+        <!-- Original Sale Summary Card -->
+        <div class="return-panel" style="margin-bottom:var(--space-4)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:var(--space-4)">
+                <div style="font-size:var(--text-base);font-weight:700;color:var(--text-primary)">
+                    <i class="fas fa-receipt" style="color:var(--primary);margin-right:8px"></i>Original Sale Summary
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="cancelReturn()">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </button>
+            </div>
+            <div id="txSummaryContent">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin" style="font-size:1.2rem;color:var(--primary)"></i></div>
+            </div>
+        </div>
+
+        <!-- Return Items Panel -->
+        <div class="return-panel">
+            <div class="return-panel-header">
+                <div>
+                    <div style="font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-1)">
+                        <i class="fas fa-undo-alt" style="color:var(--danger);margin-right:8px"></i>Select Items to Return
+                    </div>
+                    <div style="font-size:var(--text-xs);color:var(--text-muted)">Enter quantity for each item, click Full to return one line completely, or Return All to return everything.</div>
+                </div>
+                <button class="btn btn-secondary" onclick="returnAllItems()" id="returnAllBtn" disabled>
+                    <i class="fas fa-check-double"></i> Return All Items
+                </button>
+            </div>
+
+            <div id="returnItemsContainer"></div>
+
+            <!-- Refund Breakdown -->
+            <div class="return-total-box" style="margin-top:var(--space-4)">
+                <div class="return-total-row">
+                    <span class="text-muted">Items selected for return</span>
+                    <span id="returnItemCount" style="font-weight:600">0</span>
+                </div>
+                <div class="return-total-row">
+                    <span class="text-muted">Line Subtotal</span>
+                    <span id="rtLineSub">AED 0.00</span>
+                </div>
+                <div class="return-total-row" id="rtDiscountRow" style="display:none">
+                    <span class="text-muted">Discount</span>
+                    <span id="rtDiscount" style="color:var(--success)">&#x2212;AED 0.00</span>
+                </div>
+                <div class="return-total-row" id="rtVatRow" style="display:none">
+                    <span class="text-muted" id="rtVatLabel">VAT</span>
+                    <span id="rtVat">+AED 0.00</span>
+                </div>
+                <div class="return-total-row grand">
+                    <span>Total Refund</span>
+                    <span id="returnTotalAmount">AED 0.00</span>
+                </div>
+            </div>
+
+            <!-- Reason + Notes -->
+            <div class="grid-2" style="margin-top:var(--space-5);gap:var(--space-4)">
+                <div class="form-group">
+                    <label class="form-label">Return Reason</label>
+                    <select id="returnReason" class="form-control">
+                        <option value="CUSTOMER_CHANGE">Customer Changed Mind</option>
+                        <option value="DAMAGED">Damaged / Defective</option>
+                        <option value="WRONG_ITEM">Wrong Item</option>
+                        <option value="EXPIRED">Expired</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes (optional)</label>
+                    <input type="text" id="returnNotes" class="form-control"
+                           placeholder="Any additional notes..."/>
+                </div>
+            </div>
+
+            <div class="return-form-actions" style="display:flex;gap:var(--space-3);margin-top:var(--space-5);justify-content:flex-end">
+                <button class="btn btn-secondary" onclick="cancelReturn()">Cancel</button>
+                <button class="btn btn-danger" id="confirmReturnBtn" onclick="confirmReturn()" disabled>
+                    <i class="fas fa-undo-alt"></i> Confirm Return
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RETURN LIST ──────────────────────────────────────── -->
+    <div id="returnListSection">
+
+        <!-- FILTER BAR -->
+        <div class="filter-bar">
+            <label style="font-size:var(--text-sm);color:var(--text-muted)">Show</label>
+            <select id="pageSizeSelect" onchange="onPageSizeChange()">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+
+            <div class="input-icon-wrap">
+                <i class="fas fa-search input-icon"></i>
+                <input type="text" id="searchInput" class="form-control"
+                       placeholder="Search invoice or product..."
+                       style="width:240px" oninput="debounceSearch()"/>
+            </div>
+
+            <select id="dateRangeSelect" onchange="onDateRangeChange()">
+                <option value="today" selected>Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="7days">Last 7 Days</option>
+                <option value="30days">Last 30 Days</option>
+                <option value="month">This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+            </select>
+
+            <div class="custom-date-inputs" id="customDateInputs">
+                <input type="date" id="dateFrom"/>
+                <span style="color:var(--text-muted);font-size:var(--text-sm)">to</span>
+                <input type="date" id="dateTo"/>
+                <button class="btn btn-secondary btn-sm" onclick="loadPage(0)">Apply</button>
+            </div>
+        </div>
+
+        <!-- STAT STRIP -->
+        <div class="grid-2 mb-6">
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <div class="stat-label">Total Returns</div>
+                    <div class="stat-icon amber"><i class="fas fa-undo-alt"></i></div>
+                </div>
+                <div class="stat-value" id="totalCount">&#x2013;</div>
+                <div class="stat-sub">In selected period</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top">
+                    <div class="stat-label">Total Refunded</div>
+                    <div class="stat-icon red"><i class="fas fa-money-bill-wave"></i></div>
+                </div>
+                <div class="stat-value" id="totalRefunded">&#x2013;</div>
+                <div class="stat-sub">Amount returned to customers</div>
+            </div>
+        </div>
+
+        <!-- TABLE -->
+        <div class="card" style="padding:0;overflow:hidden">
+            <div class="table-wrap">
+                <table class="sp-table" id="returnTable">
+                    <thead>
+                        <tr>
+                            <th style="width:44px">#</th>
+                            <th>Return Invoice</th>
+                            <th>Orig. Invoice</th>
+                            <th>Date</th>
+                            <th>Product</th>
+                            <th style="text-align:right">Qty</th>
+                            <th style="text-align:right">Refund</th>
+                            <th>Reason</th>
+                            <th>Processed By</th>
+                            <th style="text-align:center">Print</th>
+                        </tr>
+                    </thead>
+                    <tbody id="returnTbody">
+                        <tr><td colspan="10">
+                            <div class="empty-state">
+                                <div class="skeleton" style="width:200px;height:16px"></div>
+                            </div>
+                        </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PAGINATION -->
+        <div class="pagination" id="pagination"></div>
+    </div>
+
+</main>
+
+<!-- PRINT INVOICE (hidden, shown on print) -->
+<div id="printInvoice"></div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+RoleGuard.guardCurrentPage();
+
+const RETURN_API = '/api/returns';
+let currentPage  = 0;
+let totalPages   = 0;
+let pageSize     = 20;
+let searchTimer  = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    Auth.requireClient();
+    Sidebar.init();
+    setAvatarInitials('userAvatar', Auth.getUserName());
+
+    const receipt = new URLSearchParams(window.location.search).get('receipt');
+    if (receipt) {
+        loadReturnForm(receipt);
+    } else {
+        loadPage(0);
+    }
+});
+
+// ── Helpers ───────────────────────────────────────────────────
+function fmt(v) {
+    if (v==null) return '0.00';
+    return parseFloat(v).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+function escHtml(s) {
+    return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function reasonLabel(r) {
+    const map = {
+        CUSTOMER_CHANGE:'Changed Mind', DAMAGED:'Damaged',
+        DEFECTIVE:'Defective', WRONG_ITEM:'Wrong Item',
+        EXPIRED:'Expired', OTHER:'Other'
+    };
+    return map[r] || (r||'').replace(/_/g,' ');
+}
+
+// ── Date range ────────────────────────────────────────────────
+function getDateRange() {
+    const sel=document.getElementById('dateRangeSelect').value;
+    const now=new Date(), f=d=>d.toISOString().slice(0,10);
+    let from=null,to=null;
+    if (sel==='today')       { from=to=f(now); }
+    else if (sel==='yesterday')  { const y=new Date(now); y.setDate(y.getDate()-1); from=to=f(y); }
+    else if (sel==='7days')  { const s=new Date(now); s.setDate(s.getDate()-6); from=f(s); to=f(now); }
+    else if (sel==='30days') { const s=new Date(now); s.setDate(s.getDate()-29); from=f(s); to=f(now); }
+    else if (sel==='month')  { from=f(new Date(now.getFullYear(),now.getMonth(),1)); to=f(now); }
+    else if (sel==='last_month') {
+        const m=now.getMonth()===0?11:now.getMonth()-1;
+        const y=now.getMonth()===0?now.getFullYear()-1:now.getFullYear();
+        from=f(new Date(y,m,1)); to=f(new Date(y,m+1,0));
+    }
+    else if (sel==='year')   { from=`${now.getFullYear()}-01-01`; to=f(now); }
+    else if (sel==='custom') { from=document.getElementById('dateFrom').value||null; to=document.getElementById('dateTo').value||null; }
+    return {from,to};
+}
+
+function onDateRangeChange() {
+    const sel=document.getElementById('dateRangeSelect').value;
+    document.getElementById('customDateInputs').classList.toggle('visible',sel==='custom');
+    if (sel!=='custom') loadPage(0);
+}
+
+function onPageSizeChange() { pageSize=parseInt(document.getElementById('pageSizeSelect').value); loadPage(0); }
+function debounceSearch()   { clearTimeout(searchTimer); searchTimer=setTimeout(()=>loadPage(0),350); }
+
+// ── Return list ───────────────────────────────────────────────
+async function loadPage(page) {
+    currentPage=page;
+    const {from,to}=getDateRange();
+    const q=document.getElementById('searchInput').value.trim();
+    let url=`${RETURN_API}/list?page=${page}&size=${pageSize}`;
+    if (q)    url+=`&search=${encodeURIComponent(q)}`;
+    if (from) url+=`&dateFrom=${from}`;
+    if (to)   url+=`&dateTo=${to}`;
+
+    document.getElementById('returnTbody').innerHTML =
+        `<tr><td colspan="10"><div class="empty-state">
+         <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--primary)"></i>
+         </div></td></tr>`;
+
+    try {
+        const data=await API.get(url);
+        const rows=data.content||[];
+        totalPages=data.totalPages||1;
+        renderTable(rows,page);
+        renderPagination(page,totalPages);
+        document.getElementById('totalCount').textContent=data.totalElements||0;
+        const totalRef=rows.reduce((s,r)=>s+parseFloat(r.refundAmount||0),0);
+        document.getElementById('totalRefunded').textContent='AED '+fmt(totalRef);
+    } catch(e) {
+        document.getElementById('returnTbody').innerHTML =
+            `<tr><td colspan="10">
+             <div class="empty-state">
+                 <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger)">
+                     <i class="fas fa-exclamation-circle"></i>
+                 </div>
+                 <div class="empty-state-title">Failed to load returns</div>
+                 <div class="empty-state-text">${e.message||'Please check your connection and try again.'}</div>
+             </div></td></tr>`;
+    }
+}
+
+function renderTable(rows,page) {
+    const tbody=document.getElementById('returnTbody');
+    if (!rows.length) {
+        tbody.innerHTML=`<tr><td colspan="10">
+            <div class="empty-state">
+                <div class="empty-state-icon" style="background:var(--warning-light);color:var(--warning)">
+                    <i class="fas fa-undo-alt"></i>
+                </div>
+                <div class="empty-state-title">No returns found</div>
+                <div class="empty-state-text">No return records match your current filters.</div>
+            </div></td></tr>`;
+        return;
+    }
+    tbody.innerHTML=rows.map((r,i)=>{
+        const sl   =page*pageSize+i+1;
+        const inv  =r.invoiceNumber ?`<span class="return-badge">${r.invoiceNumber}</span>`:'&#x2013;';
+        const orig =r.receiptNumber ?`<span class="receipt-badge">${r.receiptNumber}</span>`:'&#x2013;';
+        const date =r.returnedAt?new Date(r.returnedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):'&#x2013;';
+        return `<tr>
+            <td class="text-muted" style="font-size:var(--text-xs)">${sl}</td>
+            <td>${inv}</td>
+            <td>${orig}</td>
+            <td style="font-size:var(--text-xs);white-space:nowrap;color:var(--text-secondary)">${date}</td>
+            <td style="font-size:var(--text-sm)">${escHtml(r.productName||'&#x2013;')}</td>
+            <td style="text-align:right;font-weight:600">${r.quantityReturned}</td>
+            <td style="text-align:right;font-weight:600;color:var(--danger)">AED ${fmt(r.refundAmount)}</td>
+            <td><span class="reason-badge">${reasonLabel(r.reason)}</span></td>
+            <td style="font-size:var(--text-xs);color:var(--text-muted)">${escHtml(r.processedBy||'&#x2013;')}</td>
+            <td style="text-align:center">
+                <button class="btn btn-ghost btn-sm btn-icon-only"
+                        onclick="printReturnInvoice(${JSON.stringify(r).replace(/"/g,'&quot;')})"
+                        title="Print Return Invoice">
+                    <i class="fas fa-print"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function renderPagination(cur,total) {
+    const el=document.getElementById('pagination');
+    if (total<=1){el.innerHTML='';return;}
+    let h=`<button class="page-btn" onclick="loadPage(${cur-1})" ${cur===0?'disabled':''}><i class="fas fa-chevron-left"></i></button>`;
+    const s=Math.max(0,cur-2),e=Math.min(total,s+5);
+    for(let p=s;p<e;p++) h+=`<button class="page-btn ${p===cur?'active':''}" onclick="loadPage(${p})">${p+1}</button>`;
+    h+=`<button class="page-btn" onclick="loadPage(${cur+1})" ${cur>=total-1?'disabled':''}><i class="fas fa-chevron-right"></i></button>`;
+    el.innerHTML=h;
+}
+
+// ── Return form ───────────────────────────────────────────────
+let currentTx = null;
+
+async function loadReturnForm(receiptNumber) {
+    document.getElementById('returnListSection').style.display = 'none';
+    document.getElementById('returnFormSection').style.display = 'block';
+    document.getElementById('txSummaryContent').innerHTML =
+        '<div class="empty-state"><i class="fas fa-spinner fa-spin" style="font-size:1.2rem;color:var(--primary)"></i></div>';
+    document.getElementById('returnItemsContainer').innerHTML = '';
+
+    try {
+        currentTx = await API.get(`${RETURN_API}/lookup/${encodeURIComponent(receiptNumber)}`);
+
+        // ── Transaction summary card ─────────────────────────────
+        const subtotal = parseFloat(currentTx.subtotal)       || 0;
+        const discount = parseFloat(currentTx.discountAmount) || 0;
+        const vatPct   = parseFloat(currentTx.vatPercent)     || 0;
+        const vatAmt   = parseFloat(currentTx.vatAmount)      || 0;
+        const total    = parseFloat(currentTx.totalAmount)    || 0;
+        const dateStr  = currentTx.createdAt
+            ? new Date(currentTx.createdAt).toLocaleString('en-GB',
+                {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+            : '–';
+
+        const discRow  = discount > 0
+            ? `<div class="tx-meta-row"><span class="text-muted">Discount</span><span style="color:var(--success)">&#x2212;AED ${fmt(discount)}</span></div>`
+            : '';
+        const vatRow   = vatPct > 0
+            ? `<div class="tx-meta-row"><span class="text-muted">VAT (${vatPct}%)</span><span>+AED ${fmt(vatAmt)}</span></div>`
+            : '';
+
+        document.getElementById('txSummaryContent').innerHTML = `
+            <div class="tx-summary-grid">
+                <div>
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Receipt</span>
+                        <span class="receipt-badge">${escHtml(currentTx.receiptNumber || receiptNumber)}</span>
+                    </div>
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Date</span>
+                        <span style="font-size:var(--text-xs)">${dateStr}</span>
+                    </div>
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Customer</span>
+                        <span>${currentTx.customerName ? escHtml(currentTx.customerName) : 'Walk-in'}</span>
+                    </div>
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Cashier</span>
+                        <span>${currentTx.cashierName ? escHtml(currentTx.cashierName) : '&#x2013;'}</span>
+                    </div>
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Payment</span>
+                        <span>${currentTx.paymentMethod ? escHtml(currentTx.paymentMethod) : '&#x2013;'}</span>
+                    </div>
+                </div>
+                <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4)">
+                    <div class="tx-meta-row">
+                        <span class="text-muted">Subtotal</span>
+                        <span>AED ${fmt(subtotal)}</span>
+                    </div>
+                    ${discRow}
+                    ${vatRow}
+                    <div class="tx-meta-row" style="font-weight:700;font-size:var(--text-base);border-top:1px solid var(--border);padding-top:var(--space-2);margin-top:var(--space-2)">
+                        <span>Total Paid</span>
+                        <span style="color:var(--primary)">AED ${fmt(total)}</span>
+                    </div>
+                </div>
+            </div>`;
+
+        // Pre-configure totals breakdown visibility based on transaction
+        document.getElementById('rtVatLabel').textContent      = vatPct > 0 ? `VAT (${vatPct}%)` : 'VAT';
+        document.getElementById('rtVatRow').style.display      = vatPct > 0 ? 'flex' : 'none';
+        document.getElementById('rtDiscountRow').style.display = discount > 0 ? 'flex' : 'none';
+
+        // ── Item rows ────────────────────────────────────────────
+        const items = currentTx.items || [];
+        if (!items.length) {
+            document.getElementById('returnItemsContainer').innerHTML =
+                `<div class="empty-state">
+                    <div class="empty-state-icon" style="background:var(--success-light);color:var(--success)">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="empty-state-title">All items already returned</div>
+                    <div class="empty-state-text">Every item on this receipt has been fully returned.</div>
+                 </div>`;
+            document.getElementById('returnAllBtn').disabled = true;
+            return;
+        }
+
+        document.getElementById('returnAllBtn').disabled = false;
+        document.getElementById('returnItemsContainer').innerHTML = items.map(item => `
+            <div class="return-item-row" id="itemRow_${item.saleId}">
+                <div class="return-item-info">
+                    <div style="font-weight:600;font-size:var(--text-sm);color:var(--text-primary)">${escHtml(item.productName)}</div>
+                    <div style="font-size:var(--text-xs);color:var(--text-muted);margin-top:2px">
+                        Sold: <strong>${item.quantitySold}</strong>
+                        &nbsp;&middot;&nbsp; Unit Price: <strong>AED ${fmt(item.priceAtSale)}</strong>
+                        &nbsp;&middot;&nbsp; Returnable: <strong style="color:var(--success)">${item.remainingQty}</strong>
+                    </div>
+                </div>
+                <button class="btn btn-secondary btn-sm" onclick="setFullQty(${item.saleId},${item.remainingQty})" title="Return full remaining quantity">
+                    Full
+                </button>
+                <div style="display:flex;align-items:center;gap:var(--space-2)">
+                    <label style="font-size:var(--text-xs);color:var(--text-muted);white-space:nowrap">Return Qty:</label>
+                    <input type="number" class="return-qty-input" id="qty_${item.saleId}"
+                           min="0" max="${item.remainingQty}" step="0.001" value="0"
+                           data-sale-id="${item.saleId}"
+                           data-price="${item.priceAtSale}"
+                           data-max="${item.remainingQty}"
+                           oninput="onQtyChange(this)"/>
+                </div>
+                <div style="font-size:var(--text-sm);font-weight:600;min-width:110px;text-align:right;color:var(--danger)" id="lineTotal_${item.saleId}">
+                    AED 0.00
+                </div>
+            </div>`).join('');
+
+        updateReturnTotals();
+    } catch(e) {
+        document.getElementById('txSummaryContent').innerHTML = '';
+        document.getElementById('returnItemsContainer').innerHTML =
+            `<div class="empty-state">
+                <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger)">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="empty-state-title">Could not load receipt</div>
+                <div class="empty-state-text">${escHtml(e.message || 'Receipt not found or access denied.')}</div>
+             </div>`;
+    }
+}
+
+// Calculates the correct refund for qty units of one item,
+// applying proportional transaction discount + VAT.
+function calcRefundForItem(item, qty) {
+    const subtotal = parseFloat(currentTx.subtotal)       || 0;
+    const discount = parseFloat(currentTx.discountAmount) || 0;
+    const vatPct   = parseFloat(currentTx.vatPercent)     || 0;
+
+    const lineSub = parseFloat(item.priceAtSale) * qty;
+
+    let lineDisc = 0;
+    if (subtotal > 0 && discount > 0) {
+        lineDisc = lineSub * (discount / subtotal);
+    }
+
+    const netBeforeVat = lineSub - lineDisc;
+    const vatOnReturn  = netBeforeVat * (vatPct / 100);
+    const refundAmount = Math.round((netBeforeVat + vatOnReturn) * 100) / 100;
+
+    return { lineSub, lineDisc, netBeforeVat, vatOnReturn, refundAmount };
+}
+
+function onQtyChange(input) {
+    const max = parseFloat(input.dataset.max);
+    let val = parseFloat(input.value) || 0;
+    if (val < 0) { val = 0; input.value = 0; }
+    if (val > max) { val = max; input.value = max; }
+    updateReturnTotals();
+}
+
+function setFullQty(saleId, max) {
+    const inp = document.getElementById(`qty_${saleId}`);
+    if (inp) { inp.value = max; onQtyChange(inp); }
+}
+
+function returnAllItems() {
+    const items = currentTx ? currentTx.items || [] : [];
+    items.forEach(item => setFullQty(item.saleId, item.remainingQty));
+}
+
+function updateReturnTotals() {
+    if (!currentTx) return;
+    const items    = currentTx.items || [];
+    const discount = parseFloat(currentTx.discountAmount) || 0;
+    const vatPct   = parseFloat(currentTx.vatPercent)     || 0;
+
+    let totalLineSub = 0, totalDisc = 0, totalVat = 0, totalRefund = 0, count = 0;
+
+    items.forEach(item => {
+        const inp = document.getElementById(`qty_${item.saleId}`);
+        const el  = document.getElementById(`lineTotal_${item.saleId}`);
+        if (!inp) return;
+        const qty = parseFloat(inp.value) || 0;
+        if (qty <= 0) { if (el) el.textContent = 'AED 0.00'; return; }
+        count++;
+        const calc = calcRefundForItem(item, qty);
+        totalLineSub += calc.lineSub;
+        totalDisc    += calc.lineDisc;
+        totalVat     += calc.vatOnReturn;
+        totalRefund  += calc.refundAmount;
+        if (el) el.textContent = 'AED ' + fmt(calc.refundAmount);
+    });
+
+    document.getElementById('returnItemCount').textContent   = count;
+    document.getElementById('rtLineSub').textContent         = 'AED ' + fmt(totalLineSub);
+    document.getElementById('rtDiscount').textContent        = '−AED ' + fmt(totalDisc);
+    document.getElementById('rtVat').textContent             = '+AED ' + fmt(totalVat);
+    document.getElementById('returnTotalAmount').textContent = 'AED ' + fmt(totalRefund);
+    document.getElementById('rtVatLabel').textContent        = vatPct > 0 ? `VAT (${vatPct}%)` : 'VAT';
+    document.getElementById('rtDiscountRow').style.display   = discount > 0 ? 'flex' : 'none';
+    document.getElementById('rtVatRow').style.display        = vatPct > 0   ? 'flex' : 'none';
+    document.getElementById('confirmReturnBtn').disabled     = count === 0;
+}
+
+function cancelReturn() { window.location.href = '/sales-return.html'; }
+
+async function confirmReturn() {
+    if (!currentTx) return;
+    const items       = currentTx.items || [];
+    const reason      = document.getElementById('returnReason').value;
+    const notes       = document.getElementById('returnNotes').value;
+    const processedBy = Auth.getUserName() || 'Cashier';
+
+    const toReturn = items.filter(item => {
+        const val = parseFloat(document.getElementById(`qty_${item.saleId}`)?.value || 0);
+        return val > 0;
+    });
+    if (!toReturn.length) { Toast.error('No items selected.'); return; }
+
+    const btn = document.getElementById('confirmReturnBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    try {
+        const results = [];
+        for (const item of toReturn) {
+            const qty = parseFloat(document.getElementById(`qty_${item.saleId}`).value);
+            const result = await API.post(RETURN_API, {
+                saleId: String(item.saleId),
+                quantityReturned: String(qty),
+                reason, notes, processedBy
+            });
+            results.push(result);
+        }
+        printReturnInvoiceMulti(results, currentTx);
+        Toast.success('Return processed successfully!');
+        setTimeout(() => { window.location.href = '/sales-return.html'; }, 1500);
+    } catch(e) {
+        Toast.error('Return failed: ' + (e.message || 'Unknown error'));
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-undo-alt"></i> Confirm Return';
+    }
+}
+
+// ── Print ─────────────────────────────────────────────────────
+function printReturnInvoice(r) {
+    document.getElementById('printInvoice').innerHTML = buildReturnInvoiceHtml([r], {
+        receiptNumber: r.receiptNumber, customerName: null,
+        paymentMethod: null, createdAt: r.returnedAt, vatPercent: 0
+    });
+    window.print();
+}
+
+function printReturnInvoiceMulti(results, tx) {
+    document.getElementById('printInvoice').innerHTML = buildReturnInvoiceHtml(results, tx);
+    window.print();
+}
+
+function buildReturnInvoiceHtml(returns, tx) {
+    const totalRefund = returns.reduce((s, r) => s + parseFloat(r.refundAmount || 0), 0);
+    const vatPct      = tx ? (parseFloat(tx.vatPercent) || 0) : 0;
+    const itemsHtml   = returns.map(r => `
+        <tr>
+            <td style="padding:4px 0">${escHtml(r.productName)}</td>
+            <td style="text-align:right;padding:4px 0">${r.quantityReturned}</td>
+            <td style="text-align:right;padding:4px 0">AED ${fmt(r.refundAmount)}</td>
+        </tr>`).join('');
+    return `<div style="font-family:monospace;max-width:400px;margin:0 auto;padding:20px;font-size:12px">
+        <div style="text-align:center;margin-bottom:16px">
+            <div style="font-size:16px;font-weight:bold">RETURN INVOICE</div>
+            <div style="font-size:13px">${Auth.getBusinessName()}</div>
+            <div style="margin:6px 0;font-size:11px;color:#666">${returns[0]?.invoiceNumber || '&#x2013;'}</div>
+            <div style="font-size:11px;color:#666">${new Date().toLocaleString()}</div>
+            ${tx && tx.customerName ? `<div style="margin-top:4px">Customer: ${escHtml(tx.customerName)}</div>` : ''}
+            ${tx && tx.receiptNumber ? `<div>Orig. Invoice: ${tx.receiptNumber}</div>` : ''}
+        </div>
+        <hr style="border-top:1px dashed #999;margin:10px 0"/>
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead><tr>
+                <th style="text-align:left;padding:2px 0">Product</th>
+                <th style="text-align:right">Qty</th>
+                <th style="text-align:right">Refund</th>
+            </tr></thead>
+            <tbody>${itemsHtml}</tbody>
+        </table>
+        <hr style="border-top:1px dashed #999;margin:10px 0"/>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:13px">
+            <span>Total Refund:</span><span>AED ${fmt(totalRefund)}</span>
+        </div>
+        ${vatPct > 0 ? `<div style="font-size:10px;color:#666;margin-top:4px;text-align:right">Includes ${vatPct}% VAT</div>` : ''}
+        <div style="text-align:center;margin-top:16px;color:#666;font-size:10px">
+            Thank you for your business.
+        </div>
+    </div>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Settings – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .preview-container {
+            max-width: 340px;
+            background: #fff;
+            padding: 20px 22px;
+            border-radius: var(--radius-sm);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            margin: var(--space-6) auto;
+            color: #000;
+            font-family: 'Courier New', 'JetBrains Mono', monospace;
+            font-size: 12px;
+            line-height: 1.45;
+        }
+        .preview-header {
+            text-align: center;
+            border-bottom: 1px dashed #bbb;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+        }
+        .preview-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 10px;
+            overflow: hidden;
+        }
+        .preview-logo img {
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            filter: grayscale(1);
+        }
+        .preview-logo-placeholder {
+            width: 60px; height: 60px;
+            border: 2px dashed #ccc;
+            color: #aaa;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 10px;
+            border-radius: 4px;
+        }
+        .preview-biz {
+            font-size: 15px;
+            font-weight: 700;
+            color: #000;
+        }
+        .preview-branch {
+            font-size: 11px;
+            color: #666;
+            margin-top: 2px;
+        }
+        .preview-meta {
+            text-align: center;
+            font-size: 11px;
+            color: #444;
+            margin-bottom: 10px;
+        }
+        .preview-meta .receipt-no {
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            font-size: 12px;
+            color: #000;
+        }
+        .preview-block {
+            border-top: 1px dashed #bbb;
+            border-bottom: 1px dashed #bbb;
+            padding: 8px 0;
+            margin-bottom: 8px;
+            font-size: 11px;
+            color: #333;
+        }
+        .preview-block .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .preview-items {
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+            border-bottom: 1px dashed #bbb;
+        }
+        .preview-items .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+        .preview-totals .row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+        .preview-totals .row.total {
+            font-weight: 700;
+            font-size: 13px;
+            color: #000;
+            margin-top: 6px;
+        }
+        .preview-footer {
+            text-align: center;
+            border-top: 1px dashed #bbb;
+            padding-top: 10px;
+            margin-top: 10px;
+            font-size: 11px;
+            color: #444;
+            font-style: italic;
+            white-space: pre-wrap;
+        }
+        .preview-vat {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 10px;
+            color: #888;
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="set_title">Settings</div>
+            <div class="page-breadcrumb">SmartPOS / System / Receipt Customizer</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- ── APPEARANCE ─────────────────────────────────────── -->
+    <div class="section-header mb-8">
+        <div class="section-icon stat-icon purple"><i class="fas fa-palette"></i></div>
+        <div>
+            <div class="section-title" data-i18n="set_sec_appearance">Appearance</div>
+            <div class="section-sub" data-i18n="set_sec_appearance_sub">Customize the look and language of SmartPOS</div>
+        </div>
+    </div>
+
+    <div class="grid-2 gap-8 mb-12">
+        <!-- Dark Mode Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="set_card_theme">Display Mode</span>
+            </div>
+            <div class="card-body">
+                <p class="text-sm text-muted mb-4" data-i18n="set_theme_desc">Switch between light and dark interface themes.</p>
+                <div class="appearance-row">
+                    <div class="appearance-icon">
+                        <i class="fas fa-moon" id="themeIcon"></i>
+                    </div>
+                    <div class="appearance-info">
+                        <div class="font-semibold" id="themeLabel" data-i18n="set_theme_dark">Dark Mode</div>
+                        <div class="text-xs text-muted" id="themeStatus" data-i18n="set_theme_active">Currently active</div>
+                    </div>
+                    <button class="btn btn-primary" id="settingsThemeBtn" onclick="Settings.toggleTheme()">
+                        <i class="fas fa-adjust"></i>
+                        <span data-i18n="set_btn_switch_theme">Switch</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Language Card -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="set_card_language">Language</span>
+            </div>
+            <div class="card-body">
+                <p class="text-sm text-muted mb-4" data-i18n="set_lang_desc">Toggle between English and Arabic (with RTL layout).</p>
+                <div class="appearance-row">
+                    <div class="appearance-icon">
+                        <i class="fas fa-language"></i>
+                    </div>
+                    <div class="appearance-info">
+                        <div class="font-semibold" id="langLabel">English</div>
+                        <div class="text-xs text-muted" id="langStatus" data-i18n="set_lang_active">Currently active</div>
+                    </div>
+                    <button class="btn btn-primary" id="settingsLangBtn" onclick="Translations.toggle()">
+                        <i class="fas fa-globe"></i>
+                        <span id="settingsLangBtnLabel">العربية</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── RECEIPT CUSTOMIZER ─────────────────────────────── -->
+    <div class="section-header mb-8">
+        <div class="section-icon stat-icon indigo"><i class="fas fa-receipt"></i></div>
+        <div>
+            <div class="section-title" data-i18n="set_sec_receipt">Receipt Customizer</div>
+            <div class="section-sub" data-i18n="set_sec_receipt_sub">Configure how your printed and digital receipts look</div>
+        </div>
+    </div>
+
+    <div class="grid-2 gap-8">
+        <!-- Configuration Form -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="set_card_customization">Customization Options</span>
+            </div>
+            <div class="card-body">
+                <div class="form-group">
+                    <label class="form-label" data-i18n="set_lbl_logo">Business Logo</label>
+                    <div class="flex items-center gap-4">
+                        <div id="logoPreviewCurrent" style="width:64px;height:64px;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--surface-2)">
+                            <i class="fas fa-image text-muted"></i>
+                        </div>
+                        <input type="file" id="logoInput" class="form-control" accept="image/*">
+                    </div>
+                    <div class="text-xs text-muted mt-2" data-i18n="set_lbl_logo_sub">Recommended: 200x200px PNG (Monochrome)</div>
+                </div>
+
+                <div class="form-group mb-8">
+                    <label class="form-label" data-i18n="set_lbl_footer">Footer Message</label>
+                    <textarea id="footerInput" class="form-control" rows="4" 
+                              placeholder="Thank you for your business! Visit us again."></textarea>
+                    <div class="text-xs text-muted mt-2" data-i18n="set_lbl_footer_sub">Appears at the very bottom of every receipt.</div>
+                </div>
+
+                <div class="flex justify-end gap-3">
+                    <button class="btn btn-primary w-full" id="saveBtn" onclick="saveSettings()">
+                    <i class="fas fa-save"></i> <span data-i18n="set_btn_save">Save Configuration</span>
+                </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Preview -->
+        <div>
+            <div class="card" style="padding:0;overflow:hidden">
+                <div class="card-header">
+                    <span class="card-title" data-i18n="set_card_preview">Live Receipt Preview</span>
+                    <span class="badge badge-indigo" style="font-size:11px">Live</span>
+                </div>
+                <div style="padding:var(--space-4)">
+            <div class="preview-container" id="receiptPreview">
+                <div class="preview-header">
+                    <div class="preview-logo" id="logoPreview">
+                        <div class="preview-logo-placeholder"><i class="fas fa-store"></i></div>
+                    </div>
+                    <div class="preview-biz" id="previewBizName">Your Business Name</div>
+                    <div class="preview-branch">Main Branch</div>
+                </div>
+
+                <div class="preview-meta">
+                    <div class="receipt-no">MAB-2026-00123</div>
+                    <div>19 Apr 2026, 14:30</div>
+                </div>
+
+                <div class="preview-block">
+                    <div class="row"><span>Cashier:</span><span style="font-weight:600">Eman</span></div>
+                    <div class="row"><span>Customer:</span><span style="font-weight:600">Walk-in</span></div>
+                    <div class="row"><span>Payment:</span><span style="font-weight:600">Cash</span></div>
+                </div>
+
+                <div class="preview-items">
+                    <div class="row"><span>Sample Item × 1</span><span>15.00</span></div>
+                    <div class="row"><span>Another Product × 2</span><span>30.00</span></div>
+                </div>
+
+                <div class="preview-totals">
+                    <div class="row"><span>Subtotal</span><span>42.86</span></div>
+                    <div class="row"><span>VAT (5%)</span><span>2.14</span></div>
+                    <div class="row total"><span>TOTAL</span><span>AED 45.00</span></div>
+                </div>
+
+                <div class="preview-footer" id="footerPreview">Thank you for your business!</div>
+
+                <div class="preview-vat">
+                    VAT TRN: 100XXXXXXX00003
+                </div>
+            </div>
+                </div><!-- /padding wrapper -->
+            </div><!-- /card -->
+        </div>
+    </div>
+</main>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    Auth.requireClient();
+    
+    let logoBase64 = null;
+
+    async function init() {
+        setAvatarInitials('userAvatar', Auth.getUserName());
+        document.getElementById('previewBizName').textContent = Auth.getBusinessName();
+        
+        // Load current settings
+        try {
+            const settings = await API.get('/api/business/settings');
+            if (settings.receiptLogoBase64) {
+                logoBase64 = settings.receiptLogoBase64;
+                updateLogoPreview(logoBase64);
+            }
+            if (settings.receiptFooter) {
+                document.getElementById('footerInput').value = settings.receiptFooter;
+                document.getElementById('footerPreview').textContent = settings.receiptFooter;
+            }
+        } catch (e) {
+            console.error('Failed to load settings', e);
+        }
+    }
+
+    // Task 14: FileReader live preview
+    document.getElementById('logoInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        if (file.size > 500000) {
+            Toast.error('Logo file too large (>500KB)');
+            this.value = '';
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            logoBase64 = event.target.result;
+            updateLogoPreview(logoBase64);
+        };
+        reader.readAsDataURL(file);
+    });
+
+    document.getElementById('footerInput').addEventListener('input', function(e) {
+        document.getElementById('footerPreview').textContent = this.value;
+    });
+
+    function updateLogoPreview(src) {
+        document.getElementById('logoPreview').innerHTML = `<img src="${src}" alt="Logo">`;
+    }
+
+    function clearLogo() {
+        logoBase64 = null;
+        document.getElementById('logoInput').value = '';
+        document.getElementById('logoPreview').innerHTML = '<div class="preview-logo-placeholder"><i class="fas fa-store"></i></div>';
+    }
+
+    async function saveSettings() {
+        const btn = document.getElementById('saveBtn');
+        const footer = document.getElementById('footerInput').value;
+
+        try {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+            
+            await API.post('/api/business/settings/receipt', {
+                logo: logoBase64,
+                footer: footer
+            });
+
+            Toast.success('Settings updated successfully!');
+        } catch (e) {
+            Toast.error('Failed to save settings');
+            console.error(e);
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-save"></i> Save Settings';
+        }
+    }
+
+    init();
+
+    // ── Appearance cards ──────────────────────────────────────
+    const Settings = {
+        toggleTheme() {
+            Theme.toggle();
+            Settings.syncThemeCard();
+        },
+        syncThemeCard() {
+            const currentlyDark = (localStorage.getItem('sp_theme') || 'dark') === 'dark';
+            const icon = document.getElementById('themeIcon');
+            const label = document.getElementById('themeLabel');
+            const dict = Translations.dictionary[Translations.currentLang];
+            if (icon) icon.className = currentlyDark ? 'fas fa-moon' : 'fas fa-sun';
+            if (label) label.textContent = currentlyDark
+                ? (dict['set_theme_switch_to_light'] || 'Switch to Light Mode')
+                : (dict['set_theme_switch_to_dark'] || 'Switch to Dark Mode');
+        },
+        syncLangCard() {
+            const isAr = Translations.currentLang === 'ar';
+            const label = document.getElementById('langLabel');
+            const btnLabel = document.getElementById('settingsLangBtnLabel');
+            if (label) label.textContent = isAr ? 'العربية' : 'English';
+            if (btnLabel) btnLabel.textContent = isAr ? 'English' : 'العربية';
+        }
+    };
+    window.Settings = Settings;
+
+    Settings.syncThemeCard();
+    Settings.syncLangCard();
+    window.addEventListener('languageChanged', () => {
+        Settings.syncThemeCard();
+        Settings.syncLangCard();
+    });
+    window.addEventListener('themeChanged', () => {
+        Settings.syncThemeCard();
+    });
+</script>
+</body>
+</html>
+

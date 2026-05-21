@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Dashboard – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .risk-row {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: var(--space-3) var(--space-5);
+            border-bottom: 1px solid var(--border); gap: var(--space-3);
+        }
+        .risk-row:last-child { border-bottom: none; }
+        .risk-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+        .days-pill {
+            font-size: var(--text-xs); font-weight: 700;
+            padding: 2px 8px; border-radius: var(--radius-full);
+        }
+        /* Owner global view banner */
+        .global-banner {
+            background: rgba(99,102,241,0.08);
+            border: 1px solid rgba(99,102,241,0.2);
+            border-radius: var(--radius-md);
+            padding: var(--space-3) var(--space-5);
+            display: flex; align-items: center; gap: var(--space-3);
+            margin-bottom: var(--space-6);
+        }
+        /* Branch comparison cards */
+        .branch-comparison {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-6);
+        }
+        .branch-stat-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4) var(--space-5);
+            transition: all var(--transition-fast);
+        }
+        .branch-stat-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(99,102,241,0.12);
+        }
+        .branch-stat-name {
+            font-size: var(--text-xs); font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.08em;
+            color: var(--text-muted); margin-bottom: var(--space-2);
+        }
+        .branch-stat-revenue {
+            font-size: var(--text-lg); font-weight: 700;
+            color: var(--primary); margin-bottom: var(--space-1);
+        }
+        .branch-stat-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            font-size: 0.6rem; font-weight: 700;
+            padding: 2px 6px; border-radius: var(--radius-full);
+            background: rgba(99,102,241,0.1); color: var(--primary);
+            border: 1px solid rgba(99,102,241,0.2);
+        }
+        /* Recent transactions table */
+        .receipt-badge {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 2px 8px;
+            background: rgba(99,102,241,0.1);
+            border: 1px solid rgba(99,102,241,0.25);
+            border-radius: var(--radius-full);
+            font-family: var(--font-mono);
+            font-size: 0.65rem; font-weight: 700;
+            color: var(--primary); letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+        .payment-badge {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 7px; border-radius: var(--radius-full);
+            font-size: 0.62rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+        .payment-cash     { background: rgba(34,197,94,0.1);  color: var(--success); }
+        .payment-card     { background: rgba(99,102,241,0.1); color: var(--primary); }
+        .payment-transfer { background: rgba(56,189,248,0.1); color: var(--info); }
+        .payment-other    { background: var(--surface-3); color: var(--text-muted); }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item active">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="dash_title">Dashboard</div>
+            <div class="page-breadcrumb">SmartPOS / Overview</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <button class="btn-toggle" id="notifBtn" title="Alerts">
+            <i class="fas fa-bell"></i>
+        </button>
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- OWNER GLOBAL VIEW BANNER -->
+    <div class="global-banner" id="globalBanner" style="display:none">
+        <i class="fas fa-chart-pie" style="color:var(--primary);font-size:1rem;flex-shrink:0"></i>
+        <div class="flex-1">
+            <div class="text-sm font-semibold text-primary" data-i18n="dash_viewing_all">Viewing All Branches</div>
+            <div class="text-xs text-muted" data-i18n="dash_combined_stats">
+                Stats below are combined across all branches.
+            </div>
+        </div>
+        <a href="/branch-select.html" class="btn btn-secondary btn-sm">
+            <i class="fas fa-store"></i> <span data-i18n="btn_switch_branch">Switch Branch</span>
+        </a>
+    </div>
+
+    <!-- BRANCH COMPARISON (owner global view only) -->
+    <div id="branchComparison" style="display:none">
+        <div class="text-sm font-semibold text-muted uppercase tracking"
+             style="margin-bottom:var(--space-3);letter-spacing:0.08em">
+            Revenue by Branch
+        </div>
+        <div class="branch-comparison" id="branchComparisonCards"></div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="dash_kpi_products">Total Products</div>
+                <div class="stat-icon indigo"><i class="fas fa-box-open"></i></div>
+            </div>
+            <div class="stat-value" id="statProducts">—</div>
+            <div class="stat-sub" id="statProductsSub" data-i18n="dash_sub_products">Registered in inventory</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="dash_kpi_revenue">Total Revenue</div>
+                <div class="stat-icon green"><i class="fas fa-dollar-sign"></i></div>
+            </div>
+            <div class="stat-value" id="statRevenue">—</div>
+            <div class="stat-sub" id="statRevenueSub" data-i18n="dash_sub_revenue">From all recorded sales</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="dash_kpi_units">Units Sold</div>
+                <div class="stat-icon blue"><i class="fas fa-shopping-bag"></i></div>
+            </div>
+            <div class="stat-value" id="statUnits">—</div>
+            <div class="stat-sub" id="statUnitsSub" data-i18n="dash_sub_units">Total units sold</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="dash_kpi_risk">Stock at Risk</div>
+                <div class="stat-icon red">
+                    <i class="fas fa-triangle-exclamation"></i>
+                </div>
+            </div>
+            <div class="stat-value" id="statAtRisk" style="color:var(--danger)">—</div>
+            <div class="stat-sub" id="statAtRiskSub" data-i18n="dash_sub_risk">Products needing attention</div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW -->
+    <div class="grid-2 mb-6">
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="dash_chart_top_products">Revenue by Top Products</span>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueChart" height="200"></canvas>
+                <div id="revenueEmpty" class="empty-state" style="display:none">
+                    <div class="empty-state-icon"><i class="fas fa-chart-bar"></i></div>
+                    <div class="empty-state-title" data-i18n="dash_empty_sales">No sales yet</div>
+                    <div class="empty-state-text" data-i18n="dash_empty_sales_sub">Record your first sale to see data here.</div>
+                </div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="dash_chart_categories">Sales by Category</span>
+            </div>
+            <div class="card-body">
+                <div id="categoryChartWrap" style="max-width:180px;margin:0 auto 16px">
+                    <canvas id="categoryChart" height="180"></canvas>
+                </div>
+                <div id="categoryEmpty" class="empty-state" style="display:none">
+                    <div class="empty-state-icon"><i class="fas fa-chart-pie"></i></div>
+                    <div class="empty-state-title" data-i18n="dash_empty_category">No category data</div>
+                    <div class="empty-state-text" data-i18n="dash_empty_category_sub">Sales by category will appear here.</div>
+                </div>
+                <div id="categoryLegend"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BOTTOM ROW -->
+    <div class="grid-2 mb-6">
+        <!-- Recent Transactions -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title" data-i18n="dash_recent_sales">Recent Transactions</span>
+                <a href="/report.html" class="btn btn-ghost btn-sm">
+                    <span data-i18n="btn_view_all">View All</span> <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div class="table-wrap">
+                <table class="sp-table">
+                    <thead>
+                    <tr>
+                        <th data-i18n="dash_th_receipt">Receipt #</th>
+                        <th style="text-align:center" data-i18n="dash_th_payment">Payment</th>
+                        <th data-i18n="dash_th_cashier">Cashier</th>
+                        <th style="text-align:center;white-space:nowrap" data-i18n="dash_th_total">Total (AED)</th>
+                        <th style="text-align:center" data-i18n="dash_th_date">Date & Time</th>
+                    </tr>
+                    </thead>
+                    <tbody id="recentSalesBody">
+                    <tr><td colspan="5">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Stockout Forecast Widget -->
+        <div class="card">
+            <div class="card-header">
+                <span class="card-title">
+                    <i class="fas fa-triangle-exclamation"
+                       style="color:var(--warning);margin-right:6px"></i>
+                    <span data-i18n="dash_stockout_forecast">Stockout Forecast</span>
+                </span>
+                <a href="/stockout.html" class="btn btn-ghost btn-sm">
+                    <span data-i18n="btn_full_forecast">Full Forecast</span> <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+            <div id="stockoutWidget">
+                <div class="empty-state" style="padding:var(--space-8)">
+                    <div class="skeleton" style="width:200px;height:16px"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LOW STOCK -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="dash_low_stock">Low Stock Alert</span>
+            <a href="/products.html" class="btn btn-ghost btn-sm">
+                <span data-i18n="btn_view_all">View All</span> <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th data-i18n="dash_th_num">#</th>
+                    <th data-i18n="dash_th_product">Product</th>
+                    <th data-i18n="dash_th_category">Category</th>
+                    <th data-i18n="dash_th_stock">Stock</th>
+                </tr>
+                </thead>
+                <tbody id="lowStockBody">
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <div class="skeleton" style="width:200px;height:16px"></div>
+                    </div>
+                </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+    RoleGuard.checkAccessDenied();
+
+    const COLORS = [
+        '#6366f1','#22c55e','#38bdf8',
+        '#f59e0b','#ef4444','#a855f7','#ec4899','#14b8a6'
+    ];
+
+    const STATUS_COLORS = {
+        OUT_OF_STOCK: { dot:'#ef4444', pill:'background:rgba(239,68,68,0.12);color:#ef4444' },
+        CRITICAL:     { dot:'#ef4444', pill:'background:rgba(239,68,68,0.12);color:#ef4444' },
+        WARNING:      { dot:'#f59e0b', pill:'background:rgba(245,158,11,0.12);color:#f59e0b' },
+        LOW:          { dot:'#38bdf8', pill:'background:rgba(56,189,248,0.12);color:#38bdf8' }
+    };
+
+    const STATUS_LABELS = {
+        OUT_OF_STOCK:'Out of Stock', CRITICAL:'Critical',
+        WARNING:'Warning', LOW:'Low'
+    };
+
+    const role        = Auth.getUserRole();
+    const branchId    = Auth.getBranchId();
+    const branchName  = Auth.getBranchName();
+    const isGlobal    = role === 'OWNER' && !branchId;
+
+    async function loadDashboard() {
+        try {
+            // Show global banner if owner viewing all branches
+            if (isGlobal) {
+                document.getElementById('globalBanner').style.display = 'flex';
+            }
+
+            // Update stat card subtitles based on branch context
+            if (isGlobal) {
+                document.getElementById('statProductsSub').textContent =
+                    'Across all branches';
+                document.getElementById('statRevenueSub').textContent =
+                    'Combined across all branches';
+                document.getElementById('statUnitsSub').textContent =
+                    'Combined across all branches';
+            } else if (branchName) {
+                document.getElementById('statProductsSub').textContent =
+                    'At ' + branchName;
+                document.getElementById('statRevenueSub').textContent =
+                    'At ' + branchName;
+                document.getElementById('statUnitsSub').textContent =
+                    'At ' + branchName;
+            }
+
+            // API.get() automatically sends X-Branch-Id from sessionStorage.
+            // The backend now filters by branch when X-Branch-Id is present.
+            const [products, report, transactions, stockoutSummary] = await Promise.all([
+                API.get('/api/products'),
+                API.get('/api/sales/report'),
+                API.get('/api/sales/transactions'),
+                API.get('/api/stockout/summary')
+            ]);
+
+            renderStats(products, report, stockoutSummary);
+            renderRevenueChart(report);
+            renderCategoryChart(report);
+            renderRecentSales(transactions.slice(0, 10));
+            renderStockoutWidget(stockoutSummary);
+
+            // Branch-aware low stock
+            if (branchId) {
+                // Load branch inventory for low stock
+                const branchInv = await API.get(
+                    `/api/branches/${branchId}/inventory`);
+                renderLowStockFromBranch(branchInv);
+            } else {
+                renderLowStock(products);
+            }
+
+            // Owner global view: show per-branch revenue breakdown
+            // Uses revenueByBranch data included in the report response
+            if (isGlobal) {
+                const branches = await API.get('/api/branches/active');
+                renderBranchComparison(branches, report);
+            }
+
+        } catch (e) {
+            Toast.error('Failed to load dashboard.');
+            console.error(e);
+        }
+    }
+
+    function renderStats(products, report, stockout) {
+        animateCounter(document.getElementById('statProducts'),
+            products.length);
+        animateCounter(document.getElementById('statUnits'),
+            report.totalUnitsSold || 0);
+        document.getElementById('statRevenue').textContent =
+            Format.currency(report.totalRevenue || 0);
+
+        const atRisk     = Number(stockout.totalAtRisk || 0);
+        const outOfStock = Number(stockout.outOfStock  || 0);
+        const critical   = Number(stockout.critical    || 0);
+
+        document.getElementById('statAtRisk').textContent = atRisk;
+        if (outOfStock > 0 || critical > 0) {
+            document.getElementById('statAtRiskSub').textContent =
+                `${outOfStock} out of stock, ${critical} critical`;
+        }
+        setAvatarInitials('userAvatar', Auth.getUserName());
+    }
+
+    function renderBranchComparison(branches, report) {
+        if (branches.length <= 1) return;
+        document.getElementById('branchComparison').style.display = 'block';
+
+        // Build branchId → revenue map from the report's revenueByBranch data
+        const revenueByBranch = report.revenueByBranch || [];
+        const revenueMap = {};
+        revenueByBranch.forEach(entry => {
+            if (entry.branchId) {
+                revenueMap[entry.branchId] = entry.totalRevenue;
+            }
+        });
+
+        const cards = branches.map(b => {
+            const rev = revenueMap[b.id];
+            const revenueText = rev != null
+                ? Format.currency(rev)
+                : Format.currency(0);
+            return `
+            <div class="branch-stat-card">
+                <div class="branch-stat-name">
+                    <i class="fas fa-store"
+                       style="margin-right:5px;font-size:0.6rem"></i>
+                    ${b.name}
+                </div>
+                <div class="branch-stat-revenue">${revenueText}</div>
+                ${b.isMainBranch
+                    ? `<span class="branch-stat-badge">
+                           <i class="fas fa-star"
+                              style="font-size:0.5rem"></i>
+                           Main
+                       </span>`
+                    : ''}
+            </div>`;
+        }).join('');
+
+        document.getElementById('branchComparisonCards').innerHTML = cards;
+    }
+
+    function renderStockoutWidget(summary) {
+        const widget = document.getElementById('stockoutWidget');
+        const atRisk = summary.topAtRisk || [];
+        if (!atRisk.length) {
+            widget.innerHTML = `
+                <div class="empty-state" style="padding:var(--space-8)">
+                    <div class="empty-state-icon" style="color:var(--success)">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="empty-state-title" data-i18n="dash_empty_stockout">All products are safe</div>
+                    <div class="empty-state-text" data-i18n="dash_empty_stockout_sub">
+                        No products at risk based on recent sales.
+                    </div>
+                </div>`;
+            return;
+        }
+        widget.innerHTML = atRisk.map(f => {
+            const cfg      = STATUS_COLORS[f.status] || STATUS_COLORS.LOW;
+            const label    = STATUS_LABELS[f.status] || f.status;
+            const days     = f.daysUntilStockout;
+            const daysText = f.status === 'OUT_OF_STOCK'
+                ? 'Out of stock'
+                : days !== null ? `${days} days left` : 'No data';
+            return `
+                <div class="risk-row">
+                    <div class="flex items-center gap-3 flex-1">
+                        <div class="risk-dot"
+                             style="background:${cfg.dot}"></div>
+                        <div>
+                            <div class="text-sm font-medium text-primary">
+                                ${f.productName}
+                            </div>
+                            <div class="text-xs text-muted">
+                                ${f.category}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <div class="text-xs text-muted">
+                            ${f.currentStock} units
+                        </div>
+                        <span class="days-pill" style="${cfg.pill}">
+                            ${daysText}
+                        </span>
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    function renderRevenueChart(report) {
+        const top = report.topSellingProducts || [];
+        if (!top.length) {
+            document.getElementById('revenueChart').style.display = 'none';
+            document.getElementById('revenueEmpty').style.display = 'flex';
+            return;
+        }
+        const existing = Chart.getChart('revenueChart');
+        if (existing) existing.destroy();
+        document.getElementById('revenueChart').style.display  = 'block';
+        document.getElementById('revenueEmpty').style.display  = 'none';
+        const isRtl = document.documentElement.getAttribute('dir') === 'rtl';
+        new Chart(
+            document.getElementById('revenueChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: top.map(p => p.productName),
+                    datasets: [{
+                        data: top.map(p => Number(p.totalRevenue)),
+                        backgroundColor: COLORS.slice(0, top.length),
+                        borderRadius: 6, borderSkipped: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'x',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { color: '#475569', font: { size: 11 } },
+                            reverse: isRtl   // flip bar order right-to-left
+                        },
+                        y: {
+                            position: isRtl ? 'right' : 'left',  // Y-axis on right in Arabic
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: {
+                                color: '#475569',
+                                font: { size: 11 },
+                                callback: v => 'AED ' + v
+                            }
+                        }
+                    }
+                }
+            });
+    }
+
+    function renderCategoryChart(report) {
+        const cats = report.salesByCategory || [];
+        if (!cats.length) {
+            document.getElementById('categoryChartWrap').style.display = 'none';
+            document.getElementById('categoryEmpty').style.display     = 'flex';
+            document.getElementById('categoryLegend').innerHTML        = '';
+            return;
+        }
+        const existing = Chart.getChart('categoryChart');
+        if (existing) existing.destroy();
+        document.getElementById('categoryChartWrap').style.display = 'block';
+        document.getElementById('categoryEmpty').style.display     = 'none';
+        new Chart(
+            document.getElementById('categoryChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: cats.map(c => c.category),
+                    datasets: [{
+                        data: cats.map(c => Number(c.totalRevenue)),
+                        backgroundColor: COLORS.slice(0, cats.length),
+                        borderWidth: 0, hoverOffset: 4
+                    }]
+                },
+                options: {
+                    responsive: true, cutout: '72%',
+                    plugins: { legend: { display: false } }
+                }
+            });
+        const isRtl = document.documentElement.getAttribute('dir') === 'rtl';
+        document.getElementById('categoryLegend').innerHTML =
+            cats.map((c,i) => `
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;
+                     ${isRtl ? 'flex-direction:row-reverse;' : ''}">
+                    <div style="width:8px;height:8px;border-radius:50%;
+                         background:${COLORS[i]};flex-shrink:0"></div>
+                    <span class="text-sm text-secondary" style="flex:1;
+                         ${isRtl ? 'text-align:right;' : ''}">
+                        ${c.category}
+                    </span>
+                    <span class="text-sm font-medium text-primary">
+                        ${Format.currency(c.totalRevenue)}
+                    </span>
+                </div>`).join('');
+    }
+
+    function renderRecentSales(transactions) {
+        const tbody = document.getElementById('recentSalesBody');
+        if (!transactions.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="5">
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-receipt"></i>
+                        </div>
+                        <div class="empty-state-title">No transactions yet</div>
+                        <div class="empty-state-text">
+                            Your recent checkouts will appear here.
+                        </div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = transactions.map(tx => {
+            const m   = (tx.paymentMethod || '').toLowerCase();
+            const cls = m.includes('cash')   ? 'payment-cash'
+                : m.includes('card')   ? 'payment-card'
+                    : m.includes('bank') || m.includes('transfer')
+                        ? 'payment-transfer'
+                        : 'payment-other';
+            const icon = m.includes('cash')  ? 'fa-money-bill-wave'
+                : m.includes('card')  ? 'fa-credit-card'
+                    : m.includes('bank') || m.includes('transfer')
+                        ? 'fa-building-columns'
+                        : 'fa-circle-dollar-to-slot';
+
+            return `
+            <tr>
+                <td style="white-space:nowrap">
+                    ${tx.receiptNumber
+                ? `<span class="receipt-badge">
+                               <i class="fas fa-receipt" style="font-size:0.5rem"></i>
+                               ${tx.receiptNumber}
+                           </span>`
+                : '<span class="text-muted text-xs">—</span>'}
+                </td>
+                <td style="text-align:center">
+                    ${tx.paymentMethod
+                ? `<span class="payment-badge ${cls}">
+                               <i class="fas ${icon}" style="font-size:0.5rem"></i>
+                               ${tx.paymentMethod}
+                           </span>`
+                : '<span class="text-muted text-xs">—</span>'}
+                </td>
+                <td class="text-secondary">${tx.cashierName || '—'}</td>
+                <td class="font-medium text-primary" style="text-align:center;white-space:nowrap">
+                    ${Number(tx.totalAmount || 0).toFixed(2)}
+                </td>
+                <td class="text-muted" style="text-align:center;white-space:nowrap">
+                    ${Format.datetime(tx.createdAt)}
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // Low stock from global product list (no branch context)
+    function renderLowStock(products) {
+        const low   = products.filter(p => p.quantity > 0 && p.quantity < 10);
+        const tbody = document.getElementById('lowStockBody');
+        if (!low.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"
+                             style="color:var(--success)">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="empty-state-title">All stocked up</div>
+                        <div class="empty-state-text">
+                            No products below the threshold.
+                        </div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+        tbody.innerHTML = low.map((p,i) => `
+            <tr>
+                <td class="text-muted">${i+1}</td>
+                <td class="cell-primary">${p.productName || p.name}</td>
+                <td class="text-secondary">${p.category}</td>
+                <td>${Format.stockBadge(p.quantity)}</td>
+            </tr>`).join('');
+    }
+
+    // Low stock from branch inventory (branch context active)
+    function renderLowStockFromBranch(inventory) {
+        const low   = inventory.filter(
+            p => p.quantity > 0 && p.quantity < 10);
+        const tbody = document.getElementById('lowStockBody');
+        if (!low.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="4">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"
+                             style="color:var(--success)">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="empty-state-title">All stocked up</div>
+                        <div class="empty-state-text">
+                            No products below the threshold
+                            at this branch.
+                        </div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+        tbody.innerHTML = low.map((p,i) => `
+            <tr>
+                <td class="text-muted">${i+1}</td>
+                <td class="cell-primary">${p.productName}</td>
+                <td class="text-secondary">${p.category}</td>
+                <td>${Format.stockBadge(p.quantity)}</td>
+            </tr>`).join('');
+    }
+
+    loadDashboard();
+
+    // Re-render charts when language switches (RTL/LTR affects axis direction)
+    window.addEventListener('languageChanged', () => loadDashboard());
+</script>
+</body>
+</html>
+

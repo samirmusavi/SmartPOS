@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Businesses – SmartPOS Admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+        <span class="sidebar-badge">Admin</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/admin-dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i>
+            <span class="nav-label">Dashboard</span>
+        </a>
+        <div class="nav-group-label">Management</div>
+        <a href="/admin-businesses.html" class="nav-item active">
+            <i class="fas fa-building"></i>
+            <span class="nav-label">Businesses</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/dashboard.html" class="nav-item" target="_blank">
+            <i class="fas fa-external-link-alt"></i>
+            <span class="nav-label">Client Portal</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" style="width:100%;border:none;cursor:pointer;background:none"
+                onclick="Auth.logout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Businesses</div>
+            <div class="page-breadcrumb">SmartPOS Admin / Management / Businesses</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="adminAvatar">A</div>
+        <span class="text-sm text-secondary" id="adminName"></span>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <div class="card">
+
+        <!-- Header -->
+        <div class="card-header">
+            <span class="card-title">All Businesses</span>
+            <button class="btn btn-primary btn-sm" onclick="Modal.open('addModal')">
+                <i class="fas fa-plus"></i> Add Business
+            </button>
+        </div>
+
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search businesses..."
+                           style="width:240px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="statusFilter"
+                        style="width:140px" onchange="renderTable()">
+                    <option value="">All Status</option>
+                    <option value="ACTIVE">Active</option>
+                    <option value="INACTIVE">Inactive</option>
+                    <option value="SUSPENDED">Suspended</option>
+                </select>
+                <select class="form-control" id="planFilter"
+                        style="width:140px" onchange="renderTable()">
+                    <option value="">All Plans</option>
+                    <option value="BASIC">Basic</option>
+                    <option value="BUSINESS">Business</option>
+                    <option value="ENTERPRISE">Enterprise</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Business</th>
+                    <th>Owner</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>Joined</th>
+                    <th>Expires</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="bizTableBody">
+                <tr>
+                    <td colspan="10">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="toolbar">
+            <span class="text-sm text-muted" id="paginationInfo">—</span>
+            <div class="pagination" id="paginationPages"></div>
+        </div>
+
+    </div>
+
+</main>
+
+<!-- ADD MODAL -->
+<div class="modal-overlay" id="addModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Register New Business</span>
+            <button class="modal-close" onclick="Modal.close('addModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Business Name *</label>
+                        <input type="text" id="addBusinessName" class="form-control"
+                               placeholder="e.g. Al Noor Perfumes">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Owner Name *</label>
+                        <input type="text" id="addOwnerName" class="form-control"
+                               placeholder="e.g. Ahmed Al Mansouri">
+                    </div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Email *</label>
+                        <input type="email" id="addEmail" class="form-control"
+                               placeholder="e.g. ahmed@business.ae">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Phone *</label>
+                        <input type="text" id="addPhone" class="form-control"
+                               placeholder="e.g. +971501234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Subscription Plan *</label>
+                    <select id="addPlan" class="form-control">
+                        <option value="BASIC">Basic — AED 99/month</option>
+                        <option value="BUSINESS">Business — AED 249/month</option>
+                        <option value="ENTERPRISE">Enterprise — AED 499/month</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('addModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveBusiness()">
+                <i class="fas fa-check"></i> Register Business
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title">Edit Business</span>
+            <button class="modal-close" onclick="Modal.close('editModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId">
+            <div class="flex flex-col gap-4">
+                <div class="form-group">
+                    <label class="form-label">Subscription Plan</label>
+                    <select id="editPlan" class="form-control">
+                        <option value="BASIC">Basic — AED 99/month</option>
+                        <option value="BUSINESS">Business — AED 249/month</option>
+                        <option value="ENTERPRISE">Enterprise — AED 499/month</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Account Status</label>
+                    <select id="editStatus" class="form-control">
+                        <option value="ACTIVE">Active</option>
+                        <option value="INACTIVE">Inactive</option>
+                        <option value="SUSPENDED">Suspended</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('editModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveEdit()">
+                <i class="fas fa-check"></i> Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Delete Business</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-trash"></i>
+            </div>
+            <div class="empty-state-title mb-2">Are you sure?</div>
+            <div class="empty-state-text">
+                This will permanently delete the business and all associated data.
+                This action cannot be undone.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete Business
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    Auth.requireAdmin();
+
+    const name = Auth.getAdminName();
+    setAvatarInitials('adminAvatar', name);
+    document.getElementById('adminName').textContent = name;
+
+    const API_BIZ = '/api/admin/businesses';
+    let allBusinesses = [];
+    let currentPage   = 1;
+    let deleteId      = null;
+    const perPage     = 10;
+
+    async function loadBusinesses() {
+        try {
+            allBusinesses = await API.get(API_BIZ);
+            renderTable();
+        } catch (e) {
+            Toast.error('Failed to load businesses.');
+        }
+    }
+
+    function renderTable() {
+        const q      = document.getElementById('searchInput').value.toLowerCase();
+        const status = document.getElementById('statusFilter').value;
+        const plan   = document.getElementById('planFilter').value;
+
+        let filtered = allBusinesses.filter(b => {
+            const matchQ = b.businessName.toLowerCase().includes(q) ||
+                b.email.toLowerCase().includes(q) ||
+                b.ownerName.toLowerCase().includes(q);
+            const matchS = !status || b.status === status;
+            const matchP = !plan   || b.plan   === plan;
+            return matchQ && matchS && matchP;
+        });
+
+        const total  = filtered.length;
+        const pages  = Math.ceil(total / perPage) || 1;
+        currentPage  = Math.min(currentPage, pages);
+        const start  = (currentPage - 1) * perPage;
+        const slice  = filtered.slice(start, start + perPage);
+
+        document.getElementById('countLabel').textContent =
+            `${total} business${total !== 1 ? 'es' : ''}`;
+
+        document.getElementById('paginationInfo').textContent =
+            total ? `Showing ${start+1}–${Math.min(start+perPage,total)} of ${total}` : 'No results';
+
+        const tbody = document.getElementById('bizTableBody');
+
+        if (!slice.length) {
+            tbody.innerHTML = `
+        <tr>
+          <td colspan="10">
+            <div class="empty-state">
+              <div class="empty-state-icon"><i class="fas fa-building"></i></div>
+              <div class="empty-state-title">No businesses found</div>
+              <div class="empty-state-text">
+                Try adjusting your search or filters.
+              </div>
+            </div>
+          </td>
+        </tr>`;
+        } else {
+            tbody.innerHTML = slice.map((b, i) => `
+        <tr>
+          <td class="text-muted">${start + i + 1}</td>
+          <td>
+            <div class="cell-primary">${b.businessName}</div>
+          </td>
+          <td class="text-secondary">${b.ownerName}</td>
+          <td class="cell-mono">${b.email}</td>
+          <td class="text-muted">${b.phone}</td>
+          <td>${Format.planBadge(b.plan)}</td>
+          <td>${Format.statusBadge(b.status)}</td>
+          <td class="text-muted">${Format.date(b.joinedDate)}</td>
+          <td class="text-muted">${Format.date(b.expiryDate)}</td>
+          <td>
+            <div class="flex gap-2">
+              <button class="btn btn-secondary btn-sm btn-icon-only"
+                      onclick="openEdit(${b.id})" title="Edit">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-danger btn-sm btn-icon-only"
+                      onclick="openDelete(${b.id})" title="Delete">
+                <i class="fas fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>`).join('');
+        }
+
+        // Pagination
+        const pagDiv = document.getElementById('paginationPages');
+        let html = '';
+        if (currentPage > 1)
+            html += `<button class="page-btn" onclick="goPage(${currentPage-1})">
+               <i class="fas fa-chevron-left"></i></button>`;
+        for (let p = 1; p <= pages; p++)
+            html += `<button class="page-btn ${p===currentPage?'active':''}"
+               onclick="goPage(${p})">${p}</button>`;
+        if (currentPage < pages)
+            html += `<button class="page-btn" onclick="goPage(${currentPage+1})">
+               <i class="fas fa-chevron-right"></i></button>`;
+        pagDiv.innerHTML = html;
+    }
+
+    function goPage(p) { currentPage = p; renderTable(); }
+
+    // ADD
+    async function saveBusiness() {
+        const businessName = document.getElementById('addBusinessName').value.trim();
+        const ownerName    = document.getElementById('addOwnerName').value.trim();
+        const email        = document.getElementById('addEmail').value.trim();
+        const phone        = document.getElementById('addPhone').value.trim();
+        const plan         = document.getElementById('addPlan').value;
+
+        if (!businessName || !ownerName || !email || !phone) {
+            Toast.error('Please fill in all required fields.');
+            return;
+        }
+
+        try {
+            await API.post(API_BIZ, { businessName, ownerName, email, phone, plan });
+            Modal.close('addModal');
+            Toast.success('Business registered successfully.');
+            loadBusinesses();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to register business.');
+        }
+    }
+
+    // EDIT
+    function openEdit(id) {
+        const b = allBusinesses.find(b => b.id === id);
+        if (!b) return;
+        document.getElementById('editId').value     = b.id;
+        document.getElementById('editPlan').value   = b.plan;
+        document.getElementById('editStatus').value = b.status;
+        Modal.open('editModal');
+    }
+
+    async function saveEdit() {
+        const id     = document.getElementById('editId').value;
+        const plan   = document.getElementById('editPlan').value;
+        const status = document.getElementById('editStatus').value;
+        try {
+            await Promise.all([
+                API.put(`${API_BIZ}/${id}/plan`,   { plan }),
+                API.put(`${API_BIZ}/${id}/status`, { status })
+            ]);
+            Modal.close('editModal');
+            Toast.success('Business updated successfully.');
+            loadBusinesses();
+        } catch (err) {
+            Toast.error('Failed to update business.');
+        }
+    }
+
+    // DELETE
+    function openDelete(id) {
+        deleteId = id;
+        Modal.open('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            await API.delete(`${API_BIZ}/${deleteId}`);
+            Modal.close('deleteModal');
+            Toast.success('Business deleted.');
+            loadBusinesses();
+        } catch (err) {
+            Toast.error('Failed to delete business.');
+        }
+    }
+
+    loadBusinesses();
+</script>
+</body>
+</html>
+

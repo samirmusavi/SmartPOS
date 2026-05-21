@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./mvnw clean *)",
+      "PowerShell($env:JAVA_HOME; [System.Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\", \"Machine\"\\); Get-Command java -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match \"java|jdk|jre|adopt|temurin|zulu|amazon|corretto\" -or $_.Name -match \"Java\" } | Select-Object FullName)"
+    ]
+  }
+}

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Predictions – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .draft-order-card {
+            background: var(--surface-1);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: all var(--transition-fast);
+        }
+        .draft-order-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 4px 12px rgba(99,102,241,0.1);
+        }
+        .draft-order-details {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: var(--space-4);
+            flex: 1;
+        }
+        .draft-info-block {
+            display: flex;
+            flex-direction: column;
+        }
+        .draft-label {
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+        .draft-value {
+            font-size: var(--text-sm);
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .empty-drafts {
+            text-align: center;
+            padding: var(--space-8);
+            background: var(--surface-1);
+            border: 1px dashed var(--border);
+            border-radius: var(--radius-lg);
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item active">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="pred_title">Smart Predictions</div>
+            <div class="page-breadcrumb">SmartPOS / Inventory / Smart Predictions</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <div class="grid-2 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="pred_ai_setup">Smart Setup</div>
+                <div class="stat-icon" style="background:rgba(168,85,247,0.12);color:#a855f7">
+                    <i class="fas fa-robot"></i>
+                </div>
+            </div>
+            <div class="stat-value" style="font-size:1.1rem;margin-top:10px;line-height:1.4" data-i18n="pred_ai_setup_desc">
+                Predictive forecasting targets 30 days of inventory cover based on 30-day sales velocity.
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label" data-i18n="pred_draft_orders">Draft Orders</div>
+                <div class="stat-icon blue"><i class="fas fa-file-signature"></i></div>
+            </div>
+            <div class="stat-value" id="statDraftCount">—</div>
+            <div class="stat-sub" data-i18n="pred_waiting_review">Waiting for review</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-wand-magic-sparkles" style="color:#a855f7;margin-right:8px"></i>
+                <span data-i18n="pred_reorder_title">Reorder Recommendations</span>
+            </span>
+            <button class="btn btn-primary btn-sm" id="generateBtn" onclick="generateDrafts()" style="background:#a855f7;border-color:#a855f7">
+                <i class="fas fa-bolt"></i> <span data-i18n="pred_generate_btn">Generate Smart Drafts</span>
+            </button>
+        </div>
+
+        <div style="padding:var(--space-4)">
+            <p class="text-sm text-muted mb-4" data-i18n="pred_instructions">
+                Click <strong>Generate Smart Drafts</strong> to analyze current stock and daily sales velocity. The system will automatically create DRAFT purchase orders for items at risk of stocking out.
+            </p>
+
+            <div id="draftContainer">
+                <div class="empty-drafts">
+                    <i class="fas fa-file-signature" style="font-size:2rem;color:var(--text-muted);margin-bottom:10px"></i>
+                    <p class="text-muted" data-i18n="pred_empty_initial">No drafts generated yet. Click generate to proceed.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-footer" style="padding:var(--space-3) var(--space-4);background:var(--surface-2);border-top:1px solid var(--border);display:flex;justify-content:flex-end">
+            <a href="/purchase-orders.html" class="btn btn-secondary btn-sm">
+                <span data-i18n="pred_goto_po">Go to Purchase Orders</span> <i class="fas fa-arrow-right" style="margin-left:4px"></i>
+            </a>
+        </div>
+    </div>
+
+</main>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const PREDICTIONS_API = '/api/predictions';
+    const PO_API = '/api/purchase-orders';
+
+    let generatedDrafts = [];
+
+    async function generateDrafts() {
+        const btn = document.getElementById('generateBtn');
+        btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
+        btn.disabled = true;
+
+        try {
+            const drafts = await API.post(`${PREDICTIONS_API}/generate-drafts`, {
+                creatorName: Auth.getUserName()
+            });
+            generatedDrafts = drafts;
+            Toast.success(`${drafts.length} smart drafts generated!`);
+            renderDrafts();
+        } catch (e) {
+            Toast.error('Failed to generate drafts.');
+        } finally {
+            btn.innerHTML = '<i class="fas fa-bolt"></i> Generate Smart Drafts';
+            btn.disabled = false;
+        }
+    }
+
+    async function approveDraft(id) {
+        try {
+            await API.put(`${PO_API}/${id}/approve`, {});
+            Toast.success('Order approved successfully.');
+            generatedDrafts = generatedDrafts.filter(d => d.id !== id);
+            renderDrafts();
+        } catch (e) {
+            Toast.error('Failed to approve order.');
+        }
+    }
+
+    function renderDrafts() {
+        const container = document.getElementById('draftContainer');
+        document.getElementById('statDraftCount').textContent = generatedDrafts.length;
+
+        if (generatedDrafts.length === 0) {
+            container.innerHTML = `
+                <div class="empty-drafts">
+                    <i class="fas fa-check-circle" style="font-size:2rem;color:var(--success);margin-bottom:10px"></i>
+                    <p class="text-success font-medium">No reorders needed! Your stock levels look great.</p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = generatedDrafts.map(d => `
+            <div class="draft-order-card">
+                <div class="draft-order-details">
+                    <div class="draft-info-block">
+                        <span class="draft-label">Product</span>
+                        <span class="draft-value">${d.productName}</span>
+                    </div>
+                    <div class="draft-info-block">
+                        <span class="draft-label">Supplier</span>
+                        <span class="draft-value">${d.supplierName}</span>
+                    </div>
+                    <div class="draft-info-block">
+                        <span class="draft-label">Recommended Qty</span>
+                        <span class="draft-value text-primary" style="font-weight:700">${d.quantityOrdered} units</span>
+                    </div>
+                    <div class="draft-info-block">
+                        <span class="draft-label">Status</span>
+                        <span class="badge badge-neutral" style="width:fit-content">Draft</span>
+                    </div>
+                </div>
+                <button class="btn btn-primary btn-sm" onclick="approveDraft(${d.id})" style="white-space:nowrap">
+                    <i class="fas fa-paper-plane"></i> Approve
+                </button>
+            </div>
+        `).join('');
+    }
+
+    setAvatarInitials('userAvatar', Auth.getUserName());
+</script>
+</body>
+</html>

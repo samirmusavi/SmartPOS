@@ -1,0 +1,7 @@
+target/
+*.log
+application-local.properties
+uploads/
+.idea/
+*.iml
+.mvn/wrapper/maven-wrapper.jar

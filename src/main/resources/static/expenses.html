@@ -1,0 +1,632 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Expenses – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .toggle-switch { position:relative; display:inline-block; width:36px; height:20px; flex-shrink:0; }
+        .toggle-switch input { opacity:0; width:0; height:0; }
+        .toggle-slider { position:absolute; cursor:pointer; inset:0; background:var(--surface-3); border-radius:var(--radius-full); transition:background var(--transition-fast); }
+        .toggle-slider::before { content:''; position:absolute; height:14px; width:14px; left:3px; bottom:3px; background:white; border-radius:50%; transition:transform var(--transition-fast); }
+        .toggle-switch input:checked + .toggle-slider { background:var(--primary); }
+        .toggle-switch input:checked + .toggle-slider::before { transform:translateX(16px); }
+        .recurring-toggle-row { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); cursor:pointer; }
+        .recurring-options { display:none; flex-direction:column; gap:var(--space-3); padding:var(--space-4); background:var(--primary-light); border:1px solid rgba(99,102,241,0.2); border-radius:var(--radius-md); margin-top:var(--space-2); }
+        .recurring-options.visible { display:flex; }
+        .freq-pills { display:flex; gap:var(--space-2); }
+        .freq-pill { flex:1; padding:var(--space-2) var(--space-3); border-radius:var(--radius-md); border:1px solid var(--border); background:var(--surface-2); color:var(--text-secondary); font-size:var(--text-sm); font-weight:500; cursor:pointer; text-align:center; transition:all var(--transition-fast); }
+        .freq-pill:hover { background:var(--surface-3); color:var(--text-primary); }
+        .freq-pill.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+        .recurring-badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; border-radius:var(--radius-full); font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; background:rgba(99,102,241,0.12); color:var(--primary); border:1px solid rgba(99,102,241,0.2); }
+        .recurring-section { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; margin-bottom:var(--space-6); }
+        .recurring-section-header { display:flex; align-items:center; justify-content:space-between; padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); }
+        .recurring-item { display:flex; align-items:center; justify-content:space-between; padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); gap:var(--space-4); }
+        .recurring-item:last-child { border-bottom:none; }
+        .recurring-item-left { display:flex; align-items:center; gap:var(--space-3); flex:1; min-width:0; }
+        .recurring-item-icon { width:36px; height:36px; border-radius:var(--radius-md); background:rgba(99,102,241,0.1); color:var(--primary); display:flex; align-items:center; justify-content:center; font-size:0.85rem; flex-shrink:0; }
+        .recurring-item-right { display:flex; align-items:center; gap:var(--space-4); flex-shrink:0; }
+        .branch-tag { font-size:0.55rem; margin-left:6px; padding:2px 7px; border-radius:var(--radius-full); background:rgba(99,102,241,0.1); color:var(--primary); border:1px solid rgba(99,102,241,0.2); font-weight:600; white-space:nowrap; vertical-align:middle; display:inline-flex; align-items:center; gap:2px; }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label" data-i18n="nav_dashboard">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label" data-i18n="nav_dashboard">Dashboard</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_sales">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label" data-i18n="nav_products">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label" data-i18n="nav_archived">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label" data-i18n="nav_adjustments">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label" data-i18n="nav_stockout">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
+        </a>
+        <a href="/purchase-orders.html" class="nav-item">
+            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
+        </a>
+        <a href="/returns.html" class="nav-item">
+            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label" data-i18n="nav_reports">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item active">
+            <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_branches">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
+        </a>
+        <div class="nav-group-label" data-i18n="nav_staff">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label" data-i18n="nav_staff">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label" data-i18n="nav_settings">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger" data-i18n="nav_logout">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title" data-i18n="exp_title">Expenses</div>
+            <div class="page-breadcrumb">SmartPOS / Analytics / Expenses</div>
+        </div>
+    </div>
+    <div class="topbar-right"><div class="avatar" id="userAvatar">S</div></div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-label" data-i18n="exp_kpi_monthly">Monthly Burden</div><div class="stat-icon red"><i class="fas fa-calendar-check"></i></div></div>
+            <div class="stat-value" id="statMonthly">—</div>
+            <div class="stat-sub">Fixed costs per month</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-label" data-i18n="exp_kpi_recurring">Recurring Expenses</div><div class="stat-icon indigo"><i class="fas fa-rotate"></i></div></div>
+            <div class="stat-value" id="statRecurringCount">—</div>
+            <div class="stat-sub">Active fixed costs</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-label" data-i18n="exp_kpi_onetime">One-Time Total</div><div class="stat-icon amber"><i class="fas fa-bolt"></i></div></div>
+            <div class="stat-value" id="statOneTime">—</div>
+            <div class="stat-sub">All non-recurring expenses</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top"><div class="stat-label" data-i18n="exp_kpi_topcat">Top Category</div><div class="stat-icon blue"><i class="fas fa-tags"></i></div></div>
+            <div class="stat-value" id="statTopCat" style="font-size:var(--text-xl)">—</div>
+            <div class="stat-sub" id="statTopCatAmt">Highest spend category</div>
+        </div>
+    </div>
+
+    <!-- RECURRING FIXED COSTS -->
+    <div class="recurring-section" id="recurringSection">
+        <div class="recurring-section-header">
+            <div>
+                <div class="card-title" data-i18n="exp_sec_recurring">Recurring Fixed Costs</div>
+                <div class="text-xs text-muted" style="margin-top:4px">These are set once and automatically factored into your monthly costs</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal(true)"><i class="fas fa-plus"></i> Add Fixed Cost</button>
+        </div>
+        <div id="recurringList">
+            <div class="empty-state" style="padding:var(--space-8)"><div class="skeleton" style="width:200px;height:16px"></div></div>
+        </div>
+    </div>
+
+    <!-- ONE-TIME EXPENSES TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title" data-i18n="exp_sec_history">One-Time Expenses</span>
+            <button class="btn btn-secondary btn-sm" onclick="openAddModal(false)"><i class="fas fa-plus"></i> Add Expense</button>
+        </div>
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control" placeholder="Search expenses..." style="width:240px" oninput="renderTable()">
+                </div>
+                <select class="form-control" id="categoryFilter" style="width:160px" onchange="renderTable()"><option value="">All Categories</option></select>
+                <select class="form-control" id="monthFilter" style="width:160px" onchange="renderTable()"><option value="">All Time</option></select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm font-semibold" id="filteredTotal" style="color:var(--danger)"></span>
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th data-i18n="exp_lbl_id">#</th><th data-i18n="exp_lbl_title">Title</th><th data-i18n="exp_lbl_category">Category</th><th data-i18n="nav_branches">Branch</th>
+                    <th data-i18n="exp_lbl_desc">Description</th><th data-i18n="exp_lbl_amount">Amount</th><th data-i18n="exp_lbl_date">Date</th><th data-i18n="prod_th_actions">Actions</th>
+                </tr>
+                </thead>
+                <tbody id="expenseTableBody">
+                <tr><td colspan="8"><div class="empty-state"><div class="skeleton" style="width:200px;height:16px"></div></div></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- EXPENSE BREAKDOWN -->
+    <div class="grid-2 mb-6">
+        <div class="card">
+            <div class="card-header"><span class="card-title" data-i18n="exp_sec_breakdown"><i class="fas fa-chart-pie" style="color:var(--primary);margin-right:8px"></i>Expense Breakdown</span></div>
+            <div id="categoryBreakdown" style="padding:var(--space-4) var(--space-5)">
+                <div class="empty-state" style="padding:var(--space-6)"><div class="skeleton" style="width:200px;height:16px"></div></div>
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><span class="card-title" data-i18n="exp_sec_active"><i class="fas fa-rotate" style="color:var(--success);margin-right:8px"></i>Active Recurring Costs</span></div>
+            <div id="recurringBreakdown" style="padding:var(--space-4) var(--space-5)">
+                <div class="empty-state" style="padding:var(--space-6)"><div class="skeleton" style="width:200px;height:16px"></div></div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ADD / EDIT MODAL -->
+<div class="modal-overlay" id="expenseModal">
+    <div class="modal">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">Add Expense</span>
+            <button class="modal-close" onclick="Modal.close('expenseModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="expenseId">
+            <div class="flex flex-col gap-4">
+                <div class="grid-2">
+                    <div class="form-group"><label class="form-label">Title *</label><input type="text" id="fTitle" class="form-control" placeholder="e.g. Monthly Rent"></div>
+                    <div class="form-group"><label class="form-label">Category *</label><input type="text" id="fCategory" class="form-control" placeholder="e.g. Rent, Salary, Utilities" list="categoryList"><datalist id="categoryList"></datalist></div>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Amount (AED) *</label>
+                        <div class="input-icon-wrap"><i class="fas fa-dollar-sign input-icon"></i><input type="number" id="fAmount" class="form-control" placeholder="0.00" step="0.01" min="0.01"></div>
+                    </div>
+                    <div class="form-group"><label class="form-label">Start Date *</label><input type="date" id="fDate" class="form-control"></div>
+                </div>
+                <div class="form-group"><label class="form-label">Description</label><input type="text" id="fDescription" class="form-control" placeholder="Optional notes..."></div>
+                <div>
+                    <label class="recurring-toggle-row" for="fRecurring">
+                        <label class="toggle-switch"><input type="checkbox" id="fRecurring" onchange="toggleRecurringOptions()"><span class="toggle-slider"></span></label>
+                        <div><div class="text-sm font-medium text-primary">Recurring Fixed Cost</div><div class="text-xs text-muted">This expense repeats automatically — set it once, forget it</div></div>
+                    </label>
+                    <div class="recurring-options" id="recurringOptions">
+                        <div>
+                            <div class="form-label mb-2">How often does this repeat?</div>
+                            <div class="freq-pills">
+                                <button type="button" class="freq-pill active" data-freq="MONTHLY" onclick="selectFreq('MONTHLY')"><i class="fas fa-calendar-alt"></i> Monthly</button>
+                                <button type="button" class="freq-pill" data-freq="WEEKLY" onclick="selectFreq('WEEKLY')"><i class="fas fa-calendar-week"></i> Weekly</button>
+                                <button type="button" class="freq-pill" data-freq="YEARLY" onclick="selectFreq('YEARLY')"><i class="fas fa-calendar"></i> Yearly</button>
+                            </div>
+                        </div>
+                        <input type="hidden" id="fFrequency" value="MONTHLY">
+                        <div class="form-group">
+                            <label class="form-label">End Date <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional, leave blank if ongoing</span></label>
+                            <input type="date" id="fEndDate" class="form-control">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('expenseModal')">Cancel</button>
+            <button class="btn btn-primary" id="saveBtn" onclick="saveExpense()">Save Expense</button>
+        </div>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title" id="deleteModalTitle">Delete this expense?</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px"><i class="fas fa-trash"></i></div>
+            <div class="empty-state-text"><strong id="deleteExpenseTitle" style="color:var(--text-primary)"></strong> will be permanently removed. <span id="deleteRecurringNote"></span></div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()"><i class="fas fa-trash"></i> Delete</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const EXPENSE_API = '/api/expenses';
+    let allExpenses = [];
+    let summary     = {};
+    let deleteId    = null;
+
+    const FREQ_LABELS = { MONTHLY:'Monthly', WEEKLY:'Weekly', YEARLY:'Yearly' };
+    const FREQ_ICONS  = { MONTHLY:'fa-calendar-alt', WEEKLY:'fa-calendar-week', YEARLY:'fa-calendar' };
+
+    async function loadExpenses() {
+        try {
+            const [expenses, sum] = await Promise.all([
+                API.get(EXPENSE_API),
+                API.get(`${EXPENSE_API}/summary`)
+            ]);
+            allExpenses = expenses;
+            summary     = sum;
+            renderStats();
+            renderRecurring();
+            populateFilters();
+            renderTable();
+            renderBreakdown();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load expenses.');
+        }
+    }
+
+    // ── STAT CARDS ────────────────────────────────────────────────
+    function renderStats() {
+        const monthly  = Number(summary.totalMonthlyBurden   || 0);
+        const oneTime  = Number(summary.totalOneTimeExpenses || 0);
+        const recList  = summary.recurringExpenses || [];
+        const active   = recList.filter(r => r.active).length;
+        const cats     = summary.expenseByCategory || [];
+
+        document.getElementById('statMonthly').textContent        = Format.currency(monthly);
+        document.getElementById('statRecurringCount').textContent = active;
+        document.getElementById('statOneTime').textContent        = Format.currency(oneTime);
+
+        if (cats.length) {
+            document.getElementById('statTopCat').textContent    = cats[0].category;
+            document.getElementById('statTopCatAmt').textContent = Format.currency(cats[0].total);
+        } else {
+            document.getElementById('statTopCat').textContent    = '—';
+            document.getElementById('statTopCatAmt').textContent = 'No expenses yet';
+        }
+    }
+
+    // ── RECURRING LIST ────────────────────────────────────────────
+    function renderRecurring() {
+        const recList = summary.recurringExpenses || [];
+        const el      = document.getElementById('recurringList');
+
+        if (!recList.length) {
+            el.innerHTML = `<div class="empty-state" style="padding:var(--space-8)"><div class="empty-state-icon"><i class="fas fa-rotate"></i></div><div class="empty-state-title">No recurring costs yet</div><div class="empty-state-text">Add fixed costs like rent, salaries, and subscriptions. They will be automatically counted every month.</div></div>`;
+            return;
+        }
+
+        el.innerHTML = recList.map(r => {
+            const isActive  = r.active;
+            const freqLabel = FREQ_LABELS[r.frequency] || r.frequency;
+            const icon      = FREQ_ICONS[r.frequency]  || 'fa-rotate';
+            const expense   = allExpenses.find(e => e.id === r.id);
+            const branchTag = r.branchName ? `<span class="branch-tag"><i class="fas fa-store" style="font-size:0.45rem;margin-right:2px"></i>${escapeHtml(r.branchName)}</span>` : '';
+
+            return `
+                <div class="recurring-item">
+                    <div class="recurring-item-left">
+                        <div class="recurring-item-icon"><i class="fas ${icon}"></i></div>
+                        <div style="min-width:0">
+                            <div class="text-sm font-medium text-primary" style="margin-bottom:2px">
+                                ${escapeHtml(r.title)}
+                                ${!isActive ? '<span class="badge badge-neutral" style="font-size:0.6rem;margin-left:4px">Ended</span>' : ''}
+                            </div>
+                            <div class="flex items-center gap-2" style="flex-wrap:wrap">
+                                <span class="recurring-badge"><i class="fas ${icon}" style="font-size:0.5rem"></i> ${freqLabel}</span>
+                                ${branchTag}
+                                ${r.recurringEndDate ? `<span class="text-xs text-muted">Ends ${Format.date(r.recurringEndDate)}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="recurring-item-right">
+                        <div class="text-right">
+                            <div class="font-semibold" style="color:var(--danger)">${Format.currency(r.amount)}</div>
+                            <div class="text-xs text-muted">per ${freqLabel.toLowerCase()}</div>
+                        </div>
+                        ${expense ? `
+                        <div class="flex gap-2">
+                            <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openEdit(${expense.id})" title="Edit"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-danger btn-sm btn-icon-only" onclick="openDelete(${expense.id}, '${escapeHtml(r.title)}', true)" title="Delete"><i class="fas fa-trash"></i></button>
+                        </div>` : ''}
+                    </div>
+                </div>`;
+        }).join('');
+    }
+
+    // ── FILTERS ───────────────────────────────────────────────────
+    function populateFilters() {
+        const oneTime = allExpenses.filter(e => !e.recurring);
+        const cats    = [...new Set(oneTime.map(e => e.category))].sort();
+        const catSel  = document.getElementById('categoryFilter');
+        catSel.innerHTML = '<option value="">All Categories</option>';
+        cats.forEach(c => { catSel.innerHTML += `<option value="${c}">${c}</option>`; });
+
+        const allCats = [...new Set(allExpenses.map(e => e.category))].sort();
+        document.getElementById('categoryList').innerHTML = allCats.map(c => `<option value="${c}">`).join('');
+
+        const months = [...new Set(oneTime.map(e => {
+            const d = new Date(e.expenseDate);
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        }))].sort().reverse();
+        const mSel = document.getElementById('monthFilter');
+        mSel.innerHTML = '<option value="">All Time</option>';
+        months.forEach(m => {
+            const [y, mo] = m.split('-');
+            const label = new Date(y, mo-1).toLocaleDateString('en-AE', { year:'numeric', month:'long' });
+            mSel.innerHTML += `<option value="${m}">${label}</option>`;
+        });
+    }
+
+    // ── ONE-TIME TABLE ────────────────────────────────────────────
+    function renderTable() {
+        const q     = document.getElementById('searchInput').value.toLowerCase();
+        const cat   = document.getElementById('categoryFilter').value;
+        const month = document.getElementById('monthFilter').value;
+
+        const filtered = allExpenses
+            .filter(e => !e.recurring)
+            .filter(e => {
+                const matchQ = e.title.toLowerCase().includes(q) || (e.description||'').toLowerCase().includes(q) || e.category.toLowerCase().includes(q) || (e.branchName||'').toLowerCase().includes(q);
+                const matchC = !cat   || e.category === cat;
+                const matchM = !month || e.expenseDate.startsWith(month);
+                return matchQ && matchC && matchM;
+            });
+
+        const filteredTotal = filtered.reduce((s, e) => s + Number(e.amount), 0);
+        document.getElementById('countLabel').textContent = `${filtered.length} record${filtered.length !== 1 ? 's' : ''}`;
+        document.getElementById('filteredTotal').textContent = filtered.length ? `Total: ${Format.currency(filteredTotal)}` : '';
+
+        const tbody = document.getElementById('expenseTableBody');
+        if (!filtered.length) {
+            tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon"><i class="fas fa-receipt"></i></div><div class="empty-state-title">No one-time expenses yet</div><div class="empty-state-text">Record one-time costs like repairs, purchases, or equipment.</div></div></td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((e, i) => `
+            <tr>
+                <td class="text-muted">${i + 1}</td>
+                <td class="font-medium">${escapeHtml(e.title)}</td>
+                <td><span class="badge badge-neutral"><i class="fas fa-tag" style="font-size:0.55rem"></i> ${escapeHtml(e.category)}</span></td>
+                <td>${e.branchName
+            ? `<span style="font-size:0.65rem;font-weight:600;padding:2px 8px;border-radius:var(--radius-full);background:rgba(99,102,241,0.08);color:var(--primary);border:1px solid rgba(99,102,241,0.2);white-space:nowrap"><i class="fas fa-store" style="font-size:0.5rem;margin-right:3px"></i>${escapeHtml(e.branchName)}</span>`
+            : '<span class="text-muted">—</span>'}</td>
+                <td class="text-secondary">${e.description
+            ? `<span title="${escapeHtml(e.description)}">${e.description.length > 40 ? escapeHtml(e.description.substring(0, 40)) + '...' : escapeHtml(e.description)}</span>`
+            : '<span class="text-muted">—</span>'}</td>
+                <td class="font-medium" style="color:var(--danger)">${Format.currency(e.amount)}</td>
+                <td class="text-muted">${Format.date(e.expenseDate)}</td>
+                <td>
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary btn-sm btn-icon-only" onclick="openEdit(${e.id})" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button class="btn btn-danger btn-sm btn-icon-only" onclick="openDelete(${e.id}, '${escapeHtml(e.title)}', false)" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`).join('');
+    }
+
+    // ── MODAL HELPERS ─────────────────────────────────────────────
+    function toggleRecurringOptions() {
+        const checked = document.getElementById('fRecurring').checked;
+        const opts = document.getElementById('recurringOptions');
+        if (checked) opts.classList.add('visible'); else opts.classList.remove('visible');
+    }
+
+    function selectFreq(freq) {
+        document.getElementById('fFrequency').value = freq;
+        document.querySelectorAll('.freq-pill').forEach(p => { p.classList.toggle('active', p.dataset.freq === freq); });
+    }
+
+    function openAddModal(isRecurring = false) {
+        document.getElementById('expenseId').value = '';
+        document.getElementById('fTitle').value = '';
+        document.getElementById('fCategory').value = '';
+        document.getElementById('fAmount').value = '';
+        document.getElementById('fDescription').value = '';
+        document.getElementById('fDate').value = new Date().toISOString().split('T')[0];
+        document.getElementById('fEndDate').value = '';
+        document.getElementById('fRecurring').checked = isRecurring;
+        document.getElementById('fFrequency').value = 'MONTHLY';
+        selectFreq('MONTHLY');
+        toggleRecurringOptions();
+        document.getElementById('modalTitle').textContent = isRecurring ? 'Add Recurring Fixed Cost' : 'Add One-Time Expense';
+        document.getElementById('saveBtn').textContent = isRecurring ? 'Save Fixed Cost' : 'Save Expense';
+        Modal.open('expenseModal');
+    }
+
+    function openEdit(id) {
+        const e = allExpenses.find(e => e.id === id); if (!e) return;
+        document.getElementById('expenseId').value = e.id;
+        document.getElementById('fTitle').value = e.title;
+        document.getElementById('fCategory').value = e.category;
+        document.getElementById('fAmount').value = e.amount;
+        document.getElementById('fDate').value = e.expenseDate;
+        document.getElementById('fDescription').value = e.description || '';
+        document.getElementById('fRecurring').checked = e.recurring;
+        document.getElementById('fFrequency').value = e.frequency || 'MONTHLY';
+        document.getElementById('fEndDate').value = e.recurringEndDate || '';
+        selectFreq(e.frequency || 'MONTHLY');
+        toggleRecurringOptions();
+        document.getElementById('modalTitle').textContent = 'Edit Expense';
+        document.getElementById('saveBtn').textContent = 'Save Changes';
+        Modal.open('expenseModal');
+    }
+
+    async function saveExpense() {
+        const id = document.getElementById('expenseId').value;
+        const title = document.getElementById('fTitle').value.trim();
+        const category = document.getElementById('fCategory').value.trim();
+        const amount = document.getElementById('fAmount').value;
+        const expenseDate = document.getElementById('fDate').value;
+        const description = document.getElementById('fDescription').value.trim();
+        const recurring = document.getElementById('fRecurring').checked;
+        const frequency = document.getElementById('fFrequency').value;
+        const endDate = document.getElementById('fEndDate').value;
+
+        if (!title || !category || !amount || !expenseDate) { Toast.error('Please fill in all required fields.'); return; }
+        if (parseFloat(amount) <= 0) { Toast.error('Amount must be greater than zero.'); return; }
+
+        const payload = {
+            title, category, amount, expenseDate, description,
+            recurring: String(recurring),
+            frequency: recurring ? frequency : null,
+            recurringEndDate: (recurring && endDate) ? endDate : null
+        };
+
+        try {
+            if (id) { await API.put(`${EXPENSE_API}/${id}`, payload); Toast.success('Expense updated.'); }
+            else { await API.post(EXPENSE_API, payload); Toast.success(recurring ? 'Fixed cost added. It will be automatically counted every month.' : 'Expense added.'); }
+            Modal.close('expenseModal');
+            loadExpenses();
+        } catch (err) { Toast.error(err.message || 'Failed to save expense.'); }
+    }
+
+    function openDelete(id, title, isRecurring) {
+        deleteId = id;
+        document.getElementById('deleteExpenseTitle').textContent = title;
+        document.getElementById('deleteModalTitle').textContent = isRecurring ? 'Delete this fixed cost?' : 'Delete this expense?';
+        document.getElementById('deleteRecurringNote').textContent = isRecurring ? ' This will stop it from being counted in future months.' : '';
+        Modal.open('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            await API.delete(`${EXPENSE_API}/${deleteId}`);
+            Modal.close('deleteModal');
+            Toast.success('Expense deleted.');
+            deleteId = null;
+            loadExpenses();
+        } catch (err) { Toast.error(err.message || 'Failed to delete expense.'); }
+    }
+
+    function escapeHtml(str) { return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // ── EXPENSE BREAKDOWN ─────────────────────────────────────────
+    function renderBreakdown() {
+        const cats = summary.expenseByCategory || [];
+        const catEl = document.getElementById('categoryBreakdown');
+
+        if (!cats.length) {
+            catEl.innerHTML = `<div class="empty-state" style="padding:var(--space-6)"><div class="empty-state-icon"><i class="fas fa-chart-pie"></i></div><div class="empty-state-title">No expenses recorded</div><div class="empty-state-text">Add expenses to see a breakdown by category.</div></div>`;
+        } else {
+            const maxVal = Math.max(...cats.map(c => Number(c.total)));
+            catEl.innerHTML = cats.map(c => {
+                const pct = maxVal > 0 ? (Number(c.total) / maxVal * 100) : 0;
+                return `
+                    <div style="margin-bottom:var(--space-3)">
+                        <div class="flex items-center" style="justify-content:space-between;margin-bottom:4px">
+                            <span class="text-sm font-medium text-primary">${escapeHtml(c.category)}</span>
+                            <span class="text-sm font-semibold" style="color:var(--danger)">${Format.currency(c.total)}</span>
+                        </div>
+                        <div style="height:6px;background:var(--surface-3);border-radius:var(--radius-full);overflow:hidden">
+                            <div style="height:100%;width:${pct}%;background:var(--primary);border-radius:var(--radius-full);transition:width 0.6s ease"></div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        const recList = summary.recurringExpenses || [];
+        const recEl = document.getElementById('recurringBreakdown');
+
+        if (!recList.length) {
+            recEl.innerHTML = `<div class="empty-state" style="padding:var(--space-6)"><div class="empty-state-icon"><i class="fas fa-rotate"></i></div><div class="empty-state-title">No recurring costs</div><div class="empty-state-text">Add recurring fixed costs to see them here.</div></div>`;
+        } else {
+            recEl.innerHTML = recList.map(r => {
+                const freqLabel = FREQ_LABELS[r.frequency] || r.frequency;
+                const icon = FREQ_ICONS[r.frequency] || 'fa-rotate';
+                const branchTag = r.branchName ? `<span class="branch-tag"><i class="fas fa-store" style="font-size:0.45rem;margin-right:2px"></i>${escapeHtml(r.branchName)}</span>` : '';
+                return `
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) 0;border-bottom:1px solid var(--border)">
+                        <div class="flex items-center gap-3">
+                            <div style="width:32px;height:32px;border-radius:var(--radius-md);background:rgba(99,102,241,0.1);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0"><i class="fas ${icon}"></i></div>
+                            <div>
+                                <div class="text-sm font-medium text-primary">${escapeHtml(r.title)}${branchTag}</div>
+                                <div class="text-xs text-muted"><span class="recurring-badge"><i class="fas ${icon}" style="font-size:0.5rem"></i> ${freqLabel}</span></div>
+                            </div>
+                        </div>
+                        <div class="font-semibold" style="color:var(--danger)">${Format.currency(r.amount)}</div>
+                    </div>`;
+            }).join('');
+        }
+    }
+
+    loadExpenses();
+</script>
+</body>
+</html>
+
