@@ -109,4 +109,16 @@ public interface SaleTransactionRepository
             "FROM SaleTransaction t WHERE t.createdAt >= :since")
     Set<Long> findActiveBusinessIdsSince(
             @Param("since") LocalDateTime since);
+
+    // ── Cash Sheet: Cash-only transactions for a specific day ──
+    @Query("SELECT t FROM SaleTransaction t " +
+           "WHERE t.businessId = :businessId AND t.branchId = :branchId " +
+           "AND LOWER(t.paymentMethod) = 'cash' " +
+           "AND t.createdAt >= :from AND t.createdAt < :to " +
+           "ORDER BY t.createdAt ASC")
+    List<SaleTransaction> findCashTransactionsByBranchAndDateRange(
+            @Param("businessId") Long businessId,
+            @Param("branchId")   Long branchId,
+            @Param("from")       LocalDateTime from,
+            @Param("to")         LocalDateTime to);
 }

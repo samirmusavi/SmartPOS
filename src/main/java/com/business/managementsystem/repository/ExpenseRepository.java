@@ -75,4 +75,8 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
             "AND e.branchId = :branchId " +
             "GROUP BY e.category ORDER BY SUM(e.amount) DESC")
     List<Object[]> getExpensesByCategoryByBranch(Long businessId, Long branchId);
+
+    // ── Cash Sheet: one-time expenses on a specific date ──────────
+    List<Expense> findByBusinessIdAndBranchIdAndExpenseDateAndRecurringFalse(
+            Long businessId, Long branchId, java.time.LocalDate expenseDate);
 }

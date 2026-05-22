@@ -68,6 +68,17 @@ public interface ReturnRepository extends JpaRepository<Return, Long> {
             @Param("to")         LocalDateTime to,
             Pageable pageable);
 
+    // ── Cash Sheet: returns processed on a specific day ──────────
+    @Query("SELECT r FROM Return r " +
+           "WHERE r.businessId = :businessId AND r.branchId = :branchId " +
+           "AND r.returnedAt >= :from AND r.returnedAt < :to " +
+           "ORDER BY r.returnedAt ASC")
+    List<Return> findByBranchAndDateRange(
+            @Param("businessId") Long businessId,
+            @Param("branchId")   Long branchId,
+            @Param("from")       java.time.LocalDateTime from,
+            @Param("to")         java.time.LocalDateTime to);
+
     // ── Paginated search — specific branch ────────────────────
     @Query("SELECT r FROM Return r " +
             "WHERE r.businessId = :businessId " +
