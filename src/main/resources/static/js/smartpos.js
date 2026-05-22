@@ -714,7 +714,7 @@ function setAvatarInitials(elementId, name) {
 // ── FORMATTERS ───────────────────────────────────────────────
 const Format = {
     currency(amount, currency = 'AED') {
-        return `${currency} ${Number(amount || 0).toFixed(2)}`;
+        return `${currency} ${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     },
 
     number(n) {

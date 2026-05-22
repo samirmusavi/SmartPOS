@@ -849,14 +849,16 @@
         const regular = list.filter(p => !topSellerIds.has(p.id));
         let html = '';
 
+        /* Popular section — hidden; uncomment to re-enable
         if (popular.length > 0 && currentCategory === 'all') {
             html += `<div class="popular-header"><i class="fas fa-fire" style="color:var(--warning);font-size:0.75rem"></i><span class="popular-header-text">Popular</span></div>`;
             html += popular.map(p => buildProductCard(p, true)).join('');
             html += '<div class="popular-divider"></div>';
             html += `<div class="all-products-header"><i class="fas fa-box-open" style="color:var(--text-muted);font-size:0.7rem"></i><span class="all-products-header-text">All Products</span></div>`;
         }
+        */
 
-        const regularList = (popular.length > 0 && currentCategory === 'all') ? regular : list;
+        const regularList = list; // show all products without popular/regular split
         html += regularList.map(p => buildProductCard(p, topSellerIds.has(p.id))).join('');
         grid.innerHTML = html;
     }
@@ -1358,27 +1360,27 @@
             totalAED = totalUSD * exchangeRate;
             if (isTotalMode && itemQty > 1) {
                 document.getElementById('jewelFormula').textContent =
-                    `${weight}g × $${pricePerGram}/g = $${totalUSD.toFixed(2)} for ${itemQty} pcs → $${(totalUSD/itemQty).toFixed(2)}/pc`;
+                    `${weight}g × $${pricePerGram}/g = $${fmtN(totalUSD)} for ${itemQty} pcs → $${fmtN(totalUSD/itemQty)}/pc`;
                 document.getElementById('jewelPriceUSD').textContent =
-                    `$${totalUSD.toFixed(2)} × ${exchangeRate}  |  AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+                    `$${fmtN(totalUSD)} × ${exchangeRate}  |  AED ${fmtN(totalAED/itemQty)}/pc`;
             } else {
-                document.getElementById('jewelFormula').textContent = `${weight}g × $${pricePerGram}/g = $${totalUSD.toFixed(2)}`;
-                document.getElementById('jewelPriceUSD').textContent = `USD $${totalUSD.toFixed(2)} × ${exchangeRate}`;
+                document.getElementById('jewelFormula').textContent = `${weight}g × $${pricePerGram}/g = $${fmtN(totalUSD)}`;
+                document.getElementById('jewelPriceUSD').textContent = `USD $${fmtN(totalUSD)} × ${exchangeRate}`;
             }
         } else {
             totalAED = weight * pricePerGram;
             totalUSD = totalAED / exchangeRate;
             if (isTotalMode && itemQty > 1) {
                 document.getElementById('jewelFormula').textContent =
-                    `${weight}g × AED ${pricePerGram}/g = AED ${totalAED.toFixed(2)} for ${itemQty} pcs → AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+                    `${weight}g × AED ${pricePerGram}/g = AED ${fmtN(totalAED)} for ${itemQty} pcs → AED ${fmtN(totalAED/itemQty)}/pc`;
                 document.getElementById('jewelPriceUSD').textContent =
-                    `USD $${totalUSD.toFixed(2)}  |  AED ${(totalAED/itemQty).toFixed(2)}/pc`;
+                    `USD $${fmtN(totalUSD)}  |  AED ${fmtN(totalAED/itemQty)}/pc`;
             } else {
-                document.getElementById('jewelFormula').textContent = `${weight}g × AED ${pricePerGram}/g = AED ${totalAED.toFixed(2)}`;
-                document.getElementById('jewelPriceUSD').textContent = `USD $${totalUSD.toFixed(2)}`;
+                document.getElementById('jewelFormula').textContent = `${weight}g × AED ${pricePerGram}/g = AED ${fmtN(totalAED)}`;
+                document.getElementById('jewelPriceUSD').textContent = `USD $${fmtN(totalUSD)}`;
             }
         }
-        document.getElementById('jewelPriceAED').textContent = `AED ${totalAED.toFixed(2)}`;
+        document.getElementById('jewelPriceAED').textContent = `AED ${fmtN(totalAED)}`;
 
         // ── Discount ──────────────────────────────────────────────
         // discountOnDisplayed = discount applied to what totalAED represents
@@ -1411,9 +1413,9 @@
             if (discType === 'percent') discLabel = `−${discValue}%`;
             else if (discType === 'pergram') discLabel = `−AED ${discValue}/g × ${weight}g`;
             else if (discType === 'flat')    discLabel = `−AED ${discValue} flat`;
-            discLine.textContent  = `Discount (${discLabel}): −AED ${discountOnDisplayed.toFixed(2)}`;
+            discLine.textContent  = `Discount (${discLabel}): −AED ${fmtN(discountOnDisplayed)}`;
             discLine.style.display = 'block';
-            finalLine.textContent  = `After discount: AED ${(totalAED - discountOnDisplayed).toFixed(2)}`;
+            finalLine.textContent  = `After discount: AED ${fmtN(totalAED - discountOnDisplayed)}`;
             finalLine.style.display = 'block';
         } else {
             discLine.style.display  = 'none';
@@ -1489,7 +1491,7 @@
     }
 
     function calcChange() {
-        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ',''))||0;
+        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ','').replace(/,/g,''))||0;
         const received = parseFloat(document.getElementById('receiveAmt').value)||0;
         if (received >= total) {
             document.getElementById('changeAmt').value = (received - total).toFixed(2);
@@ -1514,7 +1516,7 @@
     async function submitSale() {
         if (!cart.length) { Toast.error('Cart is empty.'); return; }
         if (saleInProgress) return;
-        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ',''))||0;
+        const total = parseFloat(document.getElementById('totalAmt').textContent.replace('AED ','').replace(/,/g,''))||0;
         const received = parseFloat(document.getElementById('receiveAmt').value)||0;
 
         setSaleLoading(true);

@@ -928,7 +928,7 @@
     function marginHTML(m) {
         if (!m) return '';
         const color = m.margin>=40?'var(--success)':m.margin>=20?'var(--warning)':'var(--danger)';
-        return `<span style="color:${color};font-weight:600"><i class="fas fa-${m.profit>0?'arrow-up':'arrow-down'}" style="font-size:.65rem"></i> Profit: AED ${m.profit.toFixed(2)} &nbsp;·&nbsp; Margin: ${m.margin}%</span><span style="color:var(--text-muted);margin-left:8px">per unit</span>`;
+        return `<span style="color:${color};font-weight:600"><i class="fas fa-${m.profit>0?'arrow-up':'arrow-down'}" style="font-size:.65rem"></i> Profit: AED ${Number(m.profit).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})} &nbsp;·&nbsp; Margin: ${m.margin}%</span><span style="color:var(--text-muted);margin-left:8px">per unit</span>`;
     }
     function updateAddMargin() {
         const m = calcMargin(document.getElementById('addCostPrice').value, document.getElementById('addPrice').value);

@@ -726,7 +726,7 @@
                 </td>
                 <td class="text-secondary">${tx.cashierName || '—'}</td>
                 <td class="font-medium text-primary" style="text-align:center;white-space:nowrap">
-                    ${Number(tx.totalAmount || 0).toFixed(2)}
+                    ${Number(tx.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </td>
                 <td class="text-muted" style="text-align:center;white-space:nowrap">
                     ${Format.datetime(tx.createdAt)}
