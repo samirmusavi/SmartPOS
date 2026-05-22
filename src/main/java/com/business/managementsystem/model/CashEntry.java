@@ -60,6 +60,8 @@ public class CashEntry {
         RETURN,
         MANUAL_IN,
         MANUAL_OUT,
+        HAND_LOAN_IN,
+        HAND_LOAN_OUT,
         OPENING
     }
 

@@ -164,19 +164,34 @@ public class CashSheetService {
         }
     }
 
-    // ── Add a manual entry ────────────────────────────────────────
+    // ── Add a manual entry (auto-detect type) ────────────────────
     @Transactional
     public CashEntry addManualEntry(Long businessId, Long branchId, LocalDate date,
                                     String partyName, String description,
                                     BigDecimal amountIn, BigDecimal amountOut,
                                     String createdBy) {
+        return addManualEntry(businessId, branchId, date,
+                partyName, description, amountIn, amountOut, createdBy, null);
+    }
+
+    // ── Add a manual entry (explicit type override) ───────────────
+    @Transactional
+    public CashEntry addManualEntry(Long businessId, Long branchId, LocalDate date,
+                                    String partyName, String description,
+                                    BigDecimal amountIn, BigDecimal amountOut,
+                                    String createdBy, CashEntry.EntryType explicitType) {
         getOrCreateDaySheet(businessId, branchId, date);
         int nextOrder = entryRepo.findMaxSortOrderByDate(businessId, branchId, date) + 1;
 
-        CashEntry.EntryType type = (amountOut != null && amountOut.compareTo(BigDecimal.ZERO) > 0
-                && (amountIn == null || amountIn.compareTo(BigDecimal.ZERO) == 0))
-                ? CashEntry.EntryType.MANUAL_OUT
-                : CashEntry.EntryType.MANUAL_IN;
+        CashEntry.EntryType type;
+        if (explicitType != null) {
+            type = explicitType;
+        } else {
+            type = (amountOut != null && amountOut.compareTo(BigDecimal.ZERO) > 0
+                    && (amountIn == null || amountIn.compareTo(BigDecimal.ZERO) == 0))
+                    ? CashEntry.EntryType.MANUAL_OUT
+                    : CashEntry.EntryType.MANUAL_IN;
+        }
 
         return entryRepo.save(new CashEntry(
                 businessId, branchId, date,
@@ -194,8 +209,10 @@ public class CashSheetService {
                 .orElseThrow(() -> new RuntimeException("Entry not found: " + id));
 
         if (entry.getEntryType() != CashEntry.EntryType.MANUAL_IN
-                && entry.getEntryType() != CashEntry.EntryType.MANUAL_OUT) {
-            throw new RuntimeException("Only manual entries can be edited.");
+                && entry.getEntryType() != CashEntry.EntryType.MANUAL_OUT
+                && entry.getEntryType() != CashEntry.EntryType.HAND_LOAN_IN
+                && entry.getEntryType() != CashEntry.EntryType.HAND_LOAN_OUT) {
+            throw new RuntimeException("Only manual and hand loan entries can be edited.");
         }
 
         entry.setPartyName(partyName);
@@ -225,9 +242,11 @@ public class CashSheetService {
                 .orElseThrow(() -> new RuntimeException("Entry not found: " + id));
 
         if (entry.getEntryType() != CashEntry.EntryType.MANUAL_IN
-                && entry.getEntryType() != CashEntry.EntryType.MANUAL_OUT) {
+                && entry.getEntryType() != CashEntry.EntryType.MANUAL_OUT
+                && entry.getEntryType() != CashEntry.EntryType.HAND_LOAN_IN
+                && entry.getEntryType() != CashEntry.EntryType.HAND_LOAN_OUT) {
             throw new RuntimeException(
-                    "Only manual entries can be deleted. Synced entries are read-only.");
+                    "Only manual and hand loan entries can be deleted. Synced entries are read-only.");
         }
         entryRepo.delete(entry);
     }

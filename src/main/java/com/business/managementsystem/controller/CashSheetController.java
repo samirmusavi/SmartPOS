@@ -97,10 +97,17 @@ public class CashSheetController {
         BigDecimal amountOut = bd(body.get("amountOut"));
         String createdBy = body.getOrDefault("createdBy", "").toString();
 
+        // Optional explicit type for hand-loan entries
+        CashEntry.EntryType explicitType = null;
+        if (body.get("entryType") != null && !body.get("entryType").toString().isBlank()) {
+            try { explicitType = CashEntry.EntryType.valueOf(body.get("entryType").toString()); }
+            catch (IllegalArgumentException ignored) { }
+        }
+
         CashEntry entry = cashSheetService.addManualEntry(
                 businessId, branchId, date,
                 partyName, description,
-                amountIn, amountOut, createdBy);
+                amountIn, amountOut, createdBy, explicitType);
 
         return ResponseEntity.ok(cashSheetService.toEntryMap(entry));
     }

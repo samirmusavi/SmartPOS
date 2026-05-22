@@ -124,7 +124,8 @@ const PlanGuard = {
             '/stockout.html', '/suppliers.html',
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
-            '/branch-select.html', '/branches.html'
+            '/branch-select.html', '/branches.html',
+            '/cash-sheet.html'
         ],
         BUSINESS: [
             '/dashboard.html', '/sales.html',
@@ -134,7 +135,8 @@ const PlanGuard = {
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
             '/branch-select.html', '/branches.html',
-            '/report.html', '/expenses.html', '/customers.html'
+            '/report.html', '/expenses.html', '/customers.html',
+            '/cash-sheet.html'
         ],
         ENTERPRISE: [
             '/dashboard.html', '/sales.html',
@@ -144,7 +146,8 @@ const PlanGuard = {
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
             '/branch-select.html', '/branches.html',
-            '/report.html', '/expenses.html', '/customers.html'
+            '/report.html', '/expenses.html', '/customers.html',
+            '/cash-sheet.html'
         ]
     },
 
@@ -241,7 +244,7 @@ const RoleGuard = {
             '/suppliers.html', '/purchase-orders.html',
             '/returns.html', '/supplies.html',
             '/stock-transfers.html', '/branches.html',
-            '/branch-select.html'
+            '/branch-select.html', '/cash-sheet.html'
         ],
         MANAGER: [
             '/dashboard.html', '/sales.html', '/sales-list.html', '/sales-return.html',
@@ -251,10 +254,12 @@ const RoleGuard = {
             '/predictions.html',
             '/suppliers.html', '/purchase-orders.html',
             '/returns.html', '/supplies.html',
-            '/stock-transfers.html', '/branch-select.html'
+            '/stock-transfers.html', '/branch-select.html',
+            '/cash-sheet.html'
         ],
         CASHIER: [
-            '/dashboard.html', '/sales.html', '/sales-list.html', '/branch-select.html'
+            '/dashboard.html', '/sales.html', '/sales-list.html', '/branch-select.html',
+            '/cash-sheet.html'
         ]
     },
 

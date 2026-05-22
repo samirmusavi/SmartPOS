@@ -3,7 +3,20 @@
     "allow": [
       "Bash(./mvnw clean *)",
       "PowerShell($env:JAVA_HOME; [System.Environment]::GetEnvironmentVariable\\(\"JAVA_HOME\", \"Machine\"\\); Get-Command java -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source)",
-      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match \"java|jdk|jre|adopt|temurin|zulu|amazon|corretto\" -or $_.Name -match \"Java\" } | Select-Object FullName)"
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match \"java|jdk|jre|adopt|temurin|zulu|amazon|corretto\" -or $_.Name -match \"Java\" } | Select-Object FullName)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(gh pr *)",
+      "PowerShell(Get-Command gh -ErrorAction SilentlyContinue)",
+      "Bash(git checkout *)",
+      "Bash(git cherry-pick *)",
+      "Bash(gh --version)",
+      "Bash(gh auth *)",
+      "Bash(export PATH=\"$PATH:/c/Program Files/GitHub CLI\")",
+      "Bash(echo 'export PATH=\"$PATH:/c/Program Files/GitHub CLI\"')",
+      "Bash(dir /s /b \"C:\\\\Users\\\\AHMAD\\\\Downloads\\\\SmartPOS\\\\Smart POS 10.1\\\\src\\\\main\\\\java\\\\*.java\")",
+      "Bash(python3 -c ' *)"
     ]
   }
 }
