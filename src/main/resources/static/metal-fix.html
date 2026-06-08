@@ -399,7 +399,7 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- CREATE HPF MODAL                                            -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="createModal" style="display:none">
+<div class="modal-overlay" id="createModal">
     <div class="modal" style="max-width:560px;width:100%">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-scale-balanced" style="margin-right:8px"></i>New Hold Price Fix</h3>
@@ -427,18 +427,22 @@
                         <option value="SILVER">Silver</option>
                     </select>
                 </div>
-                <div class="form-group" style="width:130px">
+                <div class="form-group" style="width:145px">
                     <label class="form-label">Purity</label>
-                    <select id="cPurity" class="form-control">
-                        <option value="">— Select —</option>
-                        <option value="24K">24K (999)</option>
-                        <option value="22K">22K (916)</option>
-                        <option value="21K">21K (875)</option>
-                        <option value="18K">18K (750)</option>
-                        <option value="999">999 Fine</option>
+                    <select id="cPurity" class="form-control" onchange="syncPurity()">
+                        <option value="">— No purity —</option>
+                        <option value="585">14k / 585</option>
+                        <option value="750">18k / 750</option>
+                        <option value="875">21k / 875</option>
+                        <option value="920">22k / 920</option>
+                        <option value="999.9">24k / 999.9</option>
+                        <option value="995">995.0 Bullion</option>
                         <option value="925">925 Silver</option>
-                        <option value="Other">Other</option>
+                        <option value="custom">Custom…</option>
                     </select>
+                    <input type="number" id="cPurityCustom" class="form-control"
+                           placeholder="e.g. 833" step="0.1" min="0" max="1000"
+                           style="margin-top:6px;display:none">
                 </div>
                 <div class="form-group" style="flex:1;min-width:100px">
                     <label class="form-label">Weight (g) <span class="text-danger">*</span></label>
@@ -517,7 +521,7 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- MARK-AS-FIXED MODAL                                         -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="fixModal" style="display:none">
+<div class="modal-overlay" id="fixModal">
     <div class="modal" style="max-width:420px;width:100%">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-lock" style="margin-right:8px"></i>Set Fixed Rate</h3>
@@ -551,7 +555,7 @@
 <!-- ═══════════════════════════════════════════════════════════ -->
 <!-- SETTLE MODAL                                                -->
 <!-- ═══════════════════════════════════════════════════════════ -->
-<div class="modal-overlay" id="settleModal" style="display:none">
+<div class="modal-overlay" id="settleModal">
     <div class="modal" style="max-width:460px;width:100%">
         <div class="modal-header">
             <h3 class="modal-title"><i class="fas fa-check-circle" style="margin-right:8px"></i>Settle Fix</h3>
@@ -624,7 +628,7 @@ let _activeFixData = null; // fix object for settle calc
 
 /* ── Bootstrap ──────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
-    Auth.requireAuth();
+    Auth.requireClient();
     RoleGuard.guardCurrentPage();
 
     _bizId = Auth.getBusinessId();
@@ -646,39 +650,49 @@ document.addEventListener('DOMContentLoaded', () => {
 async function loadDashboard() {
     try {
         const d = await API.get(`/api/metal-fixes/dashboard?businessId=${_bizId}`);
-        document.getElementById('statOpen').textContent    = d.open    ?? 0;
-        document.getElementById('statFixed').textContent   = d.fixed   ?? 0;
-        document.getElementById('statSettled').textContent = d.settled ?? 0;
+        // Service returns openCount / fixedCount / settledCount / openAed
+        document.getElementById('statOpen').textContent    = d.openCount    ?? 0;
+        document.getElementById('statFixed').textContent   = d.fixedCount   ?? 0;
+        document.getElementById('statSettled').textContent = d.settledCount ?? 0;
         document.getElementById('statOpenAed').textContent = fmtAed(d.openAed ?? 0);
     } catch(e) {
         console.error('Dashboard load failed', e);
+        ['statOpen','statFixed','statSettled'].forEach(id =>
+            document.getElementById(id).textContent = '0');
+        document.getElementById('statOpenAed').textContent = fmtAed(0);
     }
 }
 
 /* ── Load parties for filter + create modal ─────────────────── */
 async function loadParties() {
     try {
-        _parties = await API.get(`/api/suppliers/all`, { 'X-Business-Id': String(_bizId) });
-        buildPartySelects();
-        loadFixes();
+        const result = await API.get(`/api/suppliers/all`);
+        _parties = Array.isArray(result) ? result : [];
     } catch(e) {
         console.error('Party load failed', e);
+        _parties = [];
+    } finally {
+        buildPartySelects();
         loadFixes();
     }
 }
 
 function buildPartySelects() {
-    const filterSel  = document.getElementById('filterParty');
-    const createSel  = document.getElementById('cParty');
-    filterSel.innerHTML  = '<option value="">All Parties</option>';
-    createSel.innerHTML  = '<option value="">— Select party —</option>';
+    const filterSel = document.getElementById('filterParty');
+    const createSel = document.getElementById('cParty');
+    filterSel.innerHTML = '<option value="">All Parties</option>';
 
+    if (!_parties.length) {
+        createSel.innerHTML =
+            '<option value="" disabled selected>No parties found — add on Parties page</option>';
+        return;
+    }
+
+    createSel.innerHTML = '<option value="">— Select party —</option>';
     _parties.forEach(p => {
         const label = p.partyCode ? `${p.name} (${p.partyCode})` : p.name;
-        const opt1 = new Option(label, p.id);
-        const opt2 = new Option(label, p.id);
-        filterSel.appendChild(opt1);
-        createSel.appendChild(opt2);
+        filterSel.appendChild(new Option(label, p.id));
+        createSel.appendChild(new Option(label, p.id));
     });
 }
 
@@ -715,8 +729,10 @@ async function loadFixes() {
         renderTable(rows);
     } catch(e) {
         console.error('Fix load failed', e);
+        const msg = (e && (e.message || e.error || e.status)) ? String(e.message || e.error || e.status) : 'Check console';
         tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:#dc2626">
-            <i class="fas fa-circle-exclamation"></i> Failed to load fixes</td></tr>`;
+            <i class="fas fa-circle-exclamation"></i>
+            Failed to load fixes — ${escapeHtml(msg)}</td></tr>`;
     }
 }
 
@@ -724,7 +740,7 @@ function renderTable(rows) {
     const tbody = document.getElementById('hpfTbody');
     const empty = document.getElementById('hpfEmpty');
 
-    if (!rows.length) {
+    if (!Array.isArray(rows) || !rows.length) {
         tbody.innerHTML = '';
         empty.style.display = 'block';
         return;
@@ -927,7 +943,9 @@ function openCreateModal() {
     document.getElementById('cParty').value   = '';
     document.getElementById('cFixType').value = 'SALE_FIX';
     document.getElementById('cMetalType').value = 'GOLD';
-    document.getElementById('cPurity').value  = '';
+    document.getElementById('cPurity').value       = '';
+    document.getElementById('cPurityCustom').value  = '';
+    document.getElementById('cPurityCustom').style.display = 'none';
     document.getElementById('cWeight').value  = '';
     document.getElementById('cTxRate').value  = '';
     document.getElementById('cDiscPrem').value = '';
@@ -936,10 +954,10 @@ function openCreateModal() {
     document.getElementById('cMargin').value  = '';
     document.getElementById('cNotes').value   = '';
     clearCalcCreate();
-    document.getElementById('createModal').style.display = 'flex';
+    document.getElementById('createModal').classList.add('open');
 }
 function closeCreateModal() {
-    document.getElementById('createModal').style.display = 'none';
+    document.getElementById('createModal').classList.remove('open');
 }
 
 function recalcCreate() {
@@ -968,6 +986,13 @@ function recalcCreate() {
     document.getElementById('ccTotalAed').textContent  = fmtAed(totalAed);
 }
 
+function syncPurity() {
+    const sel    = document.getElementById('cPurity');
+    const custom = document.getElementById('cPurityCustom');
+    custom.style.display = sel.value === 'custom' ? 'block' : 'none';
+    if (sel.value !== 'custom') custom.value = '';
+}
+
 function clearCalcCreate() {
     ['ccOz','ccEffRate','ccAedBase','ccMarginAed','ccTotalAed'].forEach(id =>
         document.getElementById(id).textContent = '—');
@@ -992,7 +1017,11 @@ async function submitCreate() {
         partyName:           party ? party.name : '',
         fixType:             document.getElementById('cFixType').value,
         metalType:           document.getElementById('cMetalType').value,
-        purity:              document.getElementById('cPurity').value || null,
+        purity:              (() => {
+            const s = document.getElementById('cPurity').value;
+            if (s === 'custom') return document.getElementById('cPurityCustom').value || null;
+            return s || null;
+        })(),
         weightGrams:         weight,
         transactionRate:     txRate,
         discountPremium:     parseFloat(document.getElementById('cDiscPrem').value) || 0,
@@ -1032,10 +1061,10 @@ function openFixModal(fixId) {
 
     document.getElementById('fmRate').value = fix ? fmtNum(fix.transactionRate, 2) : '';
     document.getElementById('fmDate').value = new Date().toISOString().slice(0, 10);
-    document.getElementById('fixModal').style.display = 'flex';
+    document.getElementById('fixModal').classList.add('open');
 }
 function closeFixModal() {
-    document.getElementById('fixModal').style.display = 'none';
+    document.getElementById('fixModal').classList.remove('open');
     _activeFixId = null;
 }
 
@@ -1082,10 +1111,10 @@ function openSettleModal(fixId) {
     document.getElementById('smDate').value    = new Date().toISOString().slice(0, 10);
     document.getElementById('smNotes').value   = '';
     recalcSettle();
-    document.getElementById('settleModal').style.display = 'flex';
+    document.getElementById('settleModal').classList.add('open');
 }
 function closeSettleModal() {
-    document.getElementById('settleModal').style.display = 'none';
+    document.getElementById('settleModal').classList.remove('open');
     _activeFixId   = null;
     _activeFixData = null;
 }
