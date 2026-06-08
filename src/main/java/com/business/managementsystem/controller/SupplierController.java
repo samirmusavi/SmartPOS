@@ -4,7 +4,9 @@ import com.business.managementsystem.service.SupplierService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -24,12 +26,27 @@ public class SupplierController {
         return Long.parseLong(header);
     }
 
-    // GET /api/suppliers
+    // GET /api/suppliers/stats
+    @GetMapping("/stats")
+    public ResponseEntity<Map<String, Object>> getStats(
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        return ResponseEntity.ok(supplierService.getStats(getBusinessId(h)));
+    }
+
+    // GET /api/suppliers — isSupplier = true only (for suppliers.html)
     @GetMapping
     public ResponseEntity<List<Map<String, Object>>> getAll(
             @RequestHeader(value = "X-Business-Id", required = false) String h) {
         return ResponseEntity.ok(
                 supplierService.getAllSuppliers(getBusinessId(h)));
+    }
+
+    // GET /api/suppliers/all — every party regardless of flags (for parties.html)
+    @GetMapping("/all")
+    public ResponseEntity<List<Map<String, Object>>> getAllParties(
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        return ResponseEntity.ok(
+                supplierService.getAllParties(getBusinessId(h)));
     }
 
     // GET /api/suppliers/{id}
@@ -54,16 +71,25 @@ public class SupplierController {
     @PostMapping
     public ResponseEntity<Map<String, Object>> create(
             @RequestHeader(value = "X-Business-Id", required = false) String h,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, Object> request) {
+        boolean isSupplier = getBool(request, "isSupplier", true);
+        boolean isCustomer = getBool(request, "isCustomer", false);
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 supplierService.createSupplier(
                         getBusinessId(h),
-                        request.get("name"),
-                        request.get("contactPerson"),
-                        request.get("phone"),
-                        request.get("email"),
-                        request.get("address"),
-                        request.get("notes")
+                        getString(request, "name"),
+                        getString(request, "contactPerson"),
+                        getString(request, "phone"),
+                        getString(request, "email"),
+                        getString(request, "address"),
+                        getString(request, "notes"),
+                        isSupplier, isCustomer,
+                        getString(request, "kycStatus"),
+                        getString(request, "emiratesId"),
+                        getString(request, "passportNumber"),
+                        getString(request, "tradeLicenseNumber"),
+                        getString(request, "idExpiryDate"),
+                        getString(request, "kycNotes")
                 )
         );
     }
@@ -73,16 +99,25 @@ public class SupplierController {
     public ResponseEntity<Map<String, Object>> update(
             @PathVariable Long id,
             @RequestHeader(value = "X-Business-Id", required = false) String h,
-            @RequestBody Map<String, String> request) {
+            @RequestBody Map<String, Object> request) {
+        boolean isSupplier = getBool(request, "isSupplier", true);
+        boolean isCustomer = getBool(request, "isCustomer", false);
         return ResponseEntity.ok(
                 supplierService.updateSupplier(
                         id, getBusinessId(h),
-                        request.get("name"),
-                        request.get("contactPerson"),
-                        request.get("phone"),
-                        request.get("email"),
-                        request.get("address"),
-                        request.get("notes")
+                        getString(request, "name"),
+                        getString(request, "contactPerson"),
+                        getString(request, "phone"),
+                        getString(request, "email"),
+                        getString(request, "address"),
+                        getString(request, "notes"),
+                        isSupplier, isCustomer,
+                        getString(request, "kycStatus"),
+                        getString(request, "emiratesId"),
+                        getString(request, "passportNumber"),
+                        getString(request, "tradeLicenseNumber"),
+                        getString(request, "idExpiryDate"),
+                        getString(request, "kycNotes")
                 )
         );
     }
@@ -135,5 +170,70 @@ public class SupplierController {
             @RequestHeader(value = "X-Business-Id", required = false) String h) {
         return ResponseEntity.ok(
                 supplierService.unlinkCustomer(id, getBusinessId(h)));
+    }
+
+    // ── Party Code endpoints ──────────────────────────────────────────
+
+    /**
+     * POST /api/suppliers/generate-party-codes
+     * Batch-assigns party codes to all parties that don't have one yet.
+     * Idempotent — safe to call on an existing database.
+     */
+    @PostMapping("/generate-party-codes")
+    public ResponseEntity<Map<String, Object>> generatePartyCodes(
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        int count = supplierService.generatePartyCodes(getBusinessId(h));
+        return ResponseEntity.ok(Map.of("generated", count));
+    }
+
+    // ── KYC Document endpoints ─────────────────────────────────────
+
+    // GET /api/suppliers/{id}/kyc-documents
+    @GetMapping("/{id}/kyc-documents")
+    public ResponseEntity<List<Map<String, Object>>> getKycDocuments(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        return ResponseEntity.ok(
+                supplierService.getKycDocuments(id, getBusinessId(h)));
+    }
+
+    // POST /api/suppliers/{id}/kyc-documents  (multipart)
+    @PostMapping("/{id}/kyc-documents")
+    public ResponseEntity<Map<String, Object>> uploadKycDocument(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Business-Id", required = false) String h,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "documentType", defaultValue = "OTHER") String documentType,
+            @RequestParam(value = "uploadedBy", required = false) String uploadedBy) {
+        try {
+            return ResponseEntity.status(HttpStatus.CREATED).body(
+                    supplierService.uploadKycDocument(id, getBusinessId(h),
+                            file, documentType, uploadedBy));
+        } catch (IOException e) {
+            throw new RuntimeException("File upload failed: " + e.getMessage());
+        }
+    }
+
+    // DELETE /api/suppliers/{id}/kyc-documents/{docId}
+    @DeleteMapping("/{id}/kyc-documents/{docId}")
+    public ResponseEntity<Void> deleteKycDocument(
+            @PathVariable Long id,
+            @PathVariable Long docId,
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        supplierService.deleteKycDocument(id, docId, getBusinessId(h));
+        return ResponseEntity.noContent().build();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────
+    private String getString(Map<String, Object> map, String key) {
+        Object v = map.get(key);
+        return v != null ? v.toString().trim() : null;
+    }
+
+    private boolean getBool(Map<String, Object> map, String key, boolean defaultVal) {
+        Object v = map.get(key);
+        if (v == null) return defaultVal;
+        if (v instanceof Boolean b) return b;
+        return Boolean.parseBoolean(v.toString());
     }
 }

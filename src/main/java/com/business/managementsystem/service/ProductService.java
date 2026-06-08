@@ -254,6 +254,10 @@ public class ProductService {
         existing.setCategory(productDTO.getCategory());
         existing.setBarcode(productDTO.getBarcode());
         existing.setSupplierId(productDTO.getSupplierId());
+        existing.setScrap(productDTO.isScrap());
+        if (productDTO.getTotalWeightGrams() != null) {
+            existing.setTotalWeightGrams(productDTO.getTotalWeightGrams());
+        }
         String supplierName = null;
         if (existing.getSupplierId() != null) {
             supplierName = supplierRepository.findById(existing.getSupplierId())
@@ -626,13 +630,16 @@ public class ProductService {
     }
 
     private ProductDTO buildDTO(Product product, String supplierName, double qty) {
-        return new ProductDTO(
+        ProductDTO dto = new ProductDTO(
                 product.getId(), product.getName(), product.getBarcode(),
                 product.getPrice(), product.getCostPrice(), qty,
                 product.getCategory(), product.getSupplierId(),
                 supplierName, product.getImagePath(),
                 product.getUnitType(), product.getPurity()
         );
+        dto.setScrap(product.isScrap());
+        dto.setTotalWeightGrams(product.getTotalWeightGrams());
+        return dto;
     }
 
     private Product convertToEntity(ProductDTO dto, Long businessId) {
@@ -646,7 +653,9 @@ public class ProductService {
         product.setCategory(dto.getCategory());
         product.setUnitType(dto.getUnitType());
         product.setPurity(dto.getPurity());
+        product.setScrap(dto.isScrap());
         if (dto.getSupplierId() != null) product.setSupplierId(dto.getSupplierId());
+        if (dto.getTotalWeightGrams() != null) product.setTotalWeightGrams(dto.getTotalWeightGrams());
         return product;
     }
 }

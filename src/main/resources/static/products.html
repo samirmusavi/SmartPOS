@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
@@ -120,6 +120,27 @@
                 </a>
             </div>
         </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
         <a href="/cash-sheet.html" class="nav-item">
             <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
         </a>
@@ -140,20 +161,32 @@
         <a href="/predictions.html" class="nav-item">
             <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
         </a>
-        <a href="/suppliers.html" class="nav-item">
-            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
-        </a>
-        <a href="/purchase-orders.html" class="nav-item">
-            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
-        </a>
-        <a href="/returns.html" class="nav-item">
-            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
-        </a>
+
         <a href="/supplies.html" class="nav-item">
             <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
         </a>
         <a href="/stock-transfers.html" class="nav-item">
             <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
         </a>
         <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
         <a href="/report.html" class="nav-item">
@@ -162,10 +195,7 @@
         <a href="/expenses.html" class="nav-item">
             <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
         </a>
-        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
-        <a href="/customers.html" class="nav-item">
-            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
-        </a>
+
         <div class="nav-group-label" data-i18n="nav_branches">Management</div>
         <a href="/branches.html" class="nav-item">
             <i class="fas fa-code-branch"></i><span class="nav-label" data-i18n="nav_branches">Branches</span>
@@ -223,10 +253,20 @@
         </div>
         <div class="toolbar">
             <div class="toolbar-left">
-                <div class="input-icon-wrap">
-                    <i class="fas fa-search input-icon"></i>
-                    <input type="text" id="searchInput" class="form-control"
-                           placeholder="Search products..." data-i18n="pos_search_products" style="width:240px" oninput="renderTable()">
+                <div>
+                    <div style="display:flex;align-items:center;gap:var(--space-2)">
+                        <div class="input-icon-wrap">
+                            <i class="fas fa-search input-icon"></i>
+                            <input type="text" id="searchInput" class="form-control"
+                                   placeholder="Search by name, barcode or category…" style="width:240px" oninput="renderTable()">
+                        </div>
+                        <button class="btn-scan" id="searchScanBtn" onclick="BarcodeScanner.activate('search')" title="Scan barcode to search">
+                            <i class="fas fa-barcode"></i>
+                        </button>
+                    </div>
+                    <div class="scan-hint" id="searchScanHint">
+                        <i class="fas fa-circle-notch fa-spin"></i> Waiting for scan…
+                    </div>
                 </div>
                 <select class="form-control" id="categoryFilter" style="width:160px" onchange="renderTable()">
                     <option value="">All Categories</option>
@@ -282,12 +322,12 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label" data-i18n="prod_lbl_name">Product Name *</label>
-                        <input type="text" id="addName" class="form-control" placeholder="e.g. Coca Cola 500ml">
+                        <input type="text" id="addName" class="form-control">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Barcode <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional, type or scan</span></label>
                         <div class="barcode-wrap">
-                            <input type="text" id="addBarcode" class="form-control" placeholder="e.g. 5000112637922" autocomplete="off" spellcheck="false">
+                            <input type="text" id="addBarcode" class="form-control" autocomplete="off" spellcheck="false">
                             <button class="btn-scan" id="addScanBtn" onclick="BarcodeScanner.activate('add')" title="Click then scan barcode">
                                 <i class="fas fa-barcode"></i>
                             </button>
@@ -300,7 +340,7 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label class="form-label" data-i18n="prod_lbl_cat">Category *</label>
-                        <input type="text" id="addCategory" class="form-control" placeholder="e.g. Beverages">
+                        <input type="text" id="addCategory" class="form-control">
                     </div>
                 </div>
                 <div class="grid-2">
@@ -326,6 +366,13 @@
                         <input type="number" id="addPurityCustom" class="form-control" placeholder="e.g. 750" step="0.1" min="0" max="1000" style="margin-top:6px;display:none" oninput="syncPurityLabel('add')">
                         <div id="addPurityLabel" class="text-xs text-muted" style="margin-top:4px"></div>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md)">
+                        <input type="checkbox" id="addIsScrap" style="width:16px;height:16px;cursor:pointer;accent-color:var(--warning)">
+                        <span class="font-semibold" style="color:var(--warning)"><i class="fas fa-recycle" style="margin-right:6px;font-size:0.85rem"></i>Scrap / Assay Item</span>
+                        <span class="text-muted" style="font-weight:400;font-size:0.75rem">— purity entered per-transaction at time of sale/purchase</span>
+                    </label>
                 </div>
                 <div class="grid-2" style="display:none"><!-- spacer kept for layout -->
                     <div class="form-group">
@@ -360,6 +407,10 @@
                 <div class="form-group">
                     <label class="form-label" id="addQtyLabel">Initial Quantity (PCS) *</label>
                     <input type="number" id="addQuantity" class="form-control" placeholder="0" min="0" step="1">
+                </div>
+                <div class="form-group" id="addWeightGroup" style="display:none">
+                    <label class="form-label">Total Weight (grams) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                    <input type="number" id="addTotalWeightGrams" class="form-control" min="0" step="0.001" placeholder="e.g. 346.50">
                 </div>
                 <div class="text-xs text-muted" style="padding:var(--space-2) 0">
                     <i class="fas fa-info-circle" style="color:var(--primary);margin-right:4px"></i>
@@ -443,14 +494,14 @@
                     </div>
                     <div class="grid-2">
                         <div class="form-group">
-                            <label class="form-label" data-i18n="prod_lbl_cost">Cost Price (AED)</label>
+                            <label class="form-label">Cost Price (AED) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-shopping-basket input-icon"></i>
                                 <input type="number" id="editCostPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateEditMargin()">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">Selling Price (AED)</label>
+                            <label class="form-label">Selling Price (AED) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
                             <div class="input-icon-wrap">
                                 <i class="fas fa-dollar-sign input-icon"></i>
                                 <input type="number" id="editPrice" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="updateEditMargin()">
@@ -460,8 +511,19 @@
                     <div id="editMarginPreview" style="margin-top:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);background:var(--surface-3)"></div>
                 </div>
                 <div class="form-group">
+                    <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.2);border-radius:var(--radius-md)">
+                        <input type="checkbox" id="editIsScrap" style="width:16px;height:16px;cursor:pointer;accent-color:var(--warning)">
+                        <span class="font-semibold" style="color:var(--warning)"><i class="fas fa-recycle" style="margin-right:6px;font-size:0.85rem"></i>Scrap / Assay Item</span>
+                        <span class="text-muted" style="font-weight:400;font-size:0.75rem">— purity entered per-transaction</span>
+                    </label>
+                </div>
+                <div class="form-group">
                     <label class="form-label">Quantity</label>
                     <input type="number" id="editQuantity" class="form-control" min="0">
+                </div>
+                <div class="form-group" id="editWeightGroup" style="display:none">
+                    <label class="form-label">Total Weight (grams) <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                    <input type="number" id="editTotalWeightGrams" class="form-control" min="0" step="0.001" placeholder="e.g. 346.50">
                 </div>
             </div>
         </div>
@@ -649,6 +711,13 @@
 </div>
 <script>
 
+    function fmtQty(val) {
+        if (val === null || val === undefined) return '0';
+        const n = parseFloat(val);
+        if (Number.isInteger(n)) return n.toString();
+        return parseFloat(n.toFixed(4)).toString();
+    }
+
     // ── CSV IMPORT ────────────────────────────────────────────────
     function openImportModal() {
         document.getElementById('importFile').value = '';
@@ -808,7 +877,7 @@
             this.activeModal = modal;
             const btn   = document.getElementById(`${modal}ScanBtn`);
             const hint  = document.getElementById(`${modal}ScanHint`);
-            const input = document.getElementById(modal === 'add' ? 'addBarcode' : 'editBarcodeDisplay');
+            const input = document.getElementById(modal === 'add' ? 'addBarcode' : modal === 'search' ? 'searchInput' : 'editBarcodeDisplay');
             btn.classList.add('active');
             btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
             hint.classList.add('visible');
@@ -828,9 +897,14 @@
 
         onScanned(barcode) {
             const modal   = this.activeModal;
-            const inputId = modal === 'add' ? 'addBarcode' : 'editBarcodeDisplay';
-            document.getElementById(inputId).value = barcode;
-            if (modal === 'edit') document.getElementById('editBarcode').value = barcode;
+            if (modal === 'search') {
+                document.getElementById('searchInput').value = barcode;
+                renderTable();
+            } else {
+                const inputId = modal === 'add' ? 'addBarcode' : 'editBarcodeDisplay';
+                document.getElementById(inputId).value = barcode;
+                if (modal === 'edit') document.getElementById('editBarcode').value = barcode;
+            }
             const btn  = document.getElementById(`${modal}ScanBtn`);
             const hint = document.getElementById(`${modal}ScanHint`);
             btn.classList.remove('active'); btn.classList.add('success');
@@ -844,7 +918,7 @@
         deactivate() {
             clearTimeout(this._autoCancel);
             this.activeModal = null;
-            ['add', 'edit'].forEach(modal => {
+            ['add', 'edit', 'search'].forEach(modal => {
                 const btn  = document.getElementById(`${modal}ScanBtn`);
                 const hint = document.getElementById(`${modal}ScanHint`);
                 if (btn && !btn.classList.contains('success')) { btn.classList.remove('active'); btn.innerHTML = '<i class="fas fa-barcode"></i>'; }
@@ -943,6 +1017,14 @@
         document.getElementById('editMarginPreview').innerHTML = m ? marginHTML(m) : '';
     }
 
+    // ── STOCK QTY FORMATTER ───────────────────────────────────────
+    function formatStockQty(qty, unitType) {
+        if (unitType === 'GRAM') {
+            return Number(qty).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:3}) + ' Gram';
+        }
+        return Number(qty).toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}) + ' PCS';
+    }
+
     // ── RENDER TABLE ──────────────────────────────────────────────
     function renderTable() {
         const q     = document.getElementById('searchInput').value.toLowerCase();
@@ -951,8 +1033,11 @@
 
         let filtered = allProducts.filter(p => {
             const displayQty = getDisplayQty(p);
-            const matchQ = p.name.toLowerCase().includes(q) || p.barcode.toLowerCase().includes(q) ||
-                p.category.toLowerCase().includes(q) || (p.supplierName||'').toLowerCase().includes(q);
+            const matchQ = !q ||
+                (p.name     && p.name.toLowerCase().includes(q))     ||
+                (p.barcode  && p.barcode.toLowerCase().includes(q))  ||
+                (p.category && p.category.toLowerCase().includes(q)) ||
+                ((p.supplierName||'').toLowerCase().includes(q));
             const matchC = !cat   || p.category === cat;
             // Stock filter uses branch quantity when a branch is selected
             const matchS = !stock ||
@@ -988,14 +1073,14 @@
                     : `<div class="product-thumb-placeholder"><i class="fas fa-box-open"></i></div>`;
                 return `<tr>
                     <td class="text-muted">${start+i+1}</td>
-                    <td class="cell-primary"><div class="flex items-center gap-2">${thumbHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span></div></td>
+                    <td class="cell-primary"><div class="flex items-center gap-2">${thumbHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>${p.isScrap?'<span style="font-size:0.55rem;padding:2px 6px;background:rgba(245,158,11,0.12);color:var(--warning);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-full);font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0">Scrap</span>':''}</div></td>
                     <td class="cell-mono">${p.barcode}</td>
                     <td><span class="badge badge-neutral">${p.category}</span></td>
                     <td>${p.supplierName?`<span class="supplier-tag"><i class="fas fa-truck" style="font-size:0.6rem"></i>${p.supplierName}</span>`:'<span class="text-muted">—</span>'}</td>
                     <td class="text-secondary">${cost>0?Format.currency(cost):'<span class="text-muted">—</span>'}</td>
                     <td class="font-medium text-primary">${Format.currency(sell)}</td>
                     <td>${cost>0&&sell>0?`<span style="color:${marginColor};font-size:var(--text-xs);font-weight:600">${margin}%</span>`:'<span class="text-muted">—</span>'}</td>
-                    <td class="font-medium ${displayQty===0?'text-danger':displayQty<10?'text-warning':'text-success'}">${displayQty}</td>
+                    <td class="font-medium ${displayQty===0?'text-danger':displayQty<10?'text-warning':'text-success'}">${formatStockQty(displayQty, p.unitType)}${p.unitType==='PCS'&&p.totalWeightGrams>0?`<div style="font-size:0.7rem;color:var(--text-muted);margin-top:2px;font-weight:400">${parseFloat(p.totalWeightGrams).toFixed(2)} g</div>`:''}</td>
                     <td>${Format.stockBadge(displayQty)}</td>
                     <td>
                         <div class="flex gap-2">
@@ -1020,17 +1105,20 @@
 
     // ── ADD PRODUCT ───────────────────────────────────────────────
     function toggleAddQtyUnit() {
-        const unitType = document.getElementById('addUnitType').value;
-        const qtyInput = document.getElementById('addQuantity');
-        const qtyLabel = document.getElementById('addQtyLabel');
+        const unitType   = document.getElementById('addUnitType').value;
+        const qtyInput   = document.getElementById('addQuantity');
+        const qtyLabel   = document.getElementById('addQtyLabel');
+        const wgtGroup   = document.getElementById('addWeightGroup');
         if (unitType === 'GRAM') {
-            qtyInput.step = '0.01';
+            qtyInput.step        = '0.01';
             qtyInput.placeholder = '0.00';
             qtyLabel.textContent = 'Initial Quantity (grams) *';
+            if (wgtGroup) wgtGroup.style.display = 'none';
         } else {
-            qtyInput.step = '1';
+            qtyInput.step        = '1';
             qtyInput.placeholder = '0';
             qtyLabel.textContent = 'Initial Quantity (PCS) *';
+            if (wgtGroup) wgtGroup.style.display = 'block';
         }
     }
 
@@ -1091,6 +1179,11 @@
         const isGram = unitType === 'GRAM';
         const parsedQty = isGram ? parseFloat(quantity) : parseInt(quantity);
 
+        const isScrap = document.getElementById('addIsScrap').checked;
+
+        const totalWeightGrams = (unitType === 'PCS' && document.getElementById('addTotalWeightGrams')?.value)
+            ? parseFloat(document.getElementById('addTotalWeightGrams').value) : null;
+
         try {
             await API.post(PRODUCTS_API, {
                 name,
@@ -1101,7 +1194,9 @@
                 quantity: parsedQty,
                 supplierId: supplierId ? parseInt(supplierId) : null,
                 unitType,
-                purity: purity ? purity.toString() : null
+                purity: purity ? purity.toString() : null,
+                isScrap,
+                totalWeightGrams
             });
             closeAddModal();
             Toast.success('Product added successfully.');
@@ -1112,6 +1207,8 @@
             document.getElementById('addPurityCustom').style.display='none';
             document.getElementById('addPurityLabel').textContent='';
             document.getElementById('addMarginPreview').style.display='none';
+            document.getElementById('addIsScrap').checked=false;
+            if (document.getElementById('addTotalWeightGrams')) document.getElementById('addTotalWeightGrams').value='';
             toggleAddQtyUnit();
             loadData();
         } catch(err) { Toast.error(err.message||'Failed to add product.'); }
@@ -1131,6 +1228,14 @@
         // branch inventory is synced by the backend via sync pattern.
         document.getElementById('editQuantity').value        = p.quantity;
         document.getElementById('editSupplier').value        = p.supplierId||'';
+        document.getElementById('editIsScrap').checked       = p.isScrap || false;
+
+        // Total weight — only relevant for PCS products
+        const editWgtGroup = document.getElementById('editWeightGroup');
+        if (editWgtGroup) {
+            editWgtGroup.style.display = (p.unitType === 'PCS') ? 'block' : 'none';
+            document.getElementById('editTotalWeightGrams').value = p.totalWeightGrams || '';
+        }
 
         // Set product image preview
         updateEditImagePreview(p.imagePath);
@@ -1146,10 +1251,13 @@
         const price     = document.getElementById('editPrice').value;
         const quantity  = document.getElementById('editQuantity').value;
         const supplierId = document.getElementById('editSupplier').value||null;
-        if (!name||!category||!costPrice||!price||!quantity) { Toast.error('Please fill in all fields.'); return; }
-        if (parseFloat(costPrice)>parseFloat(price)) Toast.warning('Cost price is higher than selling price — you will make a loss.');
+        const isScrap = document.getElementById('editIsScrap').checked;
+        const totalWeightGrams = document.getElementById('editTotalWeightGrams')?.value
+            ? parseFloat(document.getElementById('editTotalWeightGrams').value) : null;
+        if (!name||!category||!quantity) { Toast.error('Please fill in all required fields (Name, Category, Quantity).'); return; }
+        if (costPrice && price && parseFloat(costPrice)>parseFloat(price)) Toast.warning('Cost price is higher than selling price — you will make a loss.');
         try {
-            await API.put(`${PRODUCTS_API}/${id}`, { name, barcode, category, costPrice:parseFloat(costPrice), price:parseFloat(price), quantity:parseInt(quantity), supplierId:supplierId?parseInt(supplierId):null });
+            await API.put(`${PRODUCTS_API}/${id}`, { name, barcode, category, costPrice: costPrice ? parseFloat(costPrice) : 0, price: price ? parseFloat(price) : 0, quantity:parseInt(quantity), supplierId:supplierId?parseInt(supplierId):null, isScrap, totalWeightGrams });
             closeEditModal(); Toast.success('Product updated successfully.'); loadData();
         } catch(err) { Toast.error('Failed to update product.'); }
     }
@@ -1249,7 +1357,9 @@
         const displayQty = getDisplayQty(p);
         document.getElementById('adjustProductId').value    = p.id;
         document.getElementById('adjustProductName').textContent = p.name;
-        document.getElementById('adjustCurrentQty').textContent  = displayQty;
+        const adjustQtyEl = document.getElementById('adjustCurrentQty');
+        adjustQtyEl.textContent  = formatStockQty(displayQty, p.unitType);
+        adjustQtyEl.dataset.raw  = displayQty;
         // Update label based on context
         document.getElementById('adjustCurrentQtyLabel').textContent =
             Auth.getBranchId() ? 'Current Branch Stock' : 'Current System Stock';
@@ -1261,7 +1371,8 @@
         Modal.open('adjustModal');
     }
     function updateAdjustPreview() {
-        const cur    = parseInt(document.getElementById('adjustCurrentQty').textContent)||0;
+        const _adjEl = document.getElementById('adjustCurrentQty');
+        const cur    = parseFloat(_adjEl.dataset.raw ?? _adjEl.textContent)||0;
         const newQty = parseInt(document.getElementById('adjustNewQty').value);
         const prev   = document.getElementById('adjustPreview');
         const diff   = document.getElementById('adjustDiffBox');
@@ -1279,8 +1390,9 @@
         const notes      = document.getElementById('adjustNotes').value.trim();
         const adjustedBy = Auth.getUserName();
         if (newQty===''||parseInt(newQty)<0) { Toast.error('Please enter a valid quantity.'); return; }
-        const cur = parseInt(document.getElementById('adjustCurrentQty').textContent)||0;
-        if (parseInt(newQty)===cur) { Toast.warning('No change — quantity is the same.'); return; }
+        const _adjEl2 = document.getElementById('adjustCurrentQty');
+        const cur = parseFloat(_adjEl2.dataset.raw ?? _adjEl2.textContent)||0;
+        if (parseFloat(newQty)===cur) { Toast.warning('No change — quantity is the same.'); return; }
         try {
             await API.post(ADJ_API, { productId, newQuantity:newQty, reason, notes, adjustedBy });
             Modal.close('adjustModal'); Toast.success('Stock adjusted and audit trail recorded.'); loadData();

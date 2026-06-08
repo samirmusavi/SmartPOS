@@ -154,6 +154,27 @@
                 </a>
             </div>
         </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child active">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
         <a href="/cash-sheet.html" class="nav-item">
             <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
         </a>
@@ -174,20 +195,31 @@
         <a href="/predictions.html" class="nav-item">
             <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
         </a>
-        <a href="/suppliers.html" class="nav-item">
-            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
-        </a>
-        <a href="/purchase-orders.html" class="nav-item active">
-            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
-        </a>
-        <a href="/returns.html" class="nav-item">
-            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
-        </a>
         <a href="/supplies.html" class="nav-item">
             <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
         </a>
         <a href="/stock-transfers.html" class="nav-item">
             <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
         </a>
         <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
         <a href="/report.html" class="nav-item">
@@ -195,10 +227,6 @@
         </a>
         <a href="/expenses.html" class="nav-item">
             <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
-        </a>
-        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
-        <a href="/customers.html" class="nav-item">
-            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
         </a>
         <div class="nav-group-label" data-i18n="nav_branches">Management</div>
         <a href="/branches.html" class="nav-item">

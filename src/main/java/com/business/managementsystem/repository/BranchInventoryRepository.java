@@ -42,4 +42,21 @@ public interface BranchInventoryRepository
             "GROUP BY bi.productId")
     List<Object[]> sumQuantityByProductForBusiness(Long businessId);
 
+    // Sum total_weight_grams across all branches of a business, grouped by productId.
+    // Returns Object[] rows: [productId (Long), totalWeight (Double)]
+    @Query("SELECT bi.productId, SUM(bi.totalWeightGrams) " +
+            "FROM BranchInventory bi " +
+            "JOIN Branch b ON b.id = bi.branchId " +
+            "WHERE b.businessId = :businessId " +
+            "GROUP BY bi.productId")
+    List<Object[]> sumWeightByProductForBusiness(Long businessId);
+
+    // Sum total_weight_grams for a single product across all branches of a business
+    @Query("SELECT COALESCE(SUM(bi.totalWeightGrams), 0) " +
+            "FROM BranchInventory bi " +
+            "JOIN Branch b ON b.id = bi.branchId " +
+            "WHERE b.businessId = :businessId " +
+            "AND bi.productId = :productId")
+    Double sumWeightAcrossBranches(Long businessId, Long productId);
+
 }

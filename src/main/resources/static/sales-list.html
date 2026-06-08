@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
@@ -62,6 +62,27 @@
                 <a href="/sales-return.html" class="nav-item nav-child"><i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span></a>
             </div>
         </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
         <a href="/cash-sheet.html" class="nav-item">
             <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
         </a>
@@ -71,16 +92,31 @@
         <a href="/stock-adjustments.html" class="nav-item"><i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span></a>
         <a href="/stockout.html" class="nav-item"><i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span></a>
         <a href="/predictions.html" class="nav-item"><i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span></a>
-        <a href="/suppliers.html" class="nav-item"><i class="fas fa-truck"></i><span class="nav-label">Suppliers</span></a>
-        <a href="/purchase-orders.html" class="nav-item"><i class="fas fa-file-invoice"></i><span class="nav-label">Purchase Orders</span></a>
-        <a href="/returns.html" class="nav-item"><i class="fas fa-rotate-left"></i><span class="nav-label">Returns</span></a>
         <a href="/supplies.html" class="nav-item"><i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span></a>
         <a href="/stock-transfers.html" class="nav-item"><i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span></a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
         <div class="nav-group-label">Analytics</div>
         <a href="/report.html" class="nav-item"><i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span></a>
         <a href="/expenses.html" class="nav-item"><i class="fas fa-receipt"></i><span class="nav-label">Expenses</span></a>
-        <div class="nav-group-label">Customers</div>
-        <a href="/customers.html" class="nav-item"><i class="fas fa-user-group"></i><span class="nav-label">Customers</span></a>
         <div class="nav-group-label">Management</div>
         <a href="/branches.html" class="nav-item"><i class="fas fa-code-branch"></i><span class="nav-label">Branches</span></a>
         <div class="nav-group-label">Team</div>
@@ -358,7 +394,7 @@ function renderTable(rows, page) {
     }
     tbody.innerHTML = rows.map((tx, i) => {
         const sl     = page * pageSize + i + 1;
-        const date   = tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '–';
+        const date   = tx.createdAt ? Format.date(tx.createdAt) : '–';
         const inv    = tx.receiptNumber ? `<span class="receipt-badge">${tx.receiptNumber}</span>` : '–';
         const party  = tx.customerName  ? `<span class="cell-primary" style="font-size:var(--text-sm)">${escHtml(tx.customerName)}</span>` : '<span class="text-muted" style="font-size:var(--text-xs)">Walk-in</span>';
         const cashier= tx.cashierName   ? `<span style="font-size:var(--text-xs)">${escHtml(tx.cashierName)}</span>` : '<span class="text-muted">–</span>';
@@ -486,7 +522,7 @@ async function viewInvoice(receiptNumber) {
             <div style="text-align:center;margin-bottom:var(--space-4)">
                 <div style="font-weight:700;font-size:1rem;color:var(--text-primary)">${Auth.getBusinessName()}</div>
                 <div style="color:var(--text-muted);font-size:0.75rem">${tx.branchName||''}</div>
-                <div style="color:var(--text-muted);font-size:0.75rem">${tx.createdAt?new Date(tx.createdAt).toLocaleString():''}</div>
+                <div style="color:var(--text-muted);font-size:0.75rem">${tx.createdAt?Format.datetime(tx.createdAt):''}</div>
                 <div style="margin-top:var(--space-2)">Invoice: <strong style="color:var(--primary)">${tx.receiptNumber||'–'}</strong></div>
                 ${tx.customerName?`<div style="font-size:0.8rem;margin-top:2px">Customer: <strong>${escHtml(tx.customerName)}</strong></div>`:''}
                 ${tx.cashierName ?`<div style="font-size:0.75rem;color:var(--text-muted)">Cashier: ${escHtml(tx.cashierName)}</div>`:''}
@@ -557,7 +593,7 @@ function exportCSV() {
     const headers = ['#','Date','Invoice','Customer','Cashier','Payment','Total','Discount','Paid','Due','Status'];
     const rows = allData.map((tx,i)=>[
         i+1,
-        tx.createdAt ? new Date(tx.createdAt).toLocaleDateString('en-GB') : '',
+        tx.createdAt ? Format.date(tx.createdAt) : '',
         tx.receiptNumber||'',
         tx.customerName||'Walk-in',
         tx.cashierName||'',

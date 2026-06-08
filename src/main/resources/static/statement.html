@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Statement of Account – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        /* ── Statement table ─────────────────────────────────── */
+        .stmt-table { width:100%;border-collapse:collapse;font-size:var(--text-sm) }
+        .stmt-table th {
+            background:var(--surface-2);padding:10px 12px;text-align:right;
+            font-size:var(--text-xs);font-weight:700;color:var(--text-muted);
+            text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;
+            border-bottom:2px solid var(--border)
+        }
+        .stmt-table th:nth-child(1),
+        .stmt-table th:nth-child(2),
+        .stmt-table th:nth-child(3) { text-align:left }
+        .stmt-table td {
+            padding:9px 12px;border-bottom:1px solid var(--border);
+            text-align:right;vertical-align:middle;white-space:nowrap
+        }
+        .stmt-table td:nth-child(1),
+        .stmt-table td:nth-child(2) { text-align:left }
+        .stmt-table td:nth-child(3) {
+            text-align:left;max-width:280px;white-space:normal;line-height:1.4
+        }
+        .stmt-table tbody tr:hover td { background:rgba(99,102,241,.025) }
+
+        /* ── Special rows ────────────────────────────────────── */
+        .row-opening td { background:var(--surface-2);font-weight:600;border-bottom:2px solid var(--border) }
+        .row-closing td { background:var(--surface-2);font-weight:700;border-top:2px solid var(--border) }
+        .row-total   td { background:#f8fafc;font-weight:600;border-top:2px solid var(--border);border-bottom:2px solid var(--border) }
+
+        /* ── Balance coloring ────────────────────────────────── */
+        .bal-cr { color:#059669;font-weight:700 }
+        .bal-dr { color:#dc2626;font-weight:700 }
+        .cr-badge { display:inline-flex;align-items:center;padding:1px 5px;border-radius:3px;
+                    background:#dcfce7;color:#059669;font-size:0.62rem;font-weight:700;margin-left:3px }
+        .dr-badge { display:inline-flex;align-items:center;padding:1px 5px;border-radius:3px;
+                    background:#fee2e2;color:#dc2626;font-size:0.62rem;font-weight:700;margin-left:3px }
+
+        /* ── Voucher type chips ──────────────────────────────── */
+        .vtag { display:inline-block;padding:2px 7px;border-radius:4px;
+                font-size:0.63rem;font-weight:700;letter-spacing:.04em;white-space:nowrap }
+        .vtag-SAL { background:#e0e7ff;color:#3730a3 }
+        .vtag-PUR { background:#fef3c7;color:#92400e }
+        .vtag-REC { background:#dcfce7;color:#059669 }
+        .vtag-PAY { background:#fee2e2;color:#dc2626 }
+        .vtag-HPF { background:#f3e8ff;color:#7c3aed }
+        .vtag-SFX { background:#ede9fe;color:#6d28d9 }
+        .vtag-ADJ { background:#f3f4f6;color:#374151 }
+
+        /* ── Amount coloring ─────────────────────────────────── */
+        .amt-dr   { color:#dc2626 }
+        .amt-cr   { color:#059669 }
+        .amt-zero { color:var(--text-muted) }
+        .amt-metal{ color:#92400e }
+
+        /* ── Balance strip ───────────────────────────────────── */
+        .balance-strip {
+            display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+            padding:14px 20px;background:var(--surface-2);
+            border-radius:var(--radius-md);border:1px solid var(--border)
+        }
+        .bs-item { display:flex;flex-direction:column;gap:3px }
+        .bs-label { font-size:0.62rem;font-weight:700;text-transform:uppercase;
+                    letter-spacing:.07em;color:var(--text-muted) }
+        .bs-value { font-size:var(--text-sm);font-weight:700 }
+        .bs-divider { width:1px;height:36px;background:var(--border);flex-shrink:0 }
+
+        /* ── Print ───────────────────────────────────────────── */
+        @media print {
+            .sidebar, .topbar, #controlsPanel, #actionBar,
+            #balanceStrip, .modal-overlay, #emptyPlaceholder { display:none !important }
+            .main-content { margin-left:0 !important;padding:12px !important }
+            #printHeader  { display:block !important }
+            #statementCard{ display:block !important;border:none;box-shadow:none }
+            .stmt-table   { font-size:9.5pt }
+            .stmt-table th{ font-size:8pt }
+            .card-header  { display:none }
+            body          { background:#fff }
+            .cr-badge, .dr-badge { border:1px solid currentColor }
+        }
+        #printHeader {
+            display:none;padding:0 0 12px;border-bottom:2px solid #333;margin-bottom:16px;
+            font-family:'Inter',sans-serif
+        }
+        .ph-title    { font-size:14pt;font-weight:700;text-align:center;
+                       text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px }
+        .ph-subtitle { font-size:9pt;text-align:center;color:#666;margin-bottom:10px }
+        .ph-meta     { display:flex;justify-content:space-between;font-size:9pt;color:#333 }
+        .ph-meta strong { font-weight:700 }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SIDEBAR                                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span>
+        </a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
+        <a href="/cash-sheet.html" class="nav-item">
+            <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
+        </a>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i><span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item active">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label">Expenses</span>
+        </a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label">Branches</span>
+        </a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TOPBAR                                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Statement of Account</div>
+            <div class="page-breadcrumb">SmartPOS / Trading / Statement</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PRINT HEADER (screen: hidden; print: visible)              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div id="printHeader">
+    <div class="ph-title">Statement of Account</div>
+    <div class="ph-subtitle" id="phSubtitle">Party Ledger</div>
+    <div class="ph-meta">
+        <div>
+            <div id="phPartyCode" style="font-size:8pt;color:#888"></div>
+            <div id="phPartyName" style="font-size:12pt;font-weight:700"></div>
+            <div id="phPartyContact" style="color:#666;font-size:8.5pt"></div>
+        </div>
+        <div style="text-align:right">
+            <div>Period: <strong id="phPeriod">All dates</strong></div>
+            <div>Printed: <strong id="phPrinted"></strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT                                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<main class="main-content" id="mainContent">
+
+    <!-- ── Controls Panel ───────────────────────────────────── -->
+    <div class="card mb-5" id="controlsPanel">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-file-lines" style="color:var(--primary);margin-right:8px"></i>
+                Statement of Account
+            </span>
+        </div>
+        <div style="padding:var(--space-4)">
+            <div class="flex items-end gap-3 flex-wrap">
+                <div class="form-group" style="margin:0;flex:1;min-width:240px">
+                    <label class="form-label">Party</label>
+                    <select id="partySelect" class="form-control">
+                        <option value="">— Select a party —</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">From</label>
+                    <input type="date" id="dateFrom" class="form-control" style="width:155px">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">To</label>
+                    <input type="date" id="dateTo" class="form-control" style="width:155px">
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label" style="visibility:hidden">x</label>
+                    <button class="btn btn-primary" onclick="loadStatement()">
+                        <i class="fas fa-search"></i> Load Statement
+                    </button>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label" style="visibility:hidden">x</label>
+                    <button class="btn btn-secondary" onclick="clearAll()" title="Clear">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Action Bar (hidden until loaded) ─────────────────── -->
+    <div id="actionBar" style="display:none;margin-bottom:var(--space-4)">
+        <div class="flex items-center justify-between flex-wrap gap-3">
+            <div class="flex items-center gap-3">
+                <div class="stat-icon indigo"
+                     style="width:42px;height:42px;border-radius:var(--radius-lg);font-size:1rem;flex-shrink:0">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span id="abPartyName"
+                              style="font-size:var(--text-base);font-weight:700;color:var(--text-primary)"></span>
+                        <span id="abPartyCode" class="badge badge-primary"
+                              style="font-size:0.62rem;display:none"></span>
+                    </div>
+                    <div id="abPartyMeta"
+                         style="font-size:var(--text-xs);color:var(--text-muted);margin-top:1px"></div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2 flex-wrap">
+                <button class="btn btn-sm" style="background:#059669;border-color:#059669;color:#fff"
+                        onclick="openReceiptModal()">
+                    <i class="fas fa-arrow-circle-down"></i> Receipt
+                </button>
+                <button class="btn btn-sm" style="background:#f59e0b;border-color:#f59e0b;color:#fff"
+                        onclick="openPaymentModal()">
+                    <i class="fas fa-arrow-circle-up"></i> Payment
+                </button>
+                <div style="width:1px;height:26px;background:var(--border)"></div>
+                <button class="btn btn-secondary btn-sm" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print
+                </button>
+                <button class="btn btn-secondary btn-sm" onclick="exportCsv()">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Balance Strip (hidden until loaded) ──────────────── -->
+    <div id="balanceStrip" style="display:none;margin-bottom:var(--space-4)">
+        <div class="balance-strip">
+            <div class="bs-item">
+                <span class="bs-label">Opening (AED)</span>
+                <span id="bsOpening" class="bs-value">—</span>
+            </div>
+            <div class="bs-divider"></div>
+            <div class="bs-item">
+                <span class="bs-label">Period Debit</span>
+                <span id="bsTotalDr" class="bs-value amt-dr">—</span>
+            </div>
+            <div class="bs-item">
+                <span class="bs-label">Period Credit</span>
+                <span id="bsTotalCr" class="bs-value amt-cr">—</span>
+            </div>
+            <div class="bs-divider"></div>
+            <div class="bs-item">
+                <span class="bs-label">Closing (AED)</span>
+                <span id="bsClosing" class="bs-value" style="font-size:var(--text-base)">—</span>
+            </div>
+            <div class="bs-divider"></div>
+            <div class="bs-item">
+                <span class="bs-label">Metal Balance</span>
+                <span id="bsMetal" class="bs-value amt-metal">—</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Statement Table ──────────────────────────────────── -->
+    <div class="card" id="statementCard" style="display:none">
+        <div class="table-wrap" style="overflow-x:auto">
+            <table class="stmt-table" id="stmtTable">
+                <thead>
+                <tr>
+                    <th style="width:82px">Date</th>
+                    <th style="width:100px">Voucher</th>
+                    <th>Narration</th>
+                    <th style="width:115px">Dr&nbsp;(AED)</th>
+                    <th style="width:115px">Cr&nbsp;(AED)</th>
+                    <th style="width:145px">Balance&nbsp;(AED)</th>
+                    <th style="width:85px">Metal&nbsp;Dr&nbsp;(g)</th>
+                    <th style="width:85px">Metal&nbsp;Cr&nbsp;(g)</th>
+                    <th style="width:110px">Metal&nbsp;Bal&nbsp;(g)</th>
+                </tr>
+                </thead>
+                <tbody id="stmtBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ── Empty Placeholder ────────────────────────────────── -->
+    <div id="emptyPlaceholder" class="card">
+        <div style="padding:56px 0;text-align:center">
+            <div style="font-size:2.8rem;color:var(--border);margin-bottom:14px">
+                <i class="fas fa-file-lines"></i>
+            </div>
+            <div style="font-size:var(--text-base);font-weight:600;color:var(--text-secondary);margin-bottom:6px">
+                No Statement Loaded
+            </div>
+            <div style="font-size:var(--text-sm);color:var(--text-muted)">
+                Select a party and click <strong>Load Statement</strong> to view their ledger.
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- RECEIPT MODAL                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="receiptModal">
+    <div class="modal" style="max-width:430px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-arrow-circle-down" style="color:#059669;margin-right:6px"></i>
+                Record Receipt
+            </span>
+            <button class="modal-close" onclick="Modal.close('receiptModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex items-center gap-2 mb-4"
+                 style="padding:10px 14px;background:#dcfce7;border-radius:var(--radius-md);
+                        border:1px solid #86efac;font-size:var(--text-sm)">
+                <i class="fas fa-circle-info" style="color:#059669;flex-shrink:0"></i>
+                <span style="color:#059669;font-weight:500">
+                    <strong id="rcptPartyName"></strong> paid you →
+                    reduces their outstanding balance
+                </span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount Received (AED) *</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-coins input-icon"></i>
+                    <input type="number" id="rcptAmount" class="form-control"
+                           placeholder="0.00" step="0.01" min="0.01">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" id="rcptDate" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Mode</label>
+                    <select id="rcptMode" class="form-control">
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Card">Card</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label class="form-label">Notes (optional)</label>
+                <input type="text" id="rcptNotes" class="form-control"
+                       placeholder="e.g. Cheque #12345, Ref: TXN-ABC">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('receiptModal')">Cancel</button>
+            <button class="btn" style="background:#059669;border-color:#059669;color:#fff"
+                    onclick="submitReceipt()">
+                <i class="fas fa-check"></i> Save Receipt
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PAYMENT MODAL                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="paymentModal">
+    <div class="modal" style="max-width:430px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-arrow-circle-up" style="color:#f59e0b;margin-right:6px"></i>
+                Record Payment
+            </span>
+            <button class="modal-close" onclick="Modal.close('paymentModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="flex items-center gap-2 mb-4"
+                 style="padding:10px 14px;background:#fef3c7;border-radius:var(--radius-md);
+                        border:1px solid #fcd34d;font-size:var(--text-sm)">
+                <i class="fas fa-circle-info" style="color:#f59e0b;flex-shrink:0"></i>
+                <span style="color:#92400e;font-weight:500">
+                    You paid <strong id="pmtPartyName"></strong> →
+                    reduces your outstanding balance
+                </span>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Amount Paid (AED) *</label>
+                <div class="input-icon-wrap">
+                    <i class="fas fa-coins input-icon"></i>
+                    <input type="number" id="pmtAmount" class="form-control"
+                           placeholder="0.00" step="0.01" min="0.01">
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Date</label>
+                    <input type="date" id="pmtDate" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Payment Mode</label>
+                    <select id="pmtMode" class="form-control">
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Cheque">Cheque</option>
+                        <option value="Card">Card</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group" style="margin:0">
+                <label class="form-label">Notes (optional)</label>
+                <input type="text" id="pmtNotes" class="form-control"
+                       placeholder="e.g. Cheque #12345, Ref: TXN-ABC">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('paymentModal')">Cancel</button>
+            <button class="btn" style="background:#f59e0b;border-color:#f59e0b;color:#fff"
+                    onclick="submitPayment()">
+                <i class="fas fa-check"></i> Save Payment
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    // ── State ────────────────────────────────────────────────
+    let allParties    = [];
+    let selectedParty = null;
+    let statementData = null;
+
+    const LEDGER_API = '/api/party-ledger';
+    const PARTY_API  = '/api/suppliers';
+
+    // ── Init ─────────────────────────────────────────────────
+    async function init() {
+        setAvatarInitials('userAvatar', Auth.getUserName());
+        setDefaultDates();
+        await loadParties();
+        checkUrlParams();
+    }
+
+    function setDefaultDates() {
+        const today = new Date();
+        const first = new Date(today.getFullYear(), today.getMonth(), 1);
+        document.getElementById('dateFrom').value = toIsoDate(first);
+        document.getElementById('dateTo').value   = toIsoDate(today);
+    }
+
+    async function loadParties() {
+        try {
+            allParties = await API.get(`${PARTY_API}/all`);
+            buildPartySelect();
+        } catch (e) {
+            Toast.error('Failed to load parties.');
+        }
+    }
+
+    function buildPartySelect() {
+        const sel  = document.getElementById('partySelect');
+        const both = allParties.filter(p => p.isSupplier && p.isCustomer);
+        const sup  = allParties.filter(p => p.isSupplier && !p.isCustomer);
+        const cus  = allParties.filter(p => p.isCustomer && !p.isSupplier);
+
+        const opt = p =>
+            `<option value="${p.id}">${esc(p.name)}${p.partyCode ? '  ['+p.partyCode+']' : ''}</option>`;
+
+        let html = '<option value="">— Select a party —</option>';
+        if (both.length) html += `<optgroup label="Supplier &amp; Customer">${both.map(opt).join('')}</optgroup>`;
+        if (sup.length)  html += `<optgroup label="Suppliers">${sup.map(opt).join('')}</optgroup>`;
+        if (cus.length)  html += `<optgroup label="Customers">${cus.map(opt).join('')}</optgroup>`;
+        sel.innerHTML = html;
+    }
+
+    function checkUrlParams() {
+        const p = new URLSearchParams(window.location.search);
+        if (p.get('partyId')) {
+            document.getElementById('partySelect').value = p.get('partyId');
+            if (p.get('from')) document.getElementById('dateFrom').value = p.get('from');
+            if (p.get('to'))   document.getElementById('dateTo').value   = p.get('to');
+            loadStatement();
+        }
+    }
+
+    // ── Load Statement ───────────────────────────────────────
+    async function loadStatement() {
+        const partyId = document.getElementById('partySelect').value;
+        if (!partyId) { Toast.warning('Please select a party first.'); return; }
+
+        selectedParty = allParties.find(p => String(p.id) === String(partyId));
+        if (!selectedParty) { Toast.error('Party not found.'); return; }
+
+        const from  = document.getElementById('dateFrom').value;
+        const to    = document.getElementById('dateTo').value;
+        const bizId = getBizId();
+
+        let url = `${LEDGER_API}/${partyId}/statement?businessId=${bizId}`;
+        if (from) url += `&dateFrom=${from}`;
+        if (to)   url += `&dateTo=${to}`;
+
+        try {
+            statementData = await API.get(url);
+            renderStatement(statementData, from, to);
+        } catch (e) {
+            Toast.error(e.message || 'Failed to load statement.');
+        }
+    }
+
+    function clearAll() {
+        selectedParty = null;
+        statementData = null;
+        document.getElementById('partySelect').value = '';
+        setDefaultDates();
+        document.getElementById('actionBar').style.display     = 'none';
+        document.getElementById('balanceStrip').style.display  = 'none';
+        document.getElementById('statementCard').style.display = 'none';
+        document.getElementById('emptyPlaceholder').style.display = '';
+    }
+
+    // ── Render ───────────────────────────────────────────────
+    function renderStatement(data, from, to) {
+        document.getElementById('emptyPlaceholder').style.display = 'none';
+        document.getElementById('statementCard').style.display    = 'block';
+        document.getElementById('actionBar').style.display        = 'flex';
+        document.getElementById('balanceStrip').style.display     = 'block';
+
+        // Action bar — party info
+        document.getElementById('abPartyName').textContent = selectedParty.name;
+        const codeEl = document.getElementById('abPartyCode');
+        if (selectedParty.partyCode) {
+            codeEl.textContent    = selectedParty.partyCode;
+            codeEl.style.display  = '';
+        } else {
+            codeEl.style.display  = 'none';
+        }
+        const types = [];
+        if (selectedParty.isSupplier) types.push('Supplier');
+        if (selectedParty.isCustomer) types.push('Customer');
+        document.getElementById('abPartyMeta').textContent =
+            types.join(' & ') + (selectedParty.phone ? ' · ' + selectedParty.phone : '');
+
+        // Balance strip
+        el('bsOpening').innerHTML = fmtBalBadge(data.openingAedBalance, data.openingAedType);
+        el('bsTotalDr').textContent = 'AED ' + fmtNum(data.totalAedDebit);
+        el('bsTotalCr').textContent = 'AED ' + fmtNum(data.totalAedCredit);
+        el('bsClosing').innerHTML   = fmtBalBadge(data.closingAedBalance, data.closingAedType, true);
+        const mBal = Number(data.closingMetalBalance || 0);
+        el('bsMetal').textContent   =
+            fmtGrams(mBal) + 'g ' + (data.closingMetalType || '');
+
+        // Table
+        const rows = [];
+        rows.push(openingRow(data));
+        (data.entries || []).forEach(e => rows.push(entryRow(e)));
+        rows.push(totalsRow(data));
+        rows.push(closingRow(data));
+        el('stmtBody').innerHTML = rows.join('');
+
+        // Print header
+        el('phPartyCode').textContent = selectedParty.partyCode ? 'Code: ' + selectedParty.partyCode : '';
+        el('phPartyName').textContent = selectedParty.name;
+        el('phPartyContact').textContent =
+            [selectedParty.phone, selectedParty.email, selectedParty.address]
+                .filter(Boolean).join(' | ');
+        const period = (from || to)
+            ? (from ? fmtShort(from) : 'Start') + ' – ' + (to ? fmtShort(to) : 'Today')
+            : 'All Dates';
+        el('phPeriod').textContent  = period;
+        el('phPrinted').textContent = new Date().toLocaleDateString('en-GB',
+            { day:'2-digit', month:'short', year:'numeric' });
+        el('phSubtitle').textContent = selectedParty.name + ' — Party Ledger Statement';
+    }
+
+    // ── Row builders ─────────────────────────────────────────
+    function openingRow(data) {
+        const aed  = Number(data.openingAedBalance  || 0);
+        const met  = Number(data.openingMetalBalance || 0);
+        return `<tr class="row-opening">
+            <td></td><td></td>
+            <td><span class="text-xs text-muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.05em">Opening Balance</span></td>
+            <td></td><td></td>
+            <td>${aed === 0 ? zeroCell() : fmtBalCell(aed, data.openingAedType)}</td>
+            <td></td><td></td>
+            <td>${met === 0 ? zeroCell() : fmtMetalCell(met, data.openingMetalType)}</td>
+        </tr>`;
+    }
+
+    function entryRow(e) {
+        const dr  = Number(e.aedDebit   || 0);
+        const cr  = Number(e.aedCredit  || 0);
+        const mdr = Number(e.metalDebit  || 0);
+        const mcr = Number(e.metalCredit || 0);
+        const rb  = Number(e.aedRunningBalance   || 0);
+        const rm  = Number(e.metalRunningBalance || 0);
+        const vt  = (e.voucherType || 'ADJ').replace(/[^A-Z]/g, '');
+
+        return `<tr>
+            <td class="text-muted" style="font-size:0.75rem">${fmtShort(e.voucherDate)}</td>
+            <td><span class="vtag vtag-${vt}">${esc(e.voucherNumber || '')}</span></td>
+            <td style="color:var(--text-secondary);font-size:var(--text-xs)">${esc(e.narration || '')}</td>
+            <td>${dr  > 0 ? `<span class="amt-dr">${fmtNum(dr)}</span>`  : zeroCell()}</td>
+            <td>${cr  > 0 ? `<span class="amt-cr">${fmtNum(cr)}</span>`  : zeroCell()}</td>
+            <td>${fmtBalCell(rb, e.aedBalanceType)}</td>
+            <td>${mdr > 0 ? `<span class="amt-metal">${fmtGrams(mdr)}</span>` : zeroCell()}</td>
+            <td>${mcr > 0 ? `<span class="amt-metal">${fmtGrams(mcr)}</span>` : zeroCell()}</td>
+            <td>${rm  === 0 ? zeroCell() : fmtMetalCell(rm, e.metalBalanceType)}</td>
+        </tr>`;
+    }
+
+    function totalsRow(data) {
+        return `<tr class="row-total">
+            <td colspan="3" style="text-align:left;font-size:var(--text-xs);font-weight:700;
+                text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Period Totals</td>
+            <td><span class="amt-dr" style="font-weight:700">${fmtNum(data.totalAedDebit)}</span></td>
+            <td><span class="amt-cr" style="font-weight:700">${fmtNum(data.totalAedCredit)}</span></td>
+            <td></td>
+            <td><span class="amt-metal">${fmtGrams(data.totalMetalDebit)}</span></td>
+            <td><span class="amt-metal">${fmtGrams(data.totalMetalCredit)}</span></td>
+            <td></td>
+        </tr>`;
+    }
+
+    function closingRow(data) {
+        const aed = Number(data.closingAedBalance  || 0);
+        const met = Number(data.closingMetalBalance || 0);
+        return `<tr class="row-closing">
+            <td></td><td></td>
+            <td><span class="text-xs text-muted" style="font-weight:700;text-transform:uppercase;letter-spacing:.05em">Closing Balance</span></td>
+            <td></td><td></td>
+            <td>${aed === 0 ? zeroCell() : fmtBalCell(aed, data.closingAedType, true)}</td>
+            <td></td><td></td>
+            <td>${met === 0 ? zeroCell() : fmtMetalCell(met, data.closingMetalType)}</td>
+        </tr>`;
+    }
+
+    // ── Format helpers ───────────────────────────────────────
+    function fmtNum(v) {
+        return Number(v || 0).toLocaleString('en-AE',
+            { minimumFractionDigits:2, maximumFractionDigits:2 });
+    }
+    function fmtGrams(v) {
+        return Number(v || 0).toLocaleString('en-AE',
+            { minimumFractionDigits:3, maximumFractionDigits:3 });
+    }
+    function fmtBalCell(amount, type, large) {
+        const n = Number(amount || 0);
+        if (n === 0) return zeroCell();
+        const cls   = type === 'CR' ? 'bal-cr' : 'bal-dr';
+        const badge = type === 'CR'
+            ? '<span class="cr-badge">CR</span>'
+            : '<span class="dr-badge">DR</span>';
+        const sz = large ? 'font-size:var(--text-base)' : '';
+        return `<span class="${cls}" style="${sz}">${fmtNum(n)}</span>${badge}`;
+    }
+    function fmtMetalCell(amount, type) {
+        const n = Number(amount || 0);
+        if (n === 0) return zeroCell();
+        const badge = type === 'DR'
+            ? '<span class="dr-badge">DR</span>'
+            : '<span class="cr-badge">CR</span>';
+        return `<span class="amt-metal">${fmtGrams(n)}g</span>${badge}`;
+    }
+    function fmtBalBadge(amount, type, large) {
+        const n = Number(amount || 0);
+        if (n === 0) return '<span class="text-muted" style="font-weight:500">NIL</span>';
+        const cls   = type === 'CR' ? 'amt-cr' : 'amt-dr';
+        const badge = type === 'CR'
+            ? '<span class="cr-badge">CR</span>'
+            : '<span class="dr-badge">DR</span>';
+        const sz = large ? 'font-size:var(--text-base)' : 'font-size:var(--text-sm)';
+        return `<span class="${cls}" style="${sz};font-weight:700">AED ${fmtNum(n)}</span>${badge}`;
+    }
+    function zeroCell() {
+        return '<span class="amt-zero">—</span>';
+    }
+    function fmtShort(s) {
+        if (!s) return '';
+        const d = new Date(s);
+        if (isNaN(d)) return String(s).substring(0, 10);
+        return d.toLocaleDateString('en-GB',
+            { day:'2-digit', month:'short', year:'2-digit' });
+    }
+    function toIsoDate(d) {
+        return d.toISOString().substring(0, 10);
+    }
+    function el(id) { return document.getElementById(id); }
+    function esc(s) {
+        return String(s || '').replace(/[&<>"']/g,
+            c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+    function getBizId() {
+        return API._headers ? API._headers()['X-Business-Id'] : null;
+    }
+    function getBranchId() {
+        return API._headers ? API._headers()['X-Branch-Id'] : null;
+    }
+
+    // ── Receipt ──────────────────────────────────────────────
+    function openReceiptModal() {
+        if (!selectedParty) return;
+        el('rcptPartyName').textContent = selectedParty.name;
+        el('rcptAmount').value = '';
+        el('rcptDate').value   = toIsoDate(new Date());
+        el('rcptMode').value   = 'Cash';
+        el('rcptNotes').value  = '';
+        Modal.open('receiptModal');
+    }
+
+    async function submitReceipt() {
+        const amount = parseFloat(el('rcptAmount').value);
+        if (!amount || amount <= 0) { Toast.error('Enter a valid amount.'); return; }
+
+        const mode  = el('rcptMode').value;
+        const notes = el('rcptNotes').value.trim();
+
+        const body = {
+            businessId: parseInt(getBizId()),
+            branchId:   getBranchId() ? parseInt(getBranchId()) : null,
+            amount,
+            partyName:  selectedParty.name,
+            date:       el('rcptDate').value || null,
+            createdBy:  Auth.getUserName() || 'user'
+        };
+        if (notes || mode) body.notes = [mode, notes].filter(Boolean).join(' – ');
+
+        try {
+            await API.post(`${LEDGER_API}/${selectedParty.id}/receipt`, body);
+            Toast.success(`Receipt of AED ${fmtNum(amount)} recorded.`);
+            Modal.close('receiptModal');
+            loadStatement();
+        } catch (e) {
+            Toast.error(e.message || 'Failed to save receipt.');
+        }
+    }
+
+    // ── Payment ──────────────────────────────────────────────
+    function openPaymentModal() {
+        if (!selectedParty) return;
+        el('pmtPartyName').textContent = selectedParty.name;
+        el('pmtAmount').value = '';
+        el('pmtDate').value   = toIsoDate(new Date());
+        el('pmtMode').value   = 'Cash';
+        el('pmtNotes').value  = '';
+        Modal.open('paymentModal');
+    }
+
+    async function submitPayment() {
+        const amount = parseFloat(el('pmtAmount').value);
+        if (!amount || amount <= 0) { Toast.error('Enter a valid amount.'); return; }
+
+        const mode  = el('pmtMode').value;
+        const notes = el('pmtNotes').value.trim();
+
+        const body = {
+            businessId: parseInt(getBizId()),
+            branchId:   getBranchId() ? parseInt(getBranchId()) : null,
+            amount,
+            partyName:  selectedParty.name,
+            date:       el('pmtDate').value || null,
+            createdBy:  Auth.getUserName() || 'user'
+        };
+        if (notes || mode) body.notes = [mode, notes].filter(Boolean).join(' – ');
+
+        try {
+            await API.post(`${LEDGER_API}/${selectedParty.id}/payment`, body);
+            Toast.success(`Payment of AED ${fmtNum(amount)} recorded.`);
+            Modal.close('paymentModal');
+            loadStatement();
+        } catch (e) {
+            Toast.error(e.message || 'Failed to save payment.');
+        }
+    }
+
+    // ── CSV Export ───────────────────────────────────────────
+    function exportCsv() {
+        if (!statementData || !selectedParty) {
+            Toast.warning('Load a statement first.');
+            return;
+        }
+        const from = el('dateFrom').value || 'All';
+        const to   = el('dateTo').value   || 'Today';
+        const rows = [];
+
+        rows.push(['STATEMENT OF ACCOUNT']);
+        rows.push([`Party: ${selectedParty.name}`,
+                   `Code: ${selectedParty.partyCode || ''}`,
+                   `Period: ${from} to ${to}`]);
+        rows.push([]);
+        rows.push(['Date','Voucher','Narration',
+                   'Dr (AED)','Cr (AED)','Balance (AED)','Bal Type',
+                   'Metal Dr (g)','Metal Cr (g)','Metal Bal (g)','Metal Type']);
+
+        const n2 = v => Number(v||0).toFixed(2);
+        const n3 = v => Number(v||0).toFixed(3);
+
+        rows.push(['','','Opening Balance','','',
+            n2(statementData.openingAedBalance), statementData.openingAedType||'',
+            '','', n3(statementData.openingMetalBalance), statementData.openingMetalType||'']);
+
+        (statementData.entries||[]).forEach(e => {
+            rows.push([
+                e.voucherDate||'', e.voucherNumber||'', e.narration||'',
+                n2(e.aedDebit), n2(e.aedCredit),
+                n2(e.aedRunningBalance), e.aedBalanceType||'',
+                n3(e.metalDebit), n3(e.metalCredit),
+                n3(e.metalRunningBalance), e.metalBalanceType||''
+            ]);
+        });
+
+        rows.push(['','','TOTALS',
+            n2(statementData.totalAedDebit), n2(statementData.totalAedCredit),'','',
+            n3(statementData.totalMetalDebit), n3(statementData.totalMetalCredit),'','']);
+
+        rows.push(['','','Closing Balance','','',
+            n2(statementData.closingAedBalance), statementData.closingAedType||'',
+            '','', n3(statementData.closingMetalBalance), statementData.closingMetalType||'']);
+
+        const csv = rows.map(r => r.map(c => {
+            const s = String(c);
+            return (s.includes(',') || s.includes('"') || s.includes('\n'))
+                ? '"' + s.replace(/"/g,'""') + '"' : s;
+        }).join(',')).join('\n');
+
+        const blob = new Blob(['﻿' + csv], { type:'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `stmt_${selectedParty.partyCode || selectedParty.id}_${from}_${to}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+        Toast.success('Exported — open with Excel or Numbers.');
+    }
+
+    init();
+</script>
+</body>
+</html>

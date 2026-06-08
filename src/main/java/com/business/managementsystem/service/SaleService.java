@@ -11,9 +11,13 @@ import com.business.managementsystem.repository.BranchInventoryRepository;
 import com.business.managementsystem.repository.BranchRepository;
 import com.business.managementsystem.repository.ProductRepository;
 import com.business.managementsystem.repository.ReceiptSequenceRepository;
+import com.business.managementsystem.model.Customer;
+import com.business.managementsystem.model.Supplier;
+import com.business.managementsystem.repository.CustomerRepository;
 import com.business.managementsystem.repository.ReturnRepository;
 import com.business.managementsystem.repository.SaleRepository;
 import com.business.managementsystem.repository.SaleTransactionRepository;
+import com.business.managementsystem.repository.SupplierRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -27,6 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -48,6 +53,16 @@ public class SaleService {
 
     @Autowired
     private LoyaltyService loyaltyService;
+
+    @Lazy
+    @Autowired
+    private PartyLedgerService partyLedgerService;
+
+    @Autowired
+    private SupplierRepository supplierRepository;
+
+    @Autowired
+    private CustomerRepository customerRepository;
 
     public SaleService(SaleRepository saleRepository,
                        SaleTransactionRepository txRepository,
@@ -138,7 +153,9 @@ public class SaleService {
                 if (inv.getQuantity() < quantity)
                     throw new RuntimeException("Insufficient stock for " + product.getName() +
                             ". Available: " + inv.getQuantity());
-                inv.setQuantity(inv.getQuantity() - quantity);
+                inv.setQuantity(BigDecimal.valueOf(inv.getQuantity())
+                        .subtract(BigDecimal.valueOf(quantity))
+                        .setScale(4, RoundingMode.HALF_UP).doubleValue());
                 branchInventoryRepository.save(inv);
                 double total = branchInventoryRepository.getTotalQuantityAcrossBranches(businessId, productId);
                 product.setQuantity(total);
@@ -147,7 +164,9 @@ public class SaleService {
                 if (product.getQuantity() < quantity)
                     throw new RuntimeException("Insufficient stock for " + product.getName() +
                             ". Available: " + product.getQuantity());
-                product.setQuantity(product.getQuantity() - quantity);
+                product.setQuantity(BigDecimal.valueOf(product.getQuantity())
+                        .subtract(BigDecimal.valueOf(quantity))
+                        .setScale(4, RoundingMode.HALF_UP).doubleValue());
                 productRepository.save(product);
             }
 
@@ -161,6 +180,9 @@ public class SaleService {
 
             Sale sale = new Sale(businessId, product, quantity, unitPrice);
             sale.setBranchId(branchId);
+            if (item.containsKey("scrapPurity") && item.get("scrapPurity") != null) {
+                sale.setScrapPurity(item.get("scrapPurity").toString());
+            }
             sales.add(sale);
         }
 
@@ -225,6 +247,12 @@ public class SaleService {
             sale.setPaymentMethod(paymentMethod);
             Sale saved = saleRepository.save(sale);
             saleItems.add(saleItemToMap(saved));
+        }
+
+        // ── Party ledger: post entry when sale is linked to a party ──
+        if (customerId != null) {
+            resolvePartyForSale(customerId, businessId).ifPresent(party ->
+                    partyLedgerService.postSaleEntry(savedTx, party));
         }
 
         String branchName = branchId != null
@@ -487,6 +515,7 @@ public class SaleService {
         m.put("totalAmount", s.getTotalAmount());
         m.put("receiptNumber", s.getReceiptNumber());
         m.put("transactionId", s.getTransactionId());
+        m.put("scrapPurity", s.getScrapPurity());
         return m;
     }
 
@@ -518,5 +547,25 @@ public class SaleService {
                 sale.getSaleDate(), sale.getReceiptNumber(), sale.getBranchId(),
                 sale.getCashierName(), sale.getPaymentMethod()
         );
+    }
+
+    /**
+     * Resolves the Supplier (party) record for a sale's customerId.
+     *
+     * Convention:
+     *   customerId < 0  → the "customer" is stored in the supplier table with id = -customerId
+     *   customerId > 0  → standard Customer; if it has a linkedSupplierId, return that Supplier
+     */
+    private Optional<Supplier> resolvePartyForSale(Long customerId, Long businessId) {
+        if (customerId == null) return Optional.empty();
+        if (customerId < 0) {
+            // Negative ID namespace: supplier-backed customer
+            return supplierRepository.findByIdAndBusinessId(-customerId, businessId);
+        }
+        // Positive ID: look up regular Customer and follow the linkedSupplierId link
+        return customerRepository.findByIdAndBusinessId(customerId, businessId)
+                .map(Customer::getLinkedSupplierId)
+                .filter(sid -> sid != null)
+                .flatMap(sid -> supplierRepository.findByIdAndBusinessId(sid, businessId));
     }
 }

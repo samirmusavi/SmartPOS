@@ -3,11 +3,13 @@ package com.business.managementsystem.service;
 import com.business.managementsystem.model.CashDaySheet;
 import com.business.managementsystem.model.CashEntry;
 import com.business.managementsystem.model.Expense;
+import com.business.managementsystem.model.Purchase;
 import com.business.managementsystem.model.Return;
 import com.business.managementsystem.model.SaleTransaction;
 import com.business.managementsystem.repository.CashDaySheetRepository;
 import com.business.managementsystem.repository.CashEntryRepository;
 import com.business.managementsystem.repository.ExpenseRepository;
+import com.business.managementsystem.repository.PurchaseRepository;
 import com.business.managementsystem.repository.ReturnRepository;
 import com.business.managementsystem.repository.SaleTransactionRepository;
 import org.apache.poi.ss.usermodel.*;
@@ -31,22 +33,25 @@ import java.util.Map;
 @Service
 public class CashSheetService {
 
-    private final CashDaySheetRepository daySheetRepo;
-    private final CashEntryRepository    entryRepo;
+    private final CashDaySheetRepository    daySheetRepo;
+    private final CashEntryRepository       entryRepo;
     private final SaleTransactionRepository txRepo;
-    private final ExpenseRepository      expenseRepo;
-    private final ReturnRepository       returnRepo;
+    private final ExpenseRepository         expenseRepo;
+    private final ReturnRepository          returnRepo;
+    private final PurchaseRepository        purchaseRepo;
 
     public CashSheetService(CashDaySheetRepository daySheetRepo,
                             CashEntryRepository entryRepo,
                             SaleTransactionRepository txRepo,
                             ExpenseRepository expenseRepo,
-                            ReturnRepository returnRepo) {
+                            ReturnRepository returnRepo,
+                            PurchaseRepository purchaseRepo) {
         this.daySheetRepo = daySheetRepo;
         this.entryRepo    = entryRepo;
         this.txRepo       = txRepo;
         this.expenseRepo  = expenseRepo;
         this.returnRepo   = returnRepo;
+        this.purchaseRepo = purchaseRepo;
     }
 
     // ── Get or create the day sheet for a given date ──────────────
@@ -108,7 +113,8 @@ public class CashSheetService {
         entryRepo.deleteSyncedEntriesByDate(businessId, branchId, date,
                 List.of(CashEntry.EntryType.SALE,
                         CashEntry.EntryType.EXPENSE,
-                        CashEntry.EntryType.RETURN));
+                        CashEntry.EntryType.RETURN,
+                        CashEntry.EntryType.PURCHASE));
 
         LocalDateTime from = date.atStartOfDay();
         LocalDateTime to   = date.plusDays(1).atStartOfDay();
@@ -160,6 +166,21 @@ public class CashSheetService {
                     r.getProductName(), desc,
                     BigDecimal.ZERO, r.getRefundAmount(),
                     CashEntry.EntryType.RETURN, r.getId(),
+                    seq++, null));
+        }
+
+        // ── Cash purchases (payment out to supplier) ──────────────
+        List<Purchase> purchases = purchaseRepo
+                .findCashPurchasesByBranchAndDateRange(businessId, branchId, from, to);
+        for (Purchase pur : purchases) {
+            String party = pur.getSupplierName() != null ? pur.getSupplierName() : "Supplier";
+            String desc  = pur.getInvoiceNumber() != null ? pur.getInvoiceNumber() : "Purchase";
+
+            entryRepo.save(new CashEntry(
+                    businessId, branchId, date,
+                    party, desc,
+                    BigDecimal.ZERO, pur.getTotalAmount(),
+                    CashEntry.EntryType.PURCHASE, pur.getId(),
                     seq++, null));
         }
     }

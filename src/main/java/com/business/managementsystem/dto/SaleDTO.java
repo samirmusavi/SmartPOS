@@ -23,6 +23,9 @@ public class SaleDTO {
     private String unitType;
     private String purity;
 
+    // Scrap purity — set per-transaction for scrap items
+    private String scrapPurity;
+
     // Full constructor
     public SaleDTO(Long id, Long productId, String productName,
                    double quantitySold, BigDecimal priceAtSale,
@@ -65,6 +68,7 @@ public class SaleDTO {
     public String        getPaymentMethod() { return paymentMethod; }
     public String        getUnitType()      { return unitType; }
     public String        getPurity()        { return purity; }
+    public String        getScrapPurity()   { return scrapPurity; }
 
     // Setters
     public void setId(Long id)                      { this.id = id; }
@@ -80,4 +84,5 @@ public class SaleDTO {
     public void setPaymentMethod(String m)          { this.paymentMethod = m; }
     public void setUnitType(String unitType)         { this.unitType = unitType; }
     public void setPurity(String purity)             { this.purity = purity; }
+    public void setScrapPurity(String scrapPurity)   { this.scrapPurity = scrapPurity; }
 }

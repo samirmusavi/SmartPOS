@@ -44,6 +44,12 @@ public class ProductDTO {
     // URL path to product image — populated when returning data
     private String imagePath;
 
+    // True when this is a scrap gold/silver item — purity entered per-transaction
+    private boolean isScrap = false;
+
+    // Global total weight of all pieces in grams (PCS products only; null for GRAM products)
+    private Double totalWeightGrams;
+
     public ProductDTO() {}
 
     public ProductDTO(Long id, String name, String barcode,
@@ -109,4 +115,10 @@ public class ProductDTO {
 
     public String getImagePath() { return imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath; }
+
+    public boolean isScrap() { return isScrap; }
+    public void setScrap(boolean scrap) { this.isScrap = scrap; }
+
+    public Double getTotalWeightGrams() { return totalWeightGrams; }
+    public void setTotalWeightGrams(Double totalWeightGrams) { this.totalWeightGrams = totalWeightGrams; }
 }

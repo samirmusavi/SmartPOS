@@ -1,0 +1,836 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Purchase List – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        /* ── Status badges ──────────────────────────────────── */
+        .s-fully-paid     { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(34,197,94,0.12);color:#16a34a;border:1px solid rgba(34,197,94,0.25); }
+        .s-partial        { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(245,158,11,0.12);color:#d97706;border:1px solid rgba(245,158,11,0.25); }
+        .s-due            { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(239,68,68,0.12);color:#dc2626;border:1px solid rgba(239,68,68,0.25); }
+
+        /* ── Payment method pill ────────────────────────────── */
+        .pm-badge         { display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.68rem;font-weight:600;border:1px solid var(--border);color:var(--text-secondary);background:var(--surface-2); }
+        .pm-cash          { background:rgba(34,197,94,0.08); color:#15803d; border-color:rgba(34,197,94,0.25); }
+        .pm-bank          { background:rgba(99,102,241,0.08); color:var(--primary); border-color:rgba(99,102,241,0.25); }
+        .pm-cheque        { background:rgba(245,158,11,0.08); color:#b45309; border-color:rgba(245,158,11,0.25); }
+        .pm-gold          { background:rgba(234,179,8,0.12);  color:#92400e; border-color:rgba(234,179,8,0.35); }
+        .pm-credit        { background:rgba(239,68,68,0.08);  color:#dc2626; border-color:rgba(239,68,68,0.25); }
+
+        /* ── Invoice badge ──────────────────────────────────── */
+        .inv-badge        { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);border-radius:var(--radius-full);font-family:monospace;font-size:0.7rem;font-weight:700;color:var(--primary);white-space:nowrap; }
+
+        /* ── Filter bar ─────────────────────────────────────── */
+        .filter-bar { display:flex;gap:var(--space-3);align-items:center;flex-wrap:wrap;margin-bottom:var(--space-5); }
+        .filter-bar select,
+        .filter-bar input[type="text"] { height:36px;padding:0 var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);outline:none; }
+        .filter-bar select:focus,
+        .filter-bar input:focus { border-color:var(--primary); }
+        .custom-date-inputs { display:none;gap:var(--space-2);align-items:center; }
+        .custom-date-inputs.visible { display:flex; }
+        .custom-date-inputs input { height:36px;padding:0 var(--space-3);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);color:var(--text-primary);font-size:var(--text-sm);outline:none; }
+
+        /* ── Action button + dropdown ────────────────────────── */
+        .action-btn { background:none;border:1px solid var(--border);color:var(--text-muted);padding:4px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:0.8rem;transition:all .15s; }
+        .action-btn:hover { background:var(--surface-2);color:var(--text-primary); }
+        #globalActionDrop { display:none;position:fixed;background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius-md);min-width:175px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,0.22); }
+        .drop-item { display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:var(--text-sm);color:var(--text-secondary);cursor:pointer;transition:background .12s;white-space:nowrap; }
+        .drop-item:hover { background:var(--surface-2);color:var(--text-primary); }
+        .drop-item.danger { color:var(--danger); }
+        .drop-item.danger:hover { background:var(--danger-light); }
+
+        /* ── Pagination ─────────────────────────────────────── */
+        .pagination   { display:flex;gap:var(--space-2);align-items:center;margin-top:var(--space-5);justify-content:flex-end; }
+        .page-btn     { padding:4px 12px;border:1px solid var(--border);background:var(--surface-2);border-radius:var(--radius-sm);cursor:pointer;font-size:var(--text-sm);color:var(--text-secondary);transition:all .15s; }
+        .page-btn:hover   { background:var(--primary-light);color:var(--primary);border-color:rgba(99,102,241,0.3); }
+        .page-btn.active  { background:var(--primary);color:#fff;border-color:var(--primary); }
+        .page-btn:disabled{ opacity:.4;cursor:not-allowed; }
+
+        /* ── Detail modal items table ───────────────────────── */
+        .detail-table { width:100%;border-collapse:collapse;font-size:var(--text-xs); }
+        .detail-table th { font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);padding:var(--space-2) var(--space-3);text-align:left;border-bottom:1px solid var(--border);background:var(--surface-2); }
+        .detail-table td { padding:var(--space-2) var(--space-3);border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:middle; }
+        .detail-table tr:last-child td { border-bottom:none; }
+
+        /* ── Voucher print area ─────────────────────────────── */
+        @media print {
+            body > *:not(#voucherPrintArea) { display:none !important; }
+            #voucherPrintArea { display:block !important; padding:24px; }
+        }
+        #voucherPrintArea { display:none; }
+    </style>
+</head>
+<body>
+
+<!-- ══════════════════════ SIDEBAR ══════════════════════ -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item"><i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span></a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i><span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html"        class="nav-item nav-child"><i class="fas fa-cash-register"></i><span class="nav-label">POS</span></a>
+                <a href="/sales-list.html"   class="nav-item nav-child"><i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span></a>
+                <a href="/sales-return.html" class="nav-item nav-child"><i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span></a>
+            </div>
+        </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i><span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html"      class="nav-item nav-child"><i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span></a>
+                <a href="/purchase-list.html" class="nav-item nav-child active"><i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span></a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
+        <a href="/cash-sheet.html" class="nav-item"><i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span></a>
+        <a href="/products.html"   class="nav-item"><i class="fas fa-box-open"></i><span class="nav-label">Products</span></a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item"><i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span></a>
+        <a href="/stock-adjustments.html" class="nav-item"><i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span></a>
+        <a href="/stockout.html"          class="nav-item"><i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span></a>
+        <a href="/predictions.html"       class="nav-item"><i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span></a>
+        <a href="/supplies.html"          class="nav-item"><i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span></a>
+        <a href="/stock-transfers.html"   class="nav-item"><i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span></a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html"   class="nav-item"><i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span></a>
+        <a href="/expenses.html" class="nav-item"><i class="fas fa-receipt"></i><span class="nav-label">Expenses</span></a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item"><i class="fas fa-code-branch"></i><span class="nav-label">Branches</span></a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item"><i class="fas fa-users"></i><span class="nav-label">Staff</span></a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item"><i class="fas fa-cog"></i><span class="nav-label">Settings</span></a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i><span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- ══════════════════════ TOPBAR ══════════════════════ -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Purchase List</div>
+            <div class="page-breadcrumb">SmartPOS / Purchase / Purchase List</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">U</div>
+    </div>
+</header>
+
+<!-- ══════════════════════ MAIN ══════════════════════════ -->
+<main class="main-content" id="mainContent">
+
+    <!-- Filter bar -->
+    <div class="filter-bar">
+        <label style="font-size:var(--text-sm);color:var(--text-muted)">Show</label>
+        <select id="pageSizeSelect" onchange="onPageSizeChange()">
+            <option value="10">10</option>
+            <option value="20" selected>20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+
+        <div class="input-icon-wrap">
+            <i class="fas fa-search input-icon"></i>
+            <input type="text" id="searchInput" class="form-control"
+                placeholder="Search invoice or supplier…"
+                style="width:230px" oninput="debounceSearch()">
+        </div>
+
+        <select id="dateRangeSelect" onchange="onDateRangeChange()">
+            <option value="today" selected>Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="month">This Month</option>
+            <option value="last_month">Last Month</option>
+            <option value="year">This Year</option>
+            <option value="all">All Time</option>
+            <option value="custom">Custom Range</option>
+        </select>
+
+        <div class="custom-date-inputs" id="customDateInputs">
+            <input type="date" id="dateFrom">
+            <span style="color:var(--text-muted);font-size:var(--text-sm)">to</span>
+            <input type="date" id="dateTo">
+            <button class="btn btn-secondary btn-sm" onclick="loadPage(0)">Apply</button>
+        </div>
+
+        <div style="margin-left:auto;display:flex;gap:var(--space-2)">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV()" title="Export to CSV">
+                <i class="fas fa-file-csv"></i> Export
+            </button>
+            <a href="/purchase.html" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> New Purchase
+            </a>
+        </div>
+    </div>
+
+    <!-- Stat cards -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Purchases</div>
+                <div class="stat-icon indigo"><i class="fas fa-shopping-basket"></i></div>
+            </div>
+            <div class="stat-value" id="statCount">–</div>
+            <div class="stat-sub">In selected period</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Spent</div>
+                <div class="stat-icon red"><i class="fas fa-coins"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">–</div>
+            <div class="stat-sub">All purchases (AED)</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Paid</div>
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+            </div>
+            <div class="stat-value" id="statPaid">–</div>
+            <div class="stat-sub">Amount settled</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Due</div>
+                <div class="stat-icon amber"><i class="fas fa-clock"></i></div>
+            </div>
+            <div class="stat-value" id="statDue">–</div>
+            <div class="stat-sub">Outstanding balance</div>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card" style="padding:0;overflow:hidden">
+        <div class="table-wrap">
+            <table class="sp-table" id="purchaseTable">
+                <thead>
+                    <tr>
+                        <th style="width:44px">#</th>
+                        <th>Date</th>
+                        <th>Invoice</th>
+                        <th>Supplier</th>
+                        <th>Payment</th>
+                        <th style="text-align:center">Items</th>
+                        <th style="text-align:right">Total (AED)</th>
+                        <th style="text-align:right">Paid (AED)</th>
+                        <th style="text-align:right">Due (AED)</th>
+                        <th style="text-align:center">Status</th>
+                        <th style="text-align:center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="purchaseTbody">
+                    <tr><td colspan="11">
+                        <div class="empty-state">
+                            <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--primary)"></i>
+                        </div>
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" id="pagination"></div>
+
+</main>
+
+<!-- ══ GLOBAL ACTION DROPDOWN (appended to body) ══ -->
+<div id="globalActionDrop"></div>
+
+<!-- ══ DETAIL MODAL ══ -->
+<div class="modal-overlay" id="detailModal">
+    <div class="modal" style="max-width:680px;max-height:90vh;display:flex;flex-direction:column">
+        <div class="modal-header" style="flex-shrink:0">
+            <span class="modal-title">
+                <i class="fas fa-shopping-basket" style="color:var(--primary);margin-right:8px"></i>
+                Purchase Details
+            </span>
+            <button class="modal-close" onclick="Modal.close('detailModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="detailModalBody" style="overflow-y:auto;font-size:var(--text-sm)"></div>
+        <div class="modal-footer" style="flex-shrink:0">
+            <button class="btn btn-secondary" onclick="Modal.close('detailModal')">Close</button>
+            <button class="btn btn-secondary" onclick="printCurrentVoucher()"><i class="fas fa-print"></i> Print Voucher</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ DELETE CONFIRM MODAL ══ -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title" style="color:var(--danger)">
+                <i class="fas fa-triangle-exclamation" style="margin-right:8px"></i>Delete Purchase
+            </span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="color:var(--text-secondary);margin-bottom:var(--space-3)">
+                Are you sure you want to delete purchase <b id="deleteInvoiceLabel"></b>?
+            </p>
+            <p style="color:var(--danger);font-size:var(--text-xs)">
+                <i class="fas fa-exclamation-circle"></i>
+                This will permanently remove the purchase and reverse inventory changes. This action cannot be undone.
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" id="confirmDeleteBtn" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ PRINT AREA (hidden, used for voucher printing) ══ -->
+<div id="voucherPrintArea"></div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+/* ============================================================
+   purchase-list.html — JavaScript
+   ============================================================ */
+
+let currentPage   = 0;
+let totalPages    = 0;
+let pageSize      = 20;
+let searchTimer   = null;
+let currentData   = [];
+let openMenuIdx   = -1;
+let pendingDeleteId   = null;
+let currentDetailData = null;   // full purchase with items (for printing)
+
+/* ── Init ─────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    if (!Auth.requireClient()) return;
+    RoleGuard.guardCurrentPage();
+    RoleGuard.applyToSidebar();
+
+    const av = document.getElementById('userAvatar');
+    if (av) av.textContent = (Auth.getUserName() || 'U')[0].toUpperCase();
+
+    openPurchaseMenu();
+    loadPage(0);
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.action-btn') && !e.target.closest('#globalActionDrop')) {
+            closeMenu();
+        }
+    });
+});
+
+/* ── Sidebar helpers ──────────────────────────────────────── */
+function toggleSalesMenu() {
+    const c = document.getElementById('salesMenuChildren');
+    const v = document.getElementById('salesMenuChevron');
+    if (c) c.style.display = c.style.display === 'block' ? 'none' : 'block';
+    if (v) v.style.transform = c.style.display === 'block' ? 'rotate(180deg)' : '';
+}
+function togglePurchaseMenu() {
+    const c = document.getElementById('purchaseMenuChildren');
+    const v = document.getElementById('purchaseMenuChevron');
+    if (c) c.style.display = c.style.display === 'block' ? 'none' : 'block';
+    if (v) v.style.transform = c.style.display === 'block' ? 'rotate(180deg)' : '';
+}
+function openPurchaseMenu() {
+    const c = document.getElementById('purchaseMenuChildren');
+    const v = document.getElementById('purchaseMenuChevron');
+    if (c) c.style.display = 'block';
+    if (v) v.style.transform = 'rotate(180deg)';
+}
+
+/* ── Date range helpers ───────────────────────────────────── */
+function getDateRange() {
+    const sel = document.getElementById('dateRangeSelect').value;
+    const now = new Date();
+    const fmt = d => d.toISOString().slice(0, 10);
+    let from = null, to = null;
+    if      (sel === 'today')      { from = to = fmt(now); }
+    else if (sel === 'yesterday')  { const y = new Date(now); y.setDate(y.getDate()-1); from = to = fmt(y); }
+    else if (sel === '7days')      { const s = new Date(now); s.setDate(s.getDate()-6); from = fmt(s); to = fmt(now); }
+    else if (sel === '30days')     { const s = new Date(now); s.setDate(s.getDate()-29); from = fmt(s); to = fmt(now); }
+    else if (sel === 'month')      { from = fmt(new Date(now.getFullYear(), now.getMonth(), 1)); to = fmt(now); }
+    else if (sel === 'last_month') {
+        const m = now.getMonth() === 0 ? 11 : now.getMonth() - 1;
+        const y = now.getMonth() === 0 ? now.getFullYear()-1 : now.getFullYear();
+        from = fmt(new Date(y, m, 1)); to = fmt(new Date(y, m+1, 0));
+    }
+    else if (sel === 'year')   { from = `${now.getFullYear()}-01-01`; to = fmt(now); }
+    else if (sel === 'custom') { from = document.getElementById('dateFrom').value || null; to = document.getElementById('dateTo').value || null; }
+    return { from, to };
+}
+
+function onDateRangeChange() {
+    const sel = document.getElementById('dateRangeSelect').value;
+    document.getElementById('customDateInputs').classList.toggle('visible', sel === 'custom');
+    if (sel !== 'custom') loadPage(0);
+}
+function onPageSizeChange() { pageSize = parseInt(document.getElementById('pageSizeSelect').value); loadPage(0); }
+function debounceSearch()   { clearTimeout(searchTimer); searchTimer = setTimeout(() => loadPage(0), 350); }
+
+/* ── Load page ────────────────────────────────────────────── */
+async function loadPage(page) {
+    currentPage = page;
+    closeMenu();
+
+    const { from, to } = getDateRange();
+    const q = document.getElementById('searchInput').value.trim();
+
+    let url = `/api/purchases?page=${page}&size=${pageSize}`;
+    if (q)    url += `&search=${encodeURIComponent(q)}`;
+    if (from) url += `&dateFrom=${from}`;
+    if (to)   url += `&dateTo=${to}`;
+
+    setLoading(true);
+    try {
+        const data   = await API.get(url);
+        currentData  = data.content || [];
+        totalPages   = data.totalPages || 1;
+        renderTable(currentData, page);
+        renderPagination(page, totalPages);
+        updateStats(currentData, data.totalElements || 0);
+    } catch (e) {
+        document.getElementById('purchaseTbody').innerHTML = `
+            <tr><td colspan="11">
+                <div class="empty-state">
+                    <div class="empty-state-icon" style="background:var(--danger-light);color:var(--danger)"><i class="fas fa-exclamation-circle"></i></div>
+                    <div class="empty-state-title">Failed to load purchases</div>
+                    <div class="empty-state-text">${escHtml(e.message || 'Please check your connection.')}</div>
+                </div>
+            </td></tr>`;
+    } finally {
+        setLoading(false);
+    }
+}
+
+function setLoading(yes) {
+    if (yes) {
+        document.getElementById('purchaseTbody').innerHTML = `
+            <tr><td colspan="11">
+                <div class="empty-state" style="padding:var(--space-8)">
+                    <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--primary)"></i>
+                </div>
+            </td></tr>`;
+    }
+}
+
+/* ── Render table ─────────────────────────────────────────── */
+function renderTable(rows, page) {
+    const tbody = document.getElementById('purchaseTbody');
+    if (!rows.length) {
+        tbody.innerHTML = `
+            <tr><td colspan="11">
+                <div class="empty-state">
+                    <div class="empty-state-icon"><i class="fas fa-shopping-basket"></i></div>
+                    <div class="empty-state-title">No purchases found</div>
+                    <div class="empty-state-text">Try a different date range or search term, or <a href="/purchase.html" style="color:var(--primary)">record a new purchase</a>.</div>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = rows.map((pur, i) => {
+        const sl  = page * pageSize + i + 1;
+        const dt  = pur.purchaseDate
+            ? Format.date(pur.purchaseDate)
+            : (pur.createdAt ? Format.date(pur.createdAt) : '–');
+        const inv = pur.invoiceNumber
+            ? `<span class="inv-badge"><i class="fas fa-hashtag" style="font-size:0.6rem"></i>${escHtml(pur.invoiceNumber)}</span>`
+            : '–';
+        const supplier = pur.supplierName
+            ? `<span style="font-size:var(--text-sm);font-weight:500">${escHtml(pur.supplierName)}</span>`
+            : '<span style="color:var(--text-muted);font-size:var(--text-xs)">–</span>';
+        const pmClass  = { CASH:'pm-cash', BANK_TRANSFER:'pm-bank', CHEQUE:'pm-cheque', GOLD_EXCHANGE:'pm-gold', CREDIT:'pm-credit' }[pur.paymentMethod] || '';
+        const pmLabel  = { CASH:'Cash', BANK_TRANSFER:'Bank Transfer', CHEQUE:'Cheque', GOLD_EXCHANGE:'Gold Exchange', CREDIT:'Credit' }[pur.paymentMethod] || (pur.paymentMethod || '–');
+        const itemCount = pur.itemCount != null ? pur.itemCount : '–';
+        const due  = parseFloat(pur.dueAmount || 0);
+        const statusBadge = statusHtml(pur.status);
+
+        return `<tr>
+            <td style="color:var(--text-muted);font-size:var(--text-xs)">${sl}</td>
+            <td style="font-size:var(--text-xs);white-space:nowrap;color:var(--text-secondary)">${dt}</td>
+            <td>${inv}</td>
+            <td>${supplier}</td>
+            <td><span class="pm-badge ${pmClass}">${escHtml(pmLabel)}</span></td>
+            <td style="text-align:center;font-size:var(--text-xs);color:var(--text-muted)">${itemCount}</td>
+            <td style="text-align:right;font-weight:600;color:var(--text-primary)">${fmt(pur.totalAmount)}</td>
+            <td style="text-align:right;color:var(--success)">${fmt(pur.amountPaid)}</td>
+            <td style="text-align:right;color:${due > 0 ? 'var(--danger)' : 'var(--text-muted)'};font-weight:${due > 0 ? '600' : '400'}">${fmt(pur.dueAmount)}</td>
+            <td style="text-align:center">${statusBadge}</td>
+            <td style="text-align:center">
+                <button class="action-btn" onclick="toggleMenu(event, ${i})" title="Actions">
+                    <i class="fas fa-ellipsis-v"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+function statusHtml(s) {
+    if (s === 'FULLY_PAID')     return `<span class="s-fully-paid"><i class="fas fa-check-circle" style="font-size:0.6rem"></i> Paid</span>`;
+    if (s === 'PARTIALLY_PAID') return `<span class="s-partial"><i class="fas fa-clock" style="font-size:0.6rem"></i> Partial</span>`;
+    if (s === 'DUE')            return `<span class="s-due"><i class="fas fa-exclamation-circle" style="font-size:0.6rem"></i> Due</span>`;
+    return `<span class="pm-badge">${escHtml(s || '–')}</span>`;
+}
+
+/* ── Stats ────────────────────────────────────────────────── */
+function updateStats(rows, totalElements) {
+    const total = rows.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+    const paid  = rows.reduce((s, r) => s + parseFloat(r.amountPaid  || 0), 0);
+    const due   = rows.reduce((s, r) => s + parseFloat(r.dueAmount   || 0), 0);
+    document.getElementById('statCount').textContent = totalElements;
+    document.getElementById('statTotal').textContent = 'AED ' + fmt(total);
+    document.getElementById('statPaid').textContent  = 'AED ' + fmt(paid);
+    document.getElementById('statDue').textContent   = due > 0 ? 'AED ' + fmt(due) : '–';
+}
+
+/* ── Action dropdown ──────────────────────────────────────── */
+function toggleMenu(event, idx) {
+    event.stopPropagation();
+    if (openMenuIdx === idx) { closeMenu(); return; }
+    openMenuIdx = idx;
+    const pur = currentData[idx];
+    const btn = event.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const drop = document.getElementById('globalActionDrop');
+    drop.innerHTML = `
+        <div class="drop-item" onclick="viewDetail(${pur.id})">
+            <i class="fas fa-eye" style="width:16px;color:var(--primary)"></i> View Details
+        </div>
+        <div class="drop-item" onclick="printVoucher(${pur.id})">
+            <i class="fas fa-print" style="width:16px;color:var(--text-muted)"></i> Print Voucher
+        </div>
+        <div class="drop-item danger" onclick="openDeleteModal(${pur.id},'${escHtml(pur.invoiceNumber || String(pur.id))}')">
+            <i class="fas fa-trash" style="width:16px"></i> Delete
+        </div>`;
+    drop.style.display = 'block';
+    const dropW = 180;
+    let left = rect.right - dropW;
+    let top  = rect.bottom + 4;
+    if (left < 4) left = 4;
+    if (top + 140 > window.innerHeight) top = rect.top - 144;
+    drop.style.left = left + 'px';
+    drop.style.top  = top  + 'px';
+}
+
+function closeMenu() {
+    openMenuIdx = -1;
+    document.getElementById('globalActionDrop').style.display = 'none';
+}
+
+/* ── View detail ──────────────────────────────────────────── */
+async function viewDetail(id) {
+    closeMenu();
+    document.getElementById('detailModalBody').innerHTML =
+        '<div style="text-align:center;padding:var(--space-6)"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--primary)"></i></div>';
+    Modal.open('detailModal');
+
+    try {
+        const pur = await API.get(`/api/purchases/${id}`);
+        currentDetailData = pur;
+        renderDetailModal(pur);
+    } catch (e) {
+        document.getElementById('detailModalBody').innerHTML =
+            `<div class="empty-state"><div class="empty-state-title">Failed to load</div><div class="empty-state-text">${escHtml(e.message || '')}</div></div>`;
+    }
+}
+
+function renderDetailModal(pur) {
+    const items  = pur.items || [];
+    const dt     = pur.purchaseDate
+        ? Format.datetime(pur.purchaseDate)
+        : '–';
+    const pmLabel = { CASH:'Cash', BANK_TRANSFER:'Bank Transfer', CHEQUE:'Cheque', GOLD_EXCHANGE:'Gold Exchange', CREDIT:'Credit' }[pur.paymentMethod] || (pur.paymentMethod || '–');
+
+    const itemsHtml = items.length
+        ? `<table class="detail-table">
+            <thead><tr>
+                <th>#</th><th>Item</th><th>Purity</th><th>Type</th>
+                <th style="text-align:right">Qty / g</th>
+                <th>Pricing</th>
+                <th style="text-align:right">Unit Price (AED)</th>
+                <th style="text-align:right">Total (AED)</th>
+            </tr></thead>
+            <tbody>${items.map((item, i) => {
+                const qty = item.unitType === 'GRAM'
+                    ? `${parseFloat(item.weightGrams || item.quantity || 0).toFixed(3)} g`
+                    : `${parseFloat(item.quantity || 0)} pcs`;
+                const pricingLabel = { FIXED_PRICE:'Fixed', OZ_RATE:'Oz Rate', PER_GRAM:'Per Gram' }[item.pricingMethod] || (item.pricingMethod || '–');
+                const purityDisp = item.scrapPurity ? `${item.scrapPurity}/1000 <span style="font-size:0.6rem;color:var(--danger)">SCRAP</span>` : (escHtml(item.purity || '–'));
+                return `<tr>
+                    <td style="color:var(--text-muted)">${i+1}</td>
+                    <td style="font-weight:500">${escHtml(item.productName || '–')}</td>
+                    <td>${purityDisp}</td>
+                    <td><span style="font-size:0.65rem;color:var(--text-muted)">${escHtml(item.unitType || 'PCS')}</span></td>
+                    <td style="text-align:right">${qty}</td>
+                    <td style="font-size:0.65rem;color:var(--text-muted)">${pricingLabel}</td>
+                    <td style="text-align:right">${fmt(item.unitPrice)}</td>
+                    <td style="text-align:right;font-weight:600;color:var(--primary)">${fmt(item.totalPrice)}</td>
+                </tr>`;
+            }).join('')}
+            </tbody>
+        </table>`
+        : '<div style="color:var(--text-muted);font-size:var(--text-sm);padding:var(--space-4)">No items found.</div>';
+
+    const due = parseFloat(pur.dueAmount || 0);
+
+    document.getElementById('detailModalBody').innerHTML = `
+        <!-- Header info -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3);margin-bottom:var(--space-4)">
+            <div class="card" style="padding:var(--space-4)">
+                <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--space-2);text-transform:uppercase;font-weight:600">Purchase Info</div>
+                <div style="margin-bottom:6px"><span style="color:var(--text-muted);font-size:var(--text-xs)">Invoice:</span><br>
+                    <span class="inv-badge" style="margin-top:3px;display:inline-flex">${escHtml(pur.invoiceNumber || '–')}</span></div>
+                <div style="margin-bottom:4px;font-size:var(--text-xs)"><span style="color:var(--text-muted)">Date:</span> ${dt}</div>
+                <div style="font-size:var(--text-xs)"><span style="color:var(--text-muted)">Recorded by:</span> ${escHtml(pur.createdBy || '–')}</div>
+            </div>
+            <div class="card" style="padding:var(--space-4)">
+                <div style="font-size:var(--text-xs);color:var(--text-muted);margin-bottom:var(--space-2);text-transform:uppercase;font-weight:600">Payment</div>
+                <div style="margin-bottom:6px">${statusHtml(pur.status)}</div>
+                <div style="margin-bottom:4px;font-size:var(--text-xs)"><span style="color:var(--text-muted)">Method:</span> ${escHtml(pmLabel)}</div>
+                <div style="margin-bottom:4px;font-size:var(--text-xs)"><span style="color:var(--text-muted)">Supplier:</span> <b>${escHtml(pur.supplierName || '–')}</b></div>
+                <div style="font-size:var(--text-xs)"><span style="color:var(--text-muted)">Exchange Rate:</span> ${parseFloat(pur.exchangeRate || 3.674).toFixed(4)}</div>
+            </div>
+        </div>
+
+        <!-- Items table -->
+        <div style="overflow-x:auto;margin-bottom:var(--space-4)">
+            ${itemsHtml}
+        </div>
+
+        <!-- Totals -->
+        <div style="display:flex;justify-content:flex-end">
+            <div style="min-width:280px">
+                <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);padding:6px 0;border-bottom:1px solid var(--border)">
+                    <span style="color:var(--text-muted)">Total Amount</span>
+                    <b>AED ${fmt(pur.totalAmount)}</b>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);padding:6px 0;border-bottom:1px solid var(--border)">
+                    <span style="color:var(--text-muted)">Amount Paid</span>
+                    <span style="color:var(--success)">AED ${fmt(pur.amountPaid)}</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;font-size:var(--text-sm);padding:6px 0;border-bottom:1px solid var(--border)">
+                    <span style="color:var(--text-muted)">Due Amount</span>
+                    <span style="color:${due > 0 ? 'var(--danger)' : 'var(--text-muted)'}">AED ${fmt(pur.dueAmount)}</span>
+                </div>
+                ${pur.notes ? `<div style="font-size:var(--text-xs);color:var(--text-muted);padding-top:var(--space-2)"><i class="fas fa-sticky-note" style="margin-right:4px"></i>${escHtml(pur.notes)}</div>` : ''}
+            </div>
+        </div>`;
+}
+
+/* ── Print voucher ────────────────────────────────────────── */
+async function printVoucher(id) {
+    closeMenu();
+    let pur = currentDetailData && currentDetailData.id === id ? currentDetailData : null;
+    if (!pur) {
+        try { pur = await API.get(`/api/purchases/${id}`); }
+        catch (e) { Toast.error('Failed to load purchase for printing.'); return; }
+    }
+    buildAndPrintVoucher(pur);
+}
+
+function printCurrentVoucher() {
+    if (currentDetailData) buildAndPrintVoucher(currentDetailData);
+}
+
+function buildAndPrintVoucher(pur) {
+    const items = pur.items || [];
+    const dt    = pur.purchaseDate
+        ? Format.datetime(pur.purchaseDate) : '–';
+    const pmLabel = { CASH:'Cash', BANK_TRANSFER:'Bank Transfer', CHEQUE:'Cheque', GOLD_EXCHANGE:'Gold Exchange', CREDIT:'Credit' }[pur.paymentMethod] || (pur.paymentMethod || '–');
+
+    const itemsHtml = items.map(item => {
+        const qty = item.unitType === 'GRAM'
+            ? `${parseFloat(item.weightGrams || item.quantity || 0).toFixed(3)} g`
+            : `${parseFloat(item.quantity || 0)} pcs`;
+        const purity = item.scrapPurity ? `${item.scrapPurity}/1000` : (item.purity || '');
+        return `<div style="display:flex;justify-content:space-between;margin-bottom:4px;font-size:11px">
+            <span>${escHtml(item.productName)}${purity ? ' (' + escHtml(purity) + ')' : ''}<br>
+                <span style="font-size:9px;color:#666">${qty}</span></span>
+            <span style="font-weight:600">AED ${fmt(item.totalPrice)}</span>
+        </div>`;
+    }).join('');
+
+    const voucherHtml = `
+        <div style="font-family:'Courier New',monospace;font-size:12px;line-height:1.5;max-width:320px;margin:0 auto">
+            <div style="text-align:center;border-bottom:1px dashed #bbb;padding-bottom:10px;margin-bottom:10px">
+                <div style="font-size:14px;font-weight:700">${escHtml(Auth.getBusinessName())}</div>
+                <div style="font-size:11px;color:#666">${escHtml(Auth.getBranchName() || '')}</div>
+                <div style="font-size:10px;color:#888;margin-top:3px;font-style:italic">PURCHASE VOUCHER</div>
+            </div>
+            <div style="margin-bottom:8px;font-size:11px">
+                <div style="display:flex;justify-content:space-between"><b>Invoice:</b><span>${escHtml(pur.invoiceNumber || '–')}</span></div>
+                <div style="display:flex;justify-content:space-between"><b>Date:</b><span>${dt}</span></div>
+                <div style="display:flex;justify-content:space-between"><b>Supplier:</b><span>${escHtml(pur.supplierName || '–')}</span></div>
+                <div style="display:flex;justify-content:space-between"><b>Payment:</b><span>${pmLabel}</span></div>
+            </div>
+            <div style="border-top:1px dashed #bbb;border-bottom:1px dashed #bbb;padding:6px 0;margin-bottom:6px">
+                ${itemsHtml}
+            </div>
+            <div style="font-size:11px">
+                <div style="display:flex;justify-content:space-between"><span>Total:</span><b>AED ${fmt(pur.totalAmount)}</b></div>
+                <div style="display:flex;justify-content:space-between"><span>Paid:</span><span>AED ${fmt(pur.amountPaid)}</span></div>
+                ${parseFloat(pur.dueAmount || 0) > 0 ? `<div style="display:flex;justify-content:space-between;color:#e11d48"><span>Due:</span><b>AED ${fmt(pur.dueAmount)}</b></div>` : ''}
+            </div>
+            ${pur.notes ? `<div style="border-top:1px dashed #bbb;margin-top:8px;padding-top:6px;font-size:10px;color:#555">${escHtml(pur.notes)}</div>` : ''}
+            <div style="text-align:center;border-top:1px dashed #bbb;margin-top:8px;padding-top:6px;font-size:10px;color:#888">
+                Recorded by ${escHtml(pur.createdBy || '–')}
+            </div>
+        </div>`;
+
+    const w = window.open('', '_blank', 'width=400,height=620');
+    w.document.write(`<html><head><title>Purchase Voucher</title></head>
+        <body style="margin:0;padding:20px">
+            ${voucherHtml}
+            <script>window.onload = () => { window.print(); window.close(); }<\/script>
+        </body></html>`);
+    w.document.close();
+}
+
+/* ── Delete ───────────────────────────────────────────────── */
+function openDeleteModal(id, invoiceNumber) {
+    closeMenu();
+    pendingDeleteId = id;
+    document.getElementById('deleteInvoiceLabel').textContent = invoiceNumber;
+    Modal.open('deleteModal');
+}
+
+async function confirmDelete() {
+    if (!pendingDeleteId) return;
+    const btn = document.getElementById('confirmDeleteBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting…';
+
+    try {
+        await API.delete(`/api/purchases/${pendingDeleteId}`);
+        Modal.close('deleteModal');
+        Toast.success('Purchase deleted and inventory reversed.');
+        pendingDeleteId = null;
+        loadPage(currentPage);
+    } catch (e) {
+        const msg = e && e.error ? e.error : (e && e.message ? e.message : 'Delete failed.');
+        Toast.error(msg);
+        console.error('confirmDelete error:', e);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash"></i> Delete';
+    }
+}
+
+/* ── Pagination ───────────────────────────────────────────── */
+function renderPagination(cur, total) {
+    const el = document.getElementById('pagination');
+    if (total <= 1) { el.innerHTML = ''; return; }
+
+    let html = `<button class="page-btn" onclick="loadPage(${cur-1})" ${cur===0?'disabled':''}>
+        <i class="fas fa-chevron-left"></i></button>`;
+
+    const range = 2;
+    for (let i = 0; i < total; i++) {
+        if (i === 0 || i === total-1 || Math.abs(i - cur) <= range) {
+            html += `<button class="page-btn ${i===cur?'active':''}" onclick="loadPage(${i})">${i+1}</button>`;
+        } else if (Math.abs(i - cur) === range + 1) {
+            html += `<span style="color:var(--text-muted);padding:0 4px">…</span>`;
+        }
+    }
+
+    html += `<button class="page-btn" onclick="loadPage(${cur+1})" ${cur===total-1?'disabled':''}>
+        <i class="fas fa-chevron-right"></i></button>`;
+    html += `<span style="font-size:var(--text-xs);color:var(--text-muted);margin-left:var(--space-2)">
+        Page ${cur+1} of ${total}</span>`;
+    el.innerHTML = html;
+}
+
+/* ── CSV Export ───────────────────────────────────────────── */
+function exportCSV() {
+    if (!currentData.length) { Toast.warning('No data to export.'); return; }
+    const headers = ['#','Date','Invoice','Supplier','Payment','Items','Total (AED)','Paid (AED)','Due (AED)','Status'];
+    const rows = currentData.map((pur, i) => {
+        const dt = pur.purchaseDate
+            ? Format.date(pur.purchaseDate) : '';
+        return [
+            currentPage * pageSize + i + 1,
+            dt,
+            pur.invoiceNumber || '',
+            pur.supplierName  || '',
+            pur.paymentMethod || '',
+            pur.itemCount     || 0,
+            parseFloat(pur.totalAmount  || 0).toFixed(2),
+            parseFloat(pur.amountPaid   || 0).toFixed(2),
+            parseFloat(pur.dueAmount    || 0).toFixed(2),
+            pur.status || ''
+        ].map(v => `"${String(v).replace(/"/g,'""')}"`).join(',');
+    });
+    const csv  = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = `purchases_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+}
+
+/* ── Helpers ──────────────────────────────────────────────── */
+function fmt(v) {
+    if (v == null) return '0.00';
+    return parseFloat(v).toLocaleString('en-AE', { minimumFractionDigits:2, maximumFractionDigits:2 });
+}
+function escHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+</script>
+</body>
+</html>

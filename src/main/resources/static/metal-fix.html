@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Metal Fix (HPF) – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        /* ── Status badges ───────────────────────────────────── */
+        .status-OPEN     { background:#dbeafe;color:#1d4ed8 }
+        .status-FIXED    { background:#fef3c7;color:#92400e }
+        .status-SETTLED  { background:#dcfce7;color:#059669 }
+        .status-badge {
+            display:inline-block;padding:2px 9px;border-radius:20px;
+            font-size:0.65rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase
+        }
+
+        /* ── Fix type chips ──────────────────────────────────── */
+        .ftype-sale     { background:#e0e7ff;color:#3730a3 }
+        .ftype-purchase { background:#fef3c7;color:#92400e }
+        .ftype-chip {
+            display:inline-block;padding:2px 8px;border-radius:4px;
+            font-size:0.65rem;font-weight:700;letter-spacing:.04em
+        }
+
+        /* ── Metal chips ─────────────────────────────────────── */
+        .metal-GOLD   { background:#fef9c3;color:#854d0e }
+        .metal-SILVER { background:#f1f5f9;color:#475569 }
+        .metal-chip {
+            display:inline-block;padding:2px 8px;border-radius:4px;
+            font-size:0.65rem;font-weight:700;letter-spacing:.04em
+        }
+
+        /* ── HPF table ───────────────────────────────────────── */
+        .hpf-table { width:100%;border-collapse:collapse;font-size:var(--text-sm) }
+        .hpf-table th {
+            background:var(--surface-2);padding:10px 12px;text-align:left;
+            font-size:var(--text-xs);font-weight:700;color:var(--text-muted);
+            text-transform:uppercase;letter-spacing:.05em;white-space:nowrap;
+            border-bottom:2px solid var(--border)
+        }
+        .hpf-table th.num { text-align:right }
+        .hpf-table td {
+            padding:10px 12px;border-bottom:1px solid var(--border);
+            vertical-align:middle;white-space:nowrap
+        }
+        .hpf-table td.num { text-align:right }
+        .hpf-table tbody tr:hover td { background:rgba(99,102,241,.03);cursor:pointer }
+        .hpf-table tbody tr.settled-row td { opacity:.65 }
+
+        /* ── Dashboard stats strip ───────────────────────────── */
+        .mf-stat-strip {
+            display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+            gap:12px;margin-bottom:var(--space-5)
+        }
+        .mf-stat {
+            padding:14px 18px;background:var(--surface-1);border:1px solid var(--border);
+            border-radius:var(--radius-md);
+        }
+        .mf-stat-label { font-size:0.63rem;font-weight:700;text-transform:uppercase;
+                         letter-spacing:.07em;color:var(--text-muted);margin-bottom:4px }
+        .mf-stat-value { font-size:1.35rem;font-weight:700;color:var(--text-primary) }
+        .mf-stat-sub   { font-size:0.7rem;color:var(--text-muted);margin-top:2px }
+
+        /* ── Detail drawer (slide-in panel) ──────────────────── */
+        .detail-overlay {
+            position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:500;
+            display:flex;justify-content:flex-end;
+            opacity:0;pointer-events:none;transition:opacity .2s
+        }
+        .detail-overlay.open { opacity:1;pointer-events:all }
+        .detail-panel {
+            width:min(520px,100vw);height:100%;background:var(--surface-1);
+            overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,.15);
+            transform:translateX(100%);transition:transform .25s ease
+        }
+        .detail-overlay.open .detail-panel { transform:translateX(0) }
+        .detail-header {
+            display:flex;align-items:center;justify-content:space-between;
+            padding:18px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;
+            background:var(--surface-1);z-index:1
+        }
+        .detail-body { padding:20px }
+
+        /* ── Settlement history table ─────────────────────────── */
+        .sfx-table { width:100%;border-collapse:collapse;font-size:var(--text-xs) }
+        .sfx-table th {
+            padding:6px 10px;background:var(--surface-2);text-align:left;
+            font-weight:700;color:var(--text-muted);text-transform:uppercase;
+            letter-spacing:.04em;border-bottom:1px solid var(--border)
+        }
+        .sfx-table td { padding:7px 10px;border-bottom:1px solid var(--border) }
+        .sfx-table td.num { text-align:right }
+
+        /* ── Calc preview box ────────────────────────────────── */
+        .calc-box {
+            padding:12px 16px;background:var(--surface-2);border-radius:var(--radius-md);
+            border:1px dashed var(--border);margin-top:var(--space-3);font-size:var(--text-sm)
+        }
+        .calc-row { display:flex;justify-content:space-between;padding:3px 0 }
+        .calc-row:last-child { font-weight:700;border-top:1px solid var(--border);
+                               padding-top:7px;margin-top:4px }
+        .calc-label { color:var(--text-muted) }
+        .calc-value { font-weight:600 }
+
+        /* ── Diff label ──────────────────────────────────────── */
+        .diff-cr { color:#059669;font-weight:700 }
+        .diff-dr { color:#dc2626;font-weight:700 }
+
+        /* ── Print ───────────────────────────────────────────── */
+        @media print {
+            .sidebar, .topbar, #filterCard, .modal-overlay,
+            .detail-overlay { display:none !important }
+            .main-content { margin-left:0 !important;padding:12px !important }
+            body { background:#fff }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SIDEBAR                                                     -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span>
+        </a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
+        <a href="/cash-sheet.html" class="nav-item">
+            <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
+        </a>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i><span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i><span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i><span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item active">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label">Expenses</span>
+        </a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label">Branches</span>
+        </a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- TOPBAR                                                      -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Metal Fix (HPF)</div>
+            <div class="page-breadcrumb">SmartPOS / Trading / Metal Fix</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MAIN CONTENT                                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<main class="main-content" id="mainContent">
+
+    <!-- ── Stats strip ────────────────────────────────────────── -->
+    <div class="mf-stat-strip">
+        <div class="mf-stat">
+            <div class="mf-stat-label">Open HPF</div>
+            <div class="mf-stat-value" id="statOpen">—</div>
+            <div class="mf-stat-sub">Awaiting rate fix</div>
+        </div>
+        <div class="mf-stat">
+            <div class="mf-stat-label">Fixed</div>
+            <div class="mf-stat-value" id="statFixed">—</div>
+            <div class="mf-stat-sub">Rate set, not settled</div>
+        </div>
+        <div class="mf-stat">
+            <div class="mf-stat-label">Settled</div>
+            <div class="mf-stat-value" id="statSettled">—</div>
+            <div class="mf-stat-sub">Fully closed</div>
+        </div>
+        <div class="mf-stat">
+            <div class="mf-stat-label">Open Exposure (AED)</div>
+            <div class="mf-stat-value" id="statOpenAed">—</div>
+            <div class="mf-stat-sub">Estimated at deal rate</div>
+        </div>
+    </div>
+
+    <!-- ── Filter Card ────────────────────────────────────────── -->
+    <div class="card mb-5" id="filterCard">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-scale-balanced" style="color:var(--primary);margin-right:8px"></i>
+                Hold Price Fix Agreements
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+                <i class="fas fa-plus"></i> New HPF
+            </button>
+        </div>
+        <div style="padding:var(--space-3) var(--space-4)">
+            <div class="flex items-end gap-3 flex-wrap">
+                <div class="form-group" style="margin:0;flex:1;min-width:200px">
+                    <label class="form-label">Party</label>
+                    <select id="filterParty" class="form-control" onchange="loadFixes()">
+                        <option value="">All Parties</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Status</label>
+                    <select id="filterStatus" class="form-control" style="width:140px" onchange="loadFixes()">
+                        <option value="">All</option>
+                        <option value="OPEN">Open</option>
+                        <option value="FIXED">Fixed</option>
+                        <option value="SETTLED">Settled</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label">Metal</label>
+                    <select id="filterMetal" class="form-control" style="width:120px" onchange="loadFixes()">
+                        <option value="">All</option>
+                        <option value="GOLD">Gold</option>
+                        <option value="SILVER">Silver</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0">
+                    <label class="form-label" style="visibility:hidden">x</label>
+                    <button class="btn btn-secondary" onclick="clearFilters()" title="Reset filters">
+                        <i class="fas fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Table ────────────────────────────────────────── -->
+        <div style="overflow-x:auto">
+            <table class="hpf-table" id="hpfTable">
+                <thead>
+                    <tr>
+                        <th>HPF #</th>
+                        <th>Date</th>
+                        <th>Party</th>
+                        <th>Type</th>
+                        <th>Metal</th>
+                        <th class="num">Weight (g)</th>
+                        <th class="num">Deal Rate ($/oz)</th>
+                        <th class="num">Est. AED</th>
+                        <th>Status</th>
+                        <th class="num">Fixed Rate</th>
+                        <th>Fixed Date</th>
+                        <th style="text-align:center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="hpfTbody">
+                    <tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">
+                        <i class="fas fa-circle-notch fa-spin"></i> Loading…
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="hpfEmpty" style="display:none;text-align:center;padding:48px 24px;color:var(--text-muted)">
+            <i class="fas fa-scale-balanced" style="font-size:2.5rem;margin-bottom:12px;opacity:.3"></i>
+            <div style="font-weight:600">No metal fixes found</div>
+            <div style="font-size:var(--text-sm);margin-top:4px">Create the first HPF using the button above</div>
+        </div>
+    </div>
+
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- DETAIL DRAWER                                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="detail-overlay" id="detailOverlay" onclick="closeDetail(event)">
+    <div class="detail-panel" id="detailPanel">
+        <div class="detail-header">
+            <div>
+                <div style="font-weight:700;font-size:var(--text-base)" id="dpFixNumber">HPF-0001</div>
+                <div style="font-size:var(--text-xs);color:var(--text-muted)" id="dpFixDate"></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span id="dpStatusBadge" class="status-badge"></span>
+                <button class="btn btn-secondary btn-sm" onclick="closeDetailDirect()">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+        </div>
+        <div class="detail-body" id="detailBody">
+            <!-- filled dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- CREATE HPF MODAL                                            -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="createModal" style="display:none">
+    <div class="modal" style="max-width:560px;width:100%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-scale-balanced" style="margin-right:8px"></i>New Hold Price Fix</h3>
+            <button class="btn-close" onclick="closeCreateModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div class="flex gap-3 flex-wrap">
+                <div class="form-group" style="flex:1;min-width:200px">
+                    <label class="form-label">Party <span class="text-danger">*</span></label>
+                    <select id="cParty" class="form-control"></select>
+                </div>
+                <div class="form-group" style="width:160px">
+                    <label class="form-label">Fix Type <span class="text-danger">*</span></label>
+                    <select id="cFixType" class="form-control">
+                        <option value="SALE_FIX">Sale Fix</option>
+                        <option value="PURCHASE_FIX">Purchase Fix</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <div class="form-group" style="width:130px">
+                    <label class="form-label">Metal <span class="text-danger">*</span></label>
+                    <select id="cMetalType" class="form-control">
+                        <option value="GOLD">Gold</option>
+                        <option value="SILVER">Silver</option>
+                    </select>
+                </div>
+                <div class="form-group" style="width:130px">
+                    <label class="form-label">Purity</label>
+                    <select id="cPurity" class="form-control">
+                        <option value="">— Select —</option>
+                        <option value="24K">24K (999)</option>
+                        <option value="22K">22K (916)</option>
+                        <option value="21K">21K (875)</option>
+                        <option value="18K">18K (750)</option>
+                        <option value="999">999 Fine</option>
+                        <option value="925">925 Silver</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1;min-width:100px">
+                    <label class="form-label">Weight (g) <span class="text-danger">*</span></label>
+                    <input type="number" id="cWeight" class="form-control" placeholder="0.000"
+                           min="0.001" step="0.001" oninput="recalcCreate()">
+                </div>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <div class="form-group" style="flex:1;min-width:120px">
+                    <label class="form-label">Deal Rate ($/oz) <span class="text-danger">*</span></label>
+                    <input type="number" id="cTxRate" class="form-control" placeholder="0.00"
+                           min="0" step="0.01" oninput="recalcCreate()">
+                </div>
+                <div class="form-group" style="width:130px">
+                    <label class="form-label">Disc/Prem</label>
+                    <input type="number" id="cDiscPrem" class="form-control" placeholder="0.00"
+                           step="0.01" oninput="recalcCreate()">
+                </div>
+                <div class="form-group" style="width:130px">
+                    <label class="form-label">D/P Type</label>
+                    <select id="cDpType" class="form-control" onchange="recalcCreate()">
+                        <option value="PER_OZ">Per Oz</option>
+                        <option value="PERCENTAGE">%</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+                <div class="form-group" style="width:150px">
+                    <label class="form-label">Exchange Rate</label>
+                    <input type="number" id="cExRate" class="form-control" value="3.6740"
+                           min="0" step="0.0001" oninput="recalcCreate()">
+                </div>
+                <div class="form-group" style="width:110px">
+                    <label class="form-label">Margin %</label>
+                    <input type="number" id="cMargin" class="form-control" placeholder="0.00"
+                           min="0" step="0.01" oninput="recalcCreate()">
+                </div>
+            </div>
+            <!-- Live calc preview -->
+            <div class="calc-box" id="createCalcBox">
+                <div class="calc-row">
+                    <span class="calc-label">Weight (troy oz)</span>
+                    <span class="calc-value" id="ccOz">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Effective Rate ($/oz)</span>
+                    <span class="calc-value" id="ccEffRate">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">AED before margin</span>
+                    <span class="calc-value" id="ccAedBase">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Margin amount (AED)</span>
+                    <span class="calc-value" id="ccMarginAed">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Total AED</span>
+                    <span class="calc-value" id="ccTotalAed" style="font-size:1.05rem;color:var(--primary)">—</span>
+                </div>
+            </div>
+            <div class="form-group mt-3">
+                <label class="form-label">Notes</label>
+                <textarea id="cNotes" class="form-control" rows="2" placeholder="Optional remarks…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+            <button class="btn btn-primary" id="createSaveBtn" onclick="submitCreate()">
+                <i class="fas fa-scale-balanced"></i> Create HPF
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MARK-AS-FIXED MODAL                                         -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="fixModal" style="display:none">
+    <div class="modal" style="max-width:420px;width:100%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-lock" style="margin-right:8px"></i>Set Fixed Rate</h3>
+            <button class="btn-close" onclick="closeFixModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
+                Enter the agreed market rate at which this HPF has been fixed.
+                The status will change from <strong>Open → Fixed</strong>.
+            </p>
+            <div id="fmFixInfo" style="padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-md);
+                 font-size:var(--text-sm);margin-bottom:var(--space-3)"></div>
+            <div class="form-group">
+                <label class="form-label">Fixed Rate ($/oz) <span class="text-danger">*</span></label>
+                <input type="number" id="fmRate" class="form-control" placeholder="0.00" min="0" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">Fix Date <span class="text-danger">*</span></label>
+                <input type="date" id="fmDate" class="form-control">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeFixModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="submitFix()">
+                <i class="fas fa-lock"></i> Set Fixed Rate
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SETTLE MODAL                                                -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="settleModal" style="display:none">
+    <div class="modal" style="max-width:460px;width:100%">
+        <div class="modal-header">
+            <h3 class="modal-title"><i class="fas fa-check-circle" style="margin-right:8px"></i>Settle Fix</h3>
+            <button class="btn-close" onclick="closeSettleModal()"><i class="fas fa-xmark"></i></button>
+        </div>
+        <div class="modal-body">
+            <div id="smFixInfo" style="padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-md);
+                 font-size:var(--text-sm);margin-bottom:var(--space-3)"></div>
+            <div class="flex gap-3 flex-wrap">
+                <div class="form-group" style="flex:1;min-width:140px">
+                    <label class="form-label">Fixed Rate ($/oz) <span class="text-danger">*</span></label>
+                    <input type="number" id="smRate" class="form-control" placeholder="0.00"
+                           min="0" step="0.01" oninput="recalcSettle()">
+                </div>
+                <div class="form-group" style="width:160px">
+                    <label class="form-label">Exchange Rate</label>
+                    <input type="number" id="smExRate" class="form-control" value="3.6740"
+                           min="0" step="0.0001" oninput="recalcSettle()">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Settlement Date <span class="text-danger">*</span></label>
+                <input type="date" id="smDate" class="form-control">
+            </div>
+            <!-- Settlement calc preview -->
+            <div class="calc-box" id="settleCalcBox">
+                <div class="calc-row">
+                    <span class="calc-label">Settlement AED</span>
+                    <span class="calc-value" id="scSettleAed">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Original AED (deal)</span>
+                    <span class="calc-value" id="scOrigAed">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Difference</span>
+                    <span class="calc-value" id="scDiff">—</span>
+                </div>
+            </div>
+            <div class="form-group mt-3">
+                <label class="form-label">Notes</label>
+                <textarea id="smNotes" class="form-control" rows="2" placeholder="Optional…"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeSettleModal()">Cancel</button>
+            <button class="btn btn-success" onclick="submitSettle()">
+                <i class="fas fa-check-circle"></i> Settle &amp; Close
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- JAVASCRIPT                                                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<script src="/js/smartpos.js"></script>
+<script>
+'use strict';
+
+/* ── Constants ─────────────────────────────────────────────── */
+const TROY_OZ = 31.1035;
+
+/* ── State ──────────────────────────────────────────────────── */
+let _bizId    = null;
+let _parties  = [];   // full party list from /api/suppliers/all
+let _fixes    = [];   // current loaded fix list
+let _activeFixId = null;  // fix being acted on (fix/settle)
+let _activeFixData = null; // fix object for settle calc
+
+/* ── Bootstrap ──────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+    Auth.requireAuth();
+    RoleGuard.guardCurrentPage();
+
+    _bizId = Auth.getBusinessId();
+    if (!_bizId) { Toast.show('Business ID missing', 'error'); return; }
+
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('fmDate').value  = today;
+    document.getElementById('smDate').value  = today;
+
+    loadDashboard();
+    loadParties();
+
+    // avatar
+    const uname = Auth.getUserName();
+    if (uname) document.getElementById('userAvatar').textContent = uname.charAt(0).toUpperCase();
+});
+
+/* ── Load dashboard counts ─────────────────────────────────── */
+async function loadDashboard() {
+    try {
+        const d = await API.get(`/api/metal-fixes/dashboard?businessId=${_bizId}`);
+        document.getElementById('statOpen').textContent    = d.open    ?? 0;
+        document.getElementById('statFixed').textContent   = d.fixed   ?? 0;
+        document.getElementById('statSettled').textContent = d.settled ?? 0;
+        document.getElementById('statOpenAed').textContent = fmtAed(d.openAed ?? 0);
+    } catch(e) {
+        console.error('Dashboard load failed', e);
+    }
+}
+
+/* ── Load parties for filter + create modal ─────────────────── */
+async function loadParties() {
+    try {
+        _parties = await API.get(`/api/suppliers/all`, { 'X-Business-Id': String(_bizId) });
+        buildPartySelects();
+        loadFixes();
+    } catch(e) {
+        console.error('Party load failed', e);
+        loadFixes();
+    }
+}
+
+function buildPartySelects() {
+    const filterSel  = document.getElementById('filterParty');
+    const createSel  = document.getElementById('cParty');
+    filterSel.innerHTML  = '<option value="">All Parties</option>';
+    createSel.innerHTML  = '<option value="">— Select party —</option>';
+
+    _parties.forEach(p => {
+        const label = p.partyCode ? `${p.name} (${p.partyCode})` : p.name;
+        const opt1 = new Option(label, p.id);
+        const opt2 = new Option(label, p.id);
+        filterSel.appendChild(opt1);
+        createSel.appendChild(opt2);
+    });
+}
+
+/* ── Load fixes list ─────────────────────────────────────────── */
+async function loadFixes() {
+    const tbody  = document.getElementById('hpfTbody');
+    const empty  = document.getElementById('hpfEmpty');
+    tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:var(--text-muted)">
+        <i class="fas fa-circle-notch fa-spin"></i> Loading…</td></tr>`;
+    empty.style.display = 'none';
+
+    const partyId = document.getElementById('filterParty').value;
+    const status  = document.getElementById('filterStatus').value;
+    const metal   = document.getElementById('filterMetal').value;
+
+    try {
+        let rows;
+        if (partyId) {
+            // party-specific endpoint returns a plain List
+            rows = await API.get(`/api/metal-fixes/party?businessId=${_bizId}&partyId=${partyId}`);
+            if (status) rows = rows.filter(r => r.status === status);
+        } else {
+            // paginated list endpoint
+            let url = `/api/metal-fixes?businessId=${_bizId}&size=200`;
+            if (status) url += `&status=${status}`;
+            const data = await API.get(url);
+            rows = Array.isArray(data) ? data : (data.content || []);
+        }
+
+        // client-side metal filter (both paths)
+        if (metal) rows = rows.filter(r => r.metalType === metal);
+
+        _fixes = rows;
+        renderTable(rows);
+    } catch(e) {
+        console.error('Fix load failed', e);
+        tbody.innerHTML = `<tr><td colspan="12" style="text-align:center;padding:32px;color:#dc2626">
+            <i class="fas fa-circle-exclamation"></i> Failed to load fixes</td></tr>`;
+    }
+}
+
+function renderTable(rows) {
+    const tbody = document.getElementById('hpfTbody');
+    const empty = document.getElementById('hpfEmpty');
+
+    if (!rows.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = rows.map(f => `
+        <tr class="${f.status === 'SETTLED' ? 'settled-row' : ''}" onclick="openDetail(${f.id})">
+            <td><strong>${escapeHtml(f.fixNumber)}</strong></td>
+            <td>${fmtShort(f.createdAt)}</td>
+            <td>
+                <div style="font-weight:600">${escapeHtml(f.partyName || '—')}</div>
+                ${f.partyCode ? `<div style="font-size:0.65rem;color:var(--text-muted)">${escapeHtml(f.partyCode)}</div>` : ''}
+            </td>
+            <td><span class="ftype-chip ${f.fixType === 'SALE_FIX' ? 'ftype-sale' : 'ftype-purchase'}">
+                ${f.fixType === 'SALE_FIX' ? 'Sale' : 'Purchase'}</span></td>
+            <td>
+                <span class="metal-chip ${f.metalType === 'GOLD' ? 'metal-GOLD' : 'metal-SILVER'}">${f.metalType}</span>
+                ${f.purity ? `<span style="font-size:0.63rem;color:var(--text-muted);margin-left:4px">${escapeHtml(f.purity)}</span>` : ''}
+            </td>
+            <td class="num">${fmtGrams(f.weightGrams)}</td>
+            <td class="num">${fmtNum(f.transactionRate, 2)}</td>
+            <td class="num" style="font-weight:600">${fmtAed(f.totalAed)}</td>
+            <td><span class="status-badge status-${f.status}">${f.status}</span></td>
+            <td class="num">${f.fixedRate ? fmtNum(f.fixedRate, 2) : '<span style="color:var(--text-muted)">—</span>'}</td>
+            <td>${f.fixedDate ? fmtShort(f.fixedDate) : '<span style="color:var(--text-muted)">—</span>'}</td>
+            <td style="text-align:center" onclick="event.stopPropagation()">
+                <div class="flex items-center gap-1" style="justify-content:center">
+                    ${f.status === 'OPEN' ? `
+                    <button class="btn btn-sm" style="background:#dbeafe;color:#1d4ed8;border:none;padding:4px 10px;font-size:0.7rem"
+                            onclick="openFixModal(${f.id})" title="Set Fixed Rate">
+                        <i class="fas fa-lock"></i> Fix
+                    </button>` : ''}
+                    ${f.status === 'FIXED' ? `
+                    <button class="btn btn-sm btn-success" style="padding:4px 10px;font-size:0.7rem"
+                            onclick="openSettleModal(${f.id})" title="Settle">
+                        <i class="fas fa-check-circle"></i> Settle
+                    </button>` : ''}
+                    <button class="btn btn-secondary btn-sm" style="padding:4px 8px;font-size:0.7rem"
+                            onclick="openDetail(${f.id})" title="View details">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>`).join('');
+}
+
+function clearFilters() {
+    document.getElementById('filterParty').value  = '';
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterMetal').value  = '';
+    loadFixes();
+}
+
+/* ── Detail Drawer ───────────────────────────────────────────── */
+async function openDetail(fixId) {
+    try {
+        const f = await API.get(`/api/metal-fixes/${fixId}`);
+        _activeFixData = f;
+
+        document.getElementById('dpFixNumber').textContent = f.fixNumber || '—';
+        document.getElementById('dpFixDate').textContent   = `Created ${fmtShort(f.createdAt)}`;
+        const sb = document.getElementById('dpStatusBadge');
+        sb.className = `status-badge status-${f.status}`;
+        sb.textContent = f.status;
+
+        document.getElementById('detailBody').innerHTML = buildDetailHtml(f);
+        document.getElementById('detailOverlay').classList.add('open');
+    } catch(e) {
+        Toast.show('Failed to load fix details', 'error');
+    }
+}
+
+function buildDetailHtml(f) {
+    const oz = f.weightGrams / TROY_OZ;
+    const sections = [];
+
+    // ── Core deal info
+    sections.push(`
+        <div style="margin-bottom:var(--space-4)">
+            <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                 color:var(--text-muted);margin-bottom:10px">Deal Details</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;font-size:var(--text-sm)">
+                <div><span style="color:var(--text-muted)">Party:</span><br><strong>${escapeHtml(f.partyName || '—')}</strong></div>
+                <div><span style="color:var(--text-muted)">Fix Type:</span><br>
+                    <span class="ftype-chip ${f.fixType === 'SALE_FIX' ? 'ftype-sale' : 'ftype-purchase'}">
+                        ${f.fixType === 'SALE_FIX' ? 'Sale Fix' : 'Purchase Fix'}</span></div>
+                <div><span style="color:var(--text-muted)">Metal:</span><br>
+                    <span class="metal-chip ${f.metalType === 'GOLD' ? 'metal-GOLD' : 'metal-SILVER'}">${f.metalType}</span>
+                    ${f.purity ? ` <span style="font-size:0.7rem">${escapeHtml(f.purity)}</span>` : ''}</div>
+                <div><span style="color:var(--text-muted)">Weight:</span><br>
+                    <strong>${fmtGrams(f.weightGrams)} g</strong>
+                    <span style="color:var(--text-muted);font-size:0.7rem">(${fmtNum(oz, 4)} oz)</span></div>
+                <div><span style="color:var(--text-muted)">Deal Rate ($/oz):</span><br>
+                    <strong>${fmtNum(f.transactionRate, 2)}</strong></div>
+                <div><span style="color:var(--text-muted)">Effective Rate:</span><br>
+                    <strong>${f.effectiveRate ? fmtNum(f.effectiveRate, 2) : '—'}</strong></div>
+                <div><span style="color:var(--text-muted)">Exchange Rate:</span><br>
+                    <strong>${fmtNum(f.exchangeRate, 4)}</strong></div>
+                <div><span style="color:var(--text-muted)">Est. Total AED:</span><br>
+                    <strong style="color:var(--primary)">${fmtAed(f.totalAed)}</strong></div>
+                ${f.marginPercent ? `<div><span style="color:var(--text-muted)">Margin %:</span><br>
+                    <strong>${fmtNum(f.marginPercent, 2)}%</strong></div>` : ''}
+                ${f.marginAmount ? `<div><span style="color:var(--text-muted)">Margin AED:</span><br>
+                    <strong>${fmtAed(f.marginAmount)}</strong></div>` : ''}
+                ${f.discountPremium ? `<div><span style="color:var(--text-muted)">Disc/Prem:</span><br>
+                    <strong>${fmtNum(f.discountPremium, 2)} (${f.discountPremiumType === 'PER_OZ' ? '$/oz' : '%'})</strong></div>` : ''}
+            </div>
+        </div>`);
+
+    // ── Fix info (if fixed or settled)
+    if (f.fixedRate || f.fixedDate) {
+        sections.push(`
+            <div style="margin-bottom:var(--space-4);padding:12px 16px;background:#fef9c3;
+                 border-radius:var(--radius-md);border-left:3px solid #f59e0b">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                     color:#92400e;margin-bottom:8px">Fixed Rate Info</div>
+                <div style="display:flex;gap:24px;font-size:var(--text-sm)">
+                    <div><span style="color:#92400e">Rate:</span><br><strong>${fmtNum(f.fixedRate, 2)} $/oz</strong></div>
+                    <div><span style="color:#92400e">Date:</span><br><strong>${fmtShort(f.fixedDate)}</strong></div>
+                </div>
+            </div>`);
+    }
+
+    // ── Notes
+    if (f.notes) {
+        sections.push(`
+            <div style="margin-bottom:var(--space-4)">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                     color:var(--text-muted);margin-bottom:6px">Notes</div>
+                <p style="font-size:var(--text-sm);color:var(--text-secondary);margin:0">${escapeHtml(f.notes)}</p>
+            </div>`);
+    }
+
+    // ── Settlement history
+    const settlements = f.settlements || [];
+    if (settlements.length) {
+        const rows = settlements.map(s => `
+            <tr>
+                <td>${escapeHtml(s.settlementNumber)}</td>
+                <td>${fmtShort(s.settlementDate)}</td>
+                <td class="num">${fmtNum(s.fixedRate, 2)}</td>
+                <td class="num">${fmtAed(s.settlementAed)}</td>
+                <td class="num">
+                    <span class="${s.differenceCrDr >= 0 ? 'diff-cr' : 'diff-dr'}">
+                        ${s.differenceCrDr >= 0 ? '+' : ''}${fmtAed(s.differenceCrDr)}
+                    </span>
+                </td>
+            </tr>`).join('');
+
+        sections.push(`
+            <div style="margin-bottom:var(--space-4)">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                     color:var(--text-muted);margin-bottom:8px">Settlement History</div>
+                <div style="overflow-x:auto">
+                    <table class="sfx-table">
+                        <thead><tr>
+                            <th>SFX #</th><th>Date</th>
+                            <th class="num" style="text-align:right">Rate</th>
+                            <th class="num" style="text-align:right">AED</th>
+                            <th class="num" style="text-align:right">Diff</th>
+                        </tr></thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
+            </div>`);
+    }
+
+    // ── Action buttons inside drawer
+    const actionBtns = [];
+    if (f.status === 'OPEN') {
+        actionBtns.push(`<button class="btn btn-primary btn-sm" onclick="openFixModal(${f.id});closeDetailDirect()">
+            <i class="fas fa-lock"></i> Set Fixed Rate</button>`);
+    }
+    if (f.status === 'FIXED') {
+        actionBtns.push(`<button class="btn btn-success btn-sm" onclick="openSettleModal(${f.id});closeDetailDirect()">
+            <i class="fas fa-check-circle"></i> Settle Fix</button>`);
+    }
+    actionBtns.push(`<a href="/statement.html?partyId=${f.partyId}" class="btn btn-secondary btn-sm">
+        <i class="fas fa-file-lines"></i> View Ledger</a>`);
+
+    if (actionBtns.length) {
+        sections.push(`<div class="flex gap-2 flex-wrap" style="margin-top:var(--space-2)">${actionBtns.join('')}</div>`);
+    }
+
+    return sections.join('');
+}
+
+function closeDetail(e) {
+    if (e.target === document.getElementById('detailOverlay')) {
+        closeDetailDirect();
+    }
+}
+function closeDetailDirect() {
+    document.getElementById('detailOverlay').classList.remove('open');
+}
+
+/* ── Create HPF Modal ────────────────────────────────────────── */
+function openCreateModal() {
+    document.getElementById('cParty').value   = '';
+    document.getElementById('cFixType').value = 'SALE_FIX';
+    document.getElementById('cMetalType').value = 'GOLD';
+    document.getElementById('cPurity').value  = '';
+    document.getElementById('cWeight').value  = '';
+    document.getElementById('cTxRate').value  = '';
+    document.getElementById('cDiscPrem').value = '';
+    document.getElementById('cDpType').value  = 'PER_OZ';
+    document.getElementById('cExRate').value  = '3.6740';
+    document.getElementById('cMargin').value  = '';
+    document.getElementById('cNotes').value   = '';
+    clearCalcCreate();
+    document.getElementById('createModal').style.display = 'flex';
+}
+function closeCreateModal() {
+    document.getElementById('createModal').style.display = 'none';
+}
+
+function recalcCreate() {
+    const w   = parseFloat(document.getElementById('cWeight').value)   || 0;
+    const r   = parseFloat(document.getElementById('cTxRate').value)   || 0;
+    const dp  = parseFloat(document.getElementById('cDiscPrem').value) || 0;
+    const dpt = document.getElementById('cDpType').value;
+    const ex  = parseFloat(document.getElementById('cExRate').value)   || 3.6740;
+    const mg  = parseFloat(document.getElementById('cMargin').value)   || 0;
+
+    if (!w || !r) { clearCalcCreate(); return; }
+
+    const oz = w / TROY_OZ;
+    let effRate = r;
+    if (dpt === 'PER_OZ') effRate = r + dp;
+    else effRate = r * (1 + dp / 100);
+
+    const aedBase   = oz * effRate * ex;
+    const marginAed = aedBase * mg / 100;
+    const totalAed  = aedBase + marginAed;
+
+    document.getElementById('ccOz').textContent       = fmtNum(oz, 4) + ' oz';
+    document.getElementById('ccEffRate').textContent  = fmtNum(effRate, 2) + ' $/oz';
+    document.getElementById('ccAedBase').textContent  = fmtAed(aedBase);
+    document.getElementById('ccMarginAed').textContent = mg ? fmtAed(marginAed) : '—';
+    document.getElementById('ccTotalAed').textContent  = fmtAed(totalAed);
+}
+
+function clearCalcCreate() {
+    ['ccOz','ccEffRate','ccAedBase','ccMarginAed','ccTotalAed'].forEach(id =>
+        document.getElementById(id).textContent = '—');
+}
+
+async function submitCreate() {
+    const partyId  = document.getElementById('cParty').value;
+    const weight   = parseFloat(document.getElementById('cWeight').value);
+    const txRate   = parseFloat(document.getElementById('cTxRate').value);
+
+    if (!partyId) { Toast.show('Please select a party', 'error'); return; }
+    if (!weight || weight <= 0) { Toast.show('Weight must be > 0', 'error'); return; }
+    if (!txRate || txRate <= 0) { Toast.show('Deal rate must be > 0', 'error'); return; }
+
+    const party    = _parties.find(p => String(p.id) === String(partyId));
+    const btn      = document.getElementById('createSaveBtn');
+    btn.disabled   = true;
+
+    const payload = {
+        businessId:          _bizId,
+        partyId:             Number(partyId),
+        partyName:           party ? party.name : '',
+        fixType:             document.getElementById('cFixType').value,
+        metalType:           document.getElementById('cMetalType').value,
+        purity:              document.getElementById('cPurity').value || null,
+        weightGrams:         weight,
+        transactionRate:     txRate,
+        discountPremium:     parseFloat(document.getElementById('cDiscPrem').value) || 0,
+        discountPremiumType: document.getElementById('cDpType').value,
+        exchangeRate:        parseFloat(document.getElementById('cExRate').value) || 3.6740,
+        marginPercent:       parseFloat(document.getElementById('cMargin').value)  || null,
+        notes:               document.getElementById('cNotes').value.trim() || null,
+        createdBy:           Auth.getUserName() || null
+    };
+
+    try {
+        await API.post('/api/metal-fixes', payload);
+        Toast.show('HPF created successfully', 'success');
+        closeCreateModal();
+        loadDashboard();
+        loadFixes();
+    } catch(e) {
+        Toast.show('Failed to create HPF: ' + (e.message || ''), 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+/* ── Mark-as-Fixed Modal ─────────────────────────────────────── */
+function openFixModal(fixId) {
+    _activeFixId = fixId;
+    const fix = _fixes.find(f => f.id === fixId);
+
+    const info = document.getElementById('fmFixInfo');
+    if (fix) {
+        info.innerHTML = `<strong>${escapeHtml(fix.fixNumber)}</strong> · ${escapeHtml(fix.partyName || '')} ·
+            <span class="metal-chip ${fix.metalType === 'GOLD' ? 'metal-GOLD' : 'metal-SILVER'}">${fix.metalType}</span>
+            ${fmtGrams(fix.weightGrams)} g · Deal ${fmtNum(fix.transactionRate, 2)} $/oz`;
+    } else {
+        info.innerHTML = `Fix ID: ${fixId}`;
+    }
+
+    document.getElementById('fmRate').value = fix ? fmtNum(fix.transactionRate, 2) : '';
+    document.getElementById('fmDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('fixModal').style.display = 'flex';
+}
+function closeFixModal() {
+    document.getElementById('fixModal').style.display = 'none';
+    _activeFixId = null;
+}
+
+async function submitFix() {
+    const rate = parseFloat(document.getElementById('fmRate').value);
+    const date = document.getElementById('fmDate').value;
+    if (!rate || rate <= 0) { Toast.show('Fixed rate must be > 0', 'error'); return; }
+    if (!date) { Toast.show('Fix date is required', 'error'); return; }
+
+    try {
+        await API.put(`/api/metal-fixes/${_activeFixId}/fix`, {
+            businessId: _bizId,
+            fixedRate:  rate,
+            fixedDate:  date
+        });
+        Toast.show('Rate fixed successfully', 'success');
+        closeFixModal();
+        loadDashboard();
+        loadFixes();
+    } catch(e) {
+        Toast.show('Failed: ' + (e.message || ''), 'error');
+    }
+}
+
+/* ── Settle Modal ────────────────────────────────────────────── */
+function openSettleModal(fixId) {
+    _activeFixId   = fixId;
+    _activeFixData = _fixes.find(f => f.id === fixId) || null;
+
+    const info = document.getElementById('smFixInfo');
+    if (_activeFixData) {
+        const f = _activeFixData;
+        info.innerHTML = `<strong>${escapeHtml(f.fixNumber)}</strong> · ${escapeHtml(f.partyName || '')} ·
+            <span class="metal-chip ${f.metalType === 'GOLD' ? 'metal-GOLD' : 'metal-SILVER'}">${f.metalType}</span>
+            ${fmtGrams(f.weightGrams)} g · Deal ${fmtNum(f.transactionRate, 2)} $/oz
+            ${f.fixedRate ? `· <strong>Fixed @ ${fmtNum(f.fixedRate, 2)}</strong>` : ''}`;
+        document.getElementById('smRate').value  = f.fixedRate ? fmtNum(f.fixedRate, 2) : '';
+        document.getElementById('scOrigAed').textContent = fmtAed(f.totalAed);
+    } else {
+        info.innerHTML = `Fix ID: ${fixId}`;
+    }
+
+    document.getElementById('smExRate').value  = '3.6740';
+    document.getElementById('smDate').value    = new Date().toISOString().slice(0, 10);
+    document.getElementById('smNotes').value   = '';
+    recalcSettle();
+    document.getElementById('settleModal').style.display = 'flex';
+}
+function closeSettleModal() {
+    document.getElementById('settleModal').style.display = 'none';
+    _activeFixId   = null;
+    _activeFixData = null;
+}
+
+function recalcSettle() {
+    const rate = parseFloat(document.getElementById('smRate').value)   || 0;
+    const ex   = parseFloat(document.getElementById('smExRate').value) || 3.6740;
+    if (!_activeFixData || !rate) {
+        document.getElementById('scSettleAed').textContent = '—';
+        document.getElementById('scDiff').textContent      = '—';
+        return;
+    }
+    const w = _activeFixData.weightGrams;
+    const oz = w / TROY_OZ;
+    const settleAed = oz * rate * ex;
+    const origAed   = parseFloat(_activeFixData.totalAed) || 0;
+    const diff      = origAed - settleAed;
+
+    document.getElementById('scSettleAed').textContent = fmtAed(settleAed);
+    document.getElementById('scOrigAed').textContent   = fmtAed(origAed);
+    const diffEl = document.getElementById('scDiff');
+    diffEl.textContent = (diff >= 0 ? '+' : '') + fmtAed(diff);
+    diffEl.className   = 'calc-value ' + (diff >= 0 ? 'diff-cr' : 'diff-dr');
+}
+
+async function submitSettle() {
+    const rate = parseFloat(document.getElementById('smRate').value);
+    const ex   = parseFloat(document.getElementById('smExRate').value) || 3.6740;
+    const date = document.getElementById('smDate').value;
+    const notes = document.getElementById('smNotes').value.trim();
+
+    if (!rate || rate <= 0) { Toast.show('Fixed rate is required', 'error'); return; }
+    if (!date) { Toast.show('Settlement date is required', 'error'); return; }
+
+    try {
+        await API.put(`/api/metal-fixes/${_activeFixId}/settle`, {
+            businessId:     _bizId,
+            fixedRate:      rate,
+            exchangeRate:   ex,
+            settlementDate: date,
+            notes:          notes || null,
+            settledBy:      Auth.getUserName() || null
+        });
+        Toast.show('Fix settled successfully', 'success');
+        closeSettleModal();
+        loadDashboard();
+        loadFixes();
+    } catch(e) {
+        Toast.show('Failed: ' + (e.message || ''), 'error');
+    }
+}
+
+/* ── Formatters ──────────────────────────────────────────────── */
+function fmtNum(v, dec = 2) {
+    if (v == null || v === '') return '—';
+    return Number(v).toLocaleString('en-AE', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function fmtAed(v) {
+    if (v == null || v === '') return '—';
+    return 'AED ' + Number(v).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+function fmtGrams(v) {
+    if (v == null) return '—';
+    return Number(v).toLocaleString('en-AE', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+function fmtShort(v) {
+    if (!v) return '—';
+    try {
+        const d = new Date(v);
+        return d.toLocaleDateString('en-AE', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch(_) { return String(v).slice(0, 10); }
+}
+function escapeHtml(str) {
+    if (str == null) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+</script>
+</body>
+</html>

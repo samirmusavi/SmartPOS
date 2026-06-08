@@ -24,6 +24,10 @@ public class BranchInventory {
     @Column(nullable = false)
     private double quantity = 0;
 
+    /** Total weight of all pieces in grams — null for GRAM-unit products (weight = quantity there) */
+    @Column
+    private Double totalWeightGrams;
+
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
@@ -44,4 +48,7 @@ public class BranchInventory {
     public void setBranchId(Long branchId)   { this.branchId = branchId; }
     public void setProductId(Long productId) { this.productId = productId; }
     public void setQuantity(double quantity)    { this.quantity = quantity; }
+
+    public Double getTotalWeightGrams() { return totalWeightGrams; }
+    public void setTotalWeightGrams(Double totalWeightGrams) { this.totalWeightGrams = totalWeightGrams; }
 }

@@ -72,7 +72,9 @@ public class ReturnService {
         for (Sale s : sales) {
             double alreadyReturned = returnRepository
                     .getTotalReturnedQtyBySaleId(s.getId());
-            double remaining = s.getQuantitySold() - alreadyReturned;
+            double remaining = BigDecimal.valueOf(s.getQuantitySold())
+                    .subtract(BigDecimal.valueOf(alreadyReturned))
+                    .setScale(4, RoundingMode.HALF_UP).doubleValue();
             if (remaining <= 0) continue; // fully returned — skip
 
             Map<String, Object> item = new HashMap<>();
@@ -142,7 +144,9 @@ public class ReturnService {
         // Remaining qty validation — prevents over-returning
         double alreadyReturned = returnRepository
                 .getTotalReturnedQtyBySaleId(sale.getId());
-        double remaining = sale.getQuantitySold() - alreadyReturned;
+        double remaining = BigDecimal.valueOf(sale.getQuantitySold())
+                .subtract(BigDecimal.valueOf(alreadyReturned))
+                .setScale(4, RoundingMode.HALF_UP).doubleValue();
 
         if (quantityReturned > remaining)
             throw new RuntimeException(
@@ -197,7 +201,9 @@ public class ReturnService {
             BranchInventory inv = branchInventoryRepository
                     .findByBranchIdAndProductId(stockBranchId, product.getId())
                     .orElse(new BranchInventory(stockBranchId, product.getId(), 0));
-            inv.setQuantity(inv.getQuantity() + quantityReturned);
+            inv.setQuantity(BigDecimal.valueOf(inv.getQuantity())
+                    .add(BigDecimal.valueOf(quantityReturned))
+                    .setScale(4, RoundingMode.HALF_UP).doubleValue());
             branchInventoryRepository.save(inv);
 
             double total = branchInventoryRepository
@@ -205,7 +211,9 @@ public class ReturnService {
             product.setQuantity(total);
             productRepository.save(product);
         } else {
-            product.setQuantity(product.getQuantity() + quantityReturned);
+            product.setQuantity(BigDecimal.valueOf(product.getQuantity())
+                    .add(BigDecimal.valueOf(quantityReturned))
+                    .setScale(4, RoundingMode.HALF_UP).doubleValue());
             productRepository.save(product);
         }
 

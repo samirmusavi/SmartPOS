@@ -5,6 +5,8 @@ import com.business.managementsystem.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -96,7 +98,9 @@ public class StockTransferService {
                             + " but transfer requires " + quantity + ".");
 
         // Deduct from source immediately
-        sourceInv.setQuantity(sourceInv.getQuantity() - quantity);
+        sourceInv.setQuantity(BigDecimal.valueOf(sourceInv.getQuantity())
+                .subtract(BigDecimal.valueOf(quantity))
+                .setScale(4, RoundingMode.HALF_UP).doubleValue());
         branchInvRepo.save(sourceInv);
 
         // Sync global total
@@ -147,7 +151,9 @@ public class StockTransferService {
             destInv.setQuantity(0);
         }
 
-        destInv.setQuantity(destInv.getQuantity() + transfer.getQuantity());
+        destInv.setQuantity(BigDecimal.valueOf(destInv.getQuantity())
+                .add(BigDecimal.valueOf(transfer.getQuantity()))
+                .setScale(4, RoundingMode.HALF_UP).doubleValue());
         branchInvRepo.save(destInv);
 
         // Sync global total
@@ -187,7 +193,9 @@ public class StockTransferService {
             sourceInv.setQuantity(0);
         }
 
-        sourceInv.setQuantity(sourceInv.getQuantity() + transfer.getQuantity());
+        sourceInv.setQuantity(BigDecimal.valueOf(sourceInv.getQuantity())
+                .add(BigDecimal.valueOf(transfer.getQuantity()))
+                .setScale(4, RoundingMode.HALF_UP).doubleValue());
         branchInvRepo.save(sourceInv);
 
         // Sync global total

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
@@ -238,6 +238,27 @@
                 </a>
             </div>
         </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
         <a href="/cash-sheet.html" class="nav-item">
             <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
         </a>
@@ -258,20 +279,31 @@
         <a href="/predictions.html" class="nav-item">
             <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label" data-i18n="nav_predictions">Smart Predictions</span>
         </a>
-        <a href="/suppliers.html" class="nav-item">
-            <i class="fas fa-truck"></i><span class="nav-label" data-i18n="nav_suppliers">Suppliers</span>
-        </a>
-        <a href="/purchase-orders.html" class="nav-item">
-            <i class="fas fa-file-invoice"></i><span class="nav-label" data-i18n="nav_purchase_orders">Purchase Orders</span>
-        </a>
-        <a href="/returns.html" class="nav-item">
-            <i class="fas fa-rotate-left"></i><span class="nav-label" data-i18n="nav_returns">Returns</span>
-        </a>
         <a href="/supplies.html" class="nav-item">
             <i class="fas fa-boxes-stacked"></i><span class="nav-label" data-i18n="nav_supplies">Supplies</span>
         </a>
         <a href="/stock-transfers.html" class="nav-item">
             <i class="fas fa-right-left"></i><span class="nav-label" data-i18n="nav_transfers">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
         </a>
         <div class="nav-group-label" data-i18n="nav_reports">Analytics</div>
         <a href="/report.html" class="nav-item">
@@ -279,10 +311,6 @@
         </a>
         <a href="/expenses.html" class="nav-item">
             <i class="fas fa-receipt"></i><span class="nav-label" data-i18n="nav_expenses">Expenses</span>
-        </a>
-        <div class="nav-group-label" data-i18n="nav_customers">Customers</div>
-        <a href="/customers.html" class="nav-item">
-            <i class="fas fa-user-group"></i><span class="nav-label" data-i18n="nav_customers">Customers</span>
         </a>
         <div class="nav-group-label" data-i18n="nav_branches">Management</div>
         <a href="/branches.html" class="nav-item">
@@ -341,9 +369,8 @@
             <div class="pos-left-header">
                 <div class="pos-left-title" data-i18n="pos_quick_actions">Quick Actions</div>
                 <div class="quick-actions">
-                    <a href="/products.html" class="btn btn-secondary btn-sm"><i class="fas fa-box-open"></i> <span data-i18n="nav_products">Products</span></a>
-                    <a href="/dashboard.html" class="btn btn-secondary btn-sm"><i class="fas fa-th-large"></i> <span data-i18n="nav_dashboard">Dashboard</span></a>
-                    <a href="/report.html" class="btn btn-secondary btn-sm"><i class="fas fa-chart-bar"></i> <span data-i18n="nav_reports">Reports</span></a>
+                    <a href="/sales-list.html" class="btn btn-secondary btn-sm"><i class="fas fa-list-alt"></i> Sales List</a>
+                    <a href="/sales-return.html" class="btn btn-secondary btn-sm"><i class="fas fa-undo-alt"></i> Sales Return</a>
                     <button class="btn btn-secondary btn-sm" onclick="Modal.open('receiptLookupModal')"><i class="fas fa-magnifying-glass"></i> <span data-i18n="pos_lookup_receipt">Lookup Receipt</span></button>
                 </div>
             </div>
@@ -366,6 +393,7 @@
                     <select id="customerId" class="form-control" onchange="toggleWalkInName()">
                         <option value="" data-i18n="pos_walkin">— Walk-in Customer —</option>
                     </select>
+                    <div id="customerKycNotice" style="display:none;margin-top:6px;padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);align-items:center;gap:8px;border:1px solid transparent"></div>
                 </div>
                 <div class="form-group" id="walkInNameGroup" style="margin-bottom:var(--space-4)">
                     <label class="form-label">Walk-in Customer Name (Optional)</label>
@@ -645,8 +673,55 @@
     </div>
 </div>
 
+<!-- SCRAP ITEM PURITY MODAL -->
+<div class="modal-overlay" id="scrapPurityModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-recycle" style="color:var(--warning);margin-right:8px"></i>Scrap Item — Select Purity
+            </span>
+        </div>
+        <div class="modal-body">
+            <div style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--radius-md);padding:var(--space-3) var(--space-4);margin-bottom:var(--space-4);font-size:var(--text-xs);color:var(--text-secondary)">
+                <i class="fas fa-info-circle" style="color:var(--warning);margin-right:6px"></i>
+                <strong id="scrapProductNameDisplay">This item</strong> is a scrap/assay item. Its purity varies per piece — please enter the purity of this specific piece before adding to cart.
+            </div>
+            <div class="form-group">
+                <label class="form-label">Purity *</label>
+                <select id="scrapPuritySelect" class="form-control" onchange="onScrapPuritySelectChange()">
+                    <option value="">— Select purity —</option>
+                    <option value="585">14k / 585</option>
+                    <option value="750">18k / 750</option>
+                    <option value="875">21k / 875</option>
+                    <option value="916">22k / 916</option>
+                    <option value="920">22k / 920</option>
+                    <option value="999.9">24k / 999.9</option>
+                    <option value="995">995 Bullion</option>
+                    <option value="custom">Custom…</option>
+                </select>
+            </div>
+            <div class="form-group" id="scrapPurityCustomGroup" style="display:none">
+                <label class="form-label">Custom Purity Value</label>
+                <input type="number" id="scrapPurityCustomInput" class="form-control" placeholder="e.g. 833" step="0.1" min="1" max="999.9">
+                <div class="text-xs text-muted" style="margin-top:4px">Enter the per-mille value (e.g. 750 = 18k, 916 = 22k)</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="cancelScrapPurity()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmScrapPurity()"><i class="fas fa-check"></i> Add to Cart</button>
+        </div>
+    </div>
+</div>
+
 <script src="/js/smartpos.js"></script>
 <script>
+    function fmtQty(val) {
+        if (val === null || val === undefined) return '0';
+        const n = parseFloat(val);
+        if (Number.isInteger(n)) return n.toString();
+        return parseFloat(n.toFixed(4)).toString();
+    }
+
     RoleGuard.guardCurrentPage();
 
     const PRODUCTS_API = '/api/products';
@@ -663,6 +738,7 @@
     let currentCategory = 'all';
     let saleInProgress  = false;
     let topSellerIds    = new Set();
+    let _pendingScrapProductId = null;  // id of scrap item waiting for purity selection
 
     // ── RECEIPT LOOKUP ────────────────────────────────────────────
     async function lookupReceipt() {
@@ -675,7 +751,7 @@
             const items = r.items || [];
             const itemRows = items.map(item =>
                 `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:var(--text-xs)">
-                    <div><span class="text-primary font-semibold">${item.productName}</span><span class="text-muted"> × ${item.quantitySold}</span></div>
+                    <div><span class="text-primary font-semibold">${item.productName}</span><span class="text-muted"> × ${fmtQty(item.quantitySold)}</span></div>
                     <span class="text-primary font-medium">${Format.currency(item.totalAmount)}</span>
                 </div>`).join('');
             result.style.display = 'block';
@@ -824,6 +900,12 @@
         const popularBadge = isPopular ? '<span class="popular-badge"><i class="fas fa-fire" style="font-size:0.5rem"></i> Popular</span>' : '';
         const icon = getCatIcon(p.category);
 
+        // Purity + unit subtitle (same style as purchase.html product cards)
+        const subParts = [];
+        if (p.purity) subParts.push(`Purity: ${p.purity}`);
+        subParts.push(p.unitType || 'PCS');
+        const subLine = subParts.join(' · ');
+
         return `
             <div class="product-card ${isOut ? 'out-of-stock' : ''}"
                  data-product-id="${p.id}"
@@ -835,7 +917,8 @@
                 </div>
                 <div class="product-card-body">
                     <div class="product-card-name" title="${p.name}">${p.name}</div>
-                    <div class="product-card-price">${Format.currency(p.price)}</div>
+                    <div class="product-card-sub" style="font-size:0.6rem;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${subLine}</div>
+                    ${(p.price && parseFloat(p.price) > 0) ? `<div class="product-card-price">${Format.currency(p.price)}</div>` : ''}
                 </div>
             </div>`;
     }
@@ -921,10 +1004,21 @@
     function addToCart(id) {
         const p = allProducts.find(x => x.id===id); if (!p) return;
         const stock = getEffectiveStock(p);
-        
-        const isGoldOrSilver = (p.category || '').toLowerCase().includes('gold') || 
-                               (p.category || '').toLowerCase().includes('silver') || 
-                               (p.category || '').toLowerCase().includes('jewel') || 
+
+        // Scrap items require purity selection before cart entry
+        if (p.isScrap) {
+            _pendingScrapProductId = id;
+            document.getElementById('scrapProductNameDisplay').textContent = p.name;
+            document.getElementById('scrapPuritySelect').value = '';
+            document.getElementById('scrapPurityCustomGroup').style.display = 'none';
+            document.getElementById('scrapPurityCustomInput').value = '';
+            Modal.open('scrapPurityModal');
+            return;
+        }
+
+        const isGoldOrSilver = (p.category || '').toLowerCase().includes('gold') ||
+                               (p.category || '').toLowerCase().includes('silver') ||
+                               (p.category || '').toLowerCase().includes('jewel') ||
                                (p.category || '').toLowerCase().includes('ring');
         const defaultUnit = p.unitType || (isGoldOrSilver ? 'GRAM' : 'PCS');
         
@@ -970,13 +1064,65 @@
         Toast.success(`${p.name} added to cart`);
     }
 
-    function removeFromCart(cartItemId) { 
+    function removeFromCart(cartItemId) {
         if (cartItemId === activeCartItemId) {
             setActiveCartItem(null);
         }
-        cart = cart.filter(x => x.cartItemId !== cartItemId); 
-        renderCart(); 
-        calcTotals(); 
+        cart = cart.filter(x => x.cartItemId !== cartItemId);
+        renderCart();
+        calcTotals();
+    }
+
+    // ── SCRAP PURITY MODAL ────────────────────────────────────────
+    function onScrapPuritySelectChange() {
+        const val = document.getElementById('scrapPuritySelect').value;
+        document.getElementById('scrapPurityCustomGroup').style.display = val === 'custom' ? 'block' : 'none';
+    }
+
+    function cancelScrapPurity() {
+        _pendingScrapProductId = null;
+        Modal.close('scrapPurityModal');
+    }
+
+    function confirmScrapPurity() {
+        const id = _pendingScrapProductId;
+        if (!id) return;
+        const selectVal = document.getElementById('scrapPuritySelect').value;
+        let purity = null;
+        if (selectVal === 'custom') {
+            purity = document.getElementById('scrapPurityCustomInput').value.trim();
+            if (!purity) { Toast.error('Please enter a custom purity value.'); return; }
+        } else if (selectVal) {
+            purity = selectVal;
+        } else {
+            Toast.error('Please select a purity.'); return;
+        }
+        Modal.close('scrapPurityModal');
+        _pendingScrapProductId = null;
+        _addScrapToCart(id, purity);
+    }
+
+    function _addScrapToCart(id, scrapPurity) {
+        const p = allProducts.find(x => x.id === id); if (!p) return;
+        const stock = getEffectiveStock(p);
+        const defaultUnit = p.unitType || 'GRAM';
+        const newCartItemId = 'cart_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        cart.push({
+            ...p,
+            cartItemId: newCartItemId,
+            qty: 1,
+            _stock: stock,
+            unit: defaultUnit,
+            discountType: 'none',
+            discountValue: 0,
+            calculatedDiscount: 0,
+            originalDiscount: 0,
+            calculatedWeight: 1,
+            scrapPurity: scrapPurity
+        });
+        renderCart();
+        setActiveCartItem(newCartItemId);
+        Toast.success(`${p.name} (${scrapPurity}) added to cart`);
     }
 
     function updateQty(cartItemId, val) {
@@ -1062,10 +1208,11 @@
             return `
             <tr style="${highlightStyle}" onclick="setActiveCartItem('${item.cartItemId}')">
                 <td class="text-muted">${i+1}</td>
-                <td class="cell-primary" style="max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
-                    ${item.name}
-                    ${item.unit === 'GRAM' ? ' <span style="font-size: 10px; padding: 2px 4px; background: var(--success); color: white; border-radius: 3px; font-weight: bold; margin-left: 4px;">g</span>' : ''}
-                    ${item.unit === 'PCS' ? ' <span style="font-size: 10px; padding: 2px 4px; background: var(--info); color: white; border-radius: 3px; font-weight: bold; margin-left: 4px;">pcs</span>' : ''}
+                <td class="cell-primary" style="max-width:145px">
+                    <div style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500">${item.name}</div>
+                    <div style="font-size:0.65rem;color:var(--text-muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+                        ${[item.purity || '', item.unit === 'GRAM' ? 'Gram' : 'PCS'].filter(Boolean).join(' · ')}${item.scrapPurity ? ` · <span style="color:var(--warning);font-weight:700">${item.scrapPurity}</span>` : ''}
+                    </div>
                 </td>
                 <td class="text-secondary">${Format.currency(item.price)}</td>
                 <td style="white-space: nowrap; display: flex; align-items: center; gap: 4px;" onclick="event.stopPropagation()">
@@ -1457,6 +1604,24 @@
             group.style.display = 'none';
             document.getElementById('walkInCustomerName').value = '';
         }
+        checkCustomerKyc();
+    }
+
+    function checkCustomerKyc() {
+        const select = document.getElementById('customerId');
+        const notice = document.getElementById('customerKycNotice');
+        if (!notice) return;
+        if (!select.value) { notice.style.display = 'none'; return; }
+        const c = custDataMap[parseInt(select.value)];
+        if (!c || !c.kycStatus || c.kycStatus === 'VERIFIED') { notice.style.display = 'none'; return; }
+        const cfg = {
+            NOT_VERIFIED: { bg:'rgba(245,158,11,0.1)', border:'rgba(245,158,11,0.3)', color:'#d97706', icon:'fa-circle-exclamation', text:'KYC not verified — please complete verification for this customer.' },
+            PENDING:      { bg:'rgba(99,102,241,0.1)',  border:'rgba(99,102,241,0.3)',  color:'var(--primary)', icon:'fa-clock', text:'KYC verification is pending for this customer.' },
+            EXPIRED:      { bg:'rgba(239,68,68,0.1)',   border:'rgba(239,68,68,0.3)',   color:'#dc2626', icon:'fa-triangle-exclamation', text:'KYC documents have expired — please update customer records.' }
+        }[c.kycStatus];
+        if (!cfg) { notice.style.display = 'none'; return; }
+        notice.style.cssText = `display:flex;margin-top:6px;padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);align-items:center;gap:8px;background:${cfg.bg};border:1px solid ${cfg.border};color:${cfg.color}`;
+        notice.innerHTML = `<i class="fas ${cfg.icon}"></i><span>${cfg.text} <a href="/parties.html" style="color:inherit;text-decoration:underline;font-weight:600">Manage in Parties</a></span>`;
     }
 
     function calcTotals() {
@@ -1538,7 +1703,7 @@
             const ozRate = parseFloat(document.getElementById('ozRate').value) || 0;
 
             const tx = await API.post(`${SALES_API}/transaction`, {
-                items: cart.map(item => ({ productId: item.id, quantity: item.qty, price: item.price })),
+                items: cart.map(item => ({ productId: item.id, quantity: item.qty, price: item.price, scrapPurity: item.scrapPurity || null })),
                 paymentMethod, amountReceived: amtReceived > 0 ? amtReceived : null, cashierName,
                 customerId, customerName,
                 discountAmount: discount,
@@ -1613,7 +1778,7 @@
             <div class="receipt-items">
                 ${items.map(item => `
                     <div class="row">
-                        <span>${item.productName} × ${item.quantitySold}</span>
+                        <span>${item.productName} × ${fmtQty(item.quantitySold)}</span>
                         <span>${Format.currency(item.totalAmount)}</span>
                     </div>
                 `).join('')}
@@ -1640,7 +1805,7 @@
             + (branch ? `${branch}\n` : '')
             + `\nReceipt: *${receiptNo || 'N/A'}*\n`
             + `${when}\n\n`
-            + items.map(i => `• ${i.productName} × ${i.quantitySold} — ${Format.currency(i.totalAmount)}`).join('\n')
+            + items.map(i => `• ${i.productName} × ${fmtQty(i.quantitySold)} — ${Format.currency(i.totalAmount)}`).join('\n')
             + `\n\nSubtotal: ${Format.currency(tx.subtotal)}\n`
             + `VAT (5%): ${Format.currency(tx.vatAmount)}\n`
             + `*TOTAL: ${Format.currency(tx.totalAmount || total)}*\n`
@@ -1761,11 +1926,13 @@
     }, true);
 
     // ── FETCH CUSTOMERS ───────────────────────────────────────────
+    const custDataMap = {};
     async function loadCustomers() {
         try {
             const custs = await API.get('/api/customers');
             const select = document.getElementById('customerId');
             custs.forEach(c => {
+                custDataMap[c.id] = c;
                 select.options.add(new Option(c.fullName, c.id));
             });
         } catch(e) { console.warn('Could not load customers', e); }
@@ -1778,6 +1945,8 @@
     if (savedOzRate)       document.getElementById('globalOzRate').value       = savedOzRate;
     if (savedSilverOzRate) document.getElementById('globalSilverOzRate').value = savedSilverOzRate;
     if (savedExchangeRate) document.getElementById('globalExchangeRate').value = savedExchangeRate;
+    if (savedExchangeRate && document.getElementById('usdExchangeRate'))
+        document.getElementById('usdExchangeRate').value = savedExchangeRate;
 
     Scanner.init();
     loadProducts();

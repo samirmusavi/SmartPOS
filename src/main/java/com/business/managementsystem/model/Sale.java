@@ -58,6 +58,10 @@ public class Sale {
     @Column
     private String purity;
 
+    // Scrap purity entered per-transaction for scrap items (e.g. "750", "916")
+    @Column
+    private String scrapPurity;
+
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal priceAtSale;
 
@@ -100,6 +104,7 @@ public class Sale {
     public double getQuantitySold()    { return quantitySold; }
     public String getUnitType()        { return unitType; }
     public String getPurity()          { return purity; }
+    public String getScrapPurity()     { return scrapPurity; }
     public BigDecimal getPriceAtSale()  { return priceAtSale; }
     public BigDecimal getCostAtSale()   { return costAtSale; }
     public BigDecimal getTotalAmount()  { return totalAmount; }
@@ -117,6 +122,7 @@ public class Sale {
     public void setQuantitySold(double q)            { this.quantitySold = q; }
     public void setUnitType(String unitType)         { this.unitType = unitType; }
     public void setPurity(String purity)             { this.purity = purity; }
+    public void setScrapPurity(String scrapPurity)   { this.scrapPurity = scrapPurity; }
     public void setPriceAtSale(BigDecimal p)        { this.priceAtSale = p; }
     public void setCostAtSale(BigDecimal c)         { this.costAtSale = c; }
     public void setTotalAmount(BigDecimal t)        { this.totalAmount = t; }

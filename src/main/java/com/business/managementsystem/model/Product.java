@@ -55,6 +55,15 @@ public class Product {
     @Column
     private String imagePath;
 
+    /** True for scrap gold/silver items — purity entered per-transaction */
+    @Column(nullable = false)
+    private boolean isScrap = false;
+
+    /** Global total weight of all pieces in grams — synced from branch_inventory sums.
+     *  Null for GRAM-unit products (weight = quantity there). */
+    @Column
+    private Double totalWeightGrams;
+
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -115,6 +124,12 @@ public class Product {
 
     public String getImagePath() { return imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath; }
+
+    public boolean isScrap() { return isScrap; }
+    public void setScrap(boolean scrap) { this.isScrap = scrap; }
+
+    public Double getTotalWeightGrams() { return totalWeightGrams; }
+    public void setTotalWeightGrams(Double totalWeightGrams) { this.totalWeightGrams = totalWeightGrams; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

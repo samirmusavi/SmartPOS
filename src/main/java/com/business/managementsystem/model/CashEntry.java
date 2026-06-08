@@ -62,7 +62,8 @@ public class CashEntry {
         MANUAL_OUT,
         HAND_LOAN_IN,
         HAND_LOAN_OUT,
-        OPENING
+        OPENING,
+        PURCHASE
     }
 
     public CashEntry() {}

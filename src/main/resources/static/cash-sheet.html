@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8"/>
@@ -99,6 +99,8 @@
         .row-return    { }
         .row-manual-in,
         .row-manual-out { background: rgba(245,158,11,0.03); }
+        .row-hand-loan-in,
+        .row-hand-loan-out { background: rgba(6,182,212,0.03); }
 
         /* Type badges */
         .type-badge {
@@ -116,6 +118,8 @@
         .badge-manual-out{ background: rgba(168,85,247,0.12); color: #9333ea; border:1px solid rgba(168,85,247,0.25); }
         .badge-opening   { background: rgba(99,102,241,0.08); color: var(--primary); border:1px solid rgba(99,102,241,0.2); }
         .badge-override  { background: rgba(245,158,11,0.12); color: #d97706; border:1px solid rgba(245,158,11,0.25); }
+        .badge-loan-in   { background: rgba(6,182,212,0.12);  color: #0891b2; border:1px solid rgba(6,182,212,0.25); }
+        .badge-loan-out  { background: rgba(249,115,22,0.12); color: #ea580c; border:1px solid rgba(249,115,22,0.25); }
 
         /* Entry action icons */
         .entry-actions { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
@@ -257,6 +261,27 @@
                 </a>
             </div>
         </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
         <a href="/cash-sheet.html" class="nav-item active">
             <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
         </a>
@@ -276,20 +301,31 @@
         <a href="/predictions.html" class="nav-item">
             <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span>
         </a>
-        <a href="/suppliers.html" class="nav-item">
-            <i class="fas fa-truck"></i><span class="nav-label">Suppliers</span>
-        </a>
-        <a href="/purchase-orders.html" class="nav-item">
-            <i class="fas fa-file-invoice"></i><span class="nav-label">Purchase Orders</span>
-        </a>
-        <a href="/returns.html" class="nav-item">
-            <i class="fas fa-rotate-left"></i><span class="nav-label">Returns</span>
-        </a>
         <a href="/supplies.html" class="nav-item">
             <i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span>
         </a>
         <a href="/stock-transfers.html" class="nav-item">
             <i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
         </a>
         <div class="nav-group-label">Analytics</div>
         <a href="/report.html" class="nav-item">
@@ -297,10 +333,6 @@
         </a>
         <a href="/expenses.html" class="nav-item">
             <i class="fas fa-receipt"></i><span class="nav-label">Expenses</span>
-        </a>
-        <div class="nav-group-label">Customers</div>
-        <a href="/customers.html" class="nav-item">
-            <i class="fas fa-user-group"></i><span class="nav-label">Customers</span>
         </a>
         <div class="nav-group-label">Management</div>
         <a href="/branches.html" class="nav-item">
@@ -473,17 +505,28 @@
                         <span class="summary-value big" id="sumSystemBalance">—</span>
                     </div>
 
+                    <div class="summary-row">
+                        <span class="summary-label" style="display:flex;align-items:center;gap:6px;color:var(--danger,#ef4444)">
+                            Total Hand Loan
+                            <button class="icon-btn edit-opening-btn" onclick="editHandLoanTotal()" title="Edit hand loan total">
+                                <i class="fas fa-pencil"></i>
+                            </button>
+                        </span>
+                        <span class="summary-value out-color" id="sumHandLoan">—</span>
+                    </div>
+
+                    <div class="summary-row divider">
+                        <span class="summary-label" style="font-weight:600">Adjusted Balance</span>
+                        <span class="summary-value big" id="sumAdjustedBalance">—</span>
+                    </div>
+
                     <div class="summary-row" style="margin-top:var(--space-2)">
                         <span class="summary-label">Manual Cash Count</span>
                         <span class="summary-value" id="sumManualCash">—</span>
                     </div>
-                    <div class="summary-row">
-                        <span class="summary-label">Hand Loans Received</span>
-                        <span class="summary-value" id="sumHandLoan">—</span>
-                    </div>
 
                     <div class="summary-row divider">
-                        <span class="summary-label" style="font-weight:600" id="sumExcessLabel">Excess / Short</span>
+                        <span class="summary-label" style="font-weight:600">Excess / Short</span>
                         <span class="summary-value big" id="sumExcessShort">—</span>
                     </div>
 
@@ -570,54 +613,81 @@
                         <span class="denom-total-value" id="denomTotal">AED 0.00</span>
                     </div>
 
-                    <!-- Hand loans -->
-                    <div class="denom-handloan-row" style="margin-top:var(--space-1)">
-                        <span class="denom-handloan-label">+ Hand Loans Received (AED)</span>
-                        <input type="number" id="dHandLoan" class="form-control denom-input" min="0" step="0.01" value="0"
-                            placeholder="0.00" oninput="denomChanged()" onblur="saveDenominations()">
-                    </div>
-
-                    <!-- Grand total -->
-                    <div class="denom-total-row" style="border-top:2px solid var(--primary);margin-top:var(--space-2)">
-                        <span class="denom-total-label" style="color:var(--primary)">Grand Total</span>
-                        <span class="denom-total-value" style="font-size:var(--text-lg)" id="denomGrandTotal">AED 0.00</span>
-                    </div>
+                    <!-- Hidden: net hand loan kept for server sync only -->
+                    <input type="hidden" id="dHandLoan" value="0">
 
                 </div>
             </div><!-- /denomination card -->
 
-            <!-- Manual Entries Summary Card -->
+            <!-- Hand Loans Card -->
             <div class="card" style="margin-top:var(--space-5);overflow:hidden">
                 <div class="card-header">
                     <div class="card-title">
-                        <i class="fas fa-hand-holding-dollar" style="margin-right:6px;color:var(--primary)"></i>Manual &amp; Hand Loans
+                        <i class="fas fa-handshake" style="margin-right:6px;color:#0891b2"></i>Hand Loans
                     </div>
                 </div>
 
-                <!-- Detail table -->
+                <!-- Hand Loans table -->
                 <div style="overflow-x:auto">
                     <table style="width:100%;border-collapse:collapse;font-size:var(--text-xs)">
                         <thead>
                             <tr style="background:var(--surface-2);border-bottom:1px solid var(--border)">
+                                <th style="padding:var(--space-2) var(--space-3);width:28px;text-align:center;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">#</th>
                                 <th style="padding:var(--space-2) var(--space-3);text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Party</th>
                                 <th style="padding:var(--space-2) var(--space-3);text-align:left;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Description</th>
-                                <th style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">In</th>
-                                <th style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Out</th>
+                                <th style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">In (AED)</th>
+                                <th style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted)">Out (AED)</th>
+                                <th style="padding:var(--space-2) var(--space-3);width:56px"></th>
                             </tr>
                         </thead>
-                        <tbody id="manualEntriesTbody">
-                            <tr><td colspan="4" style="padding:var(--space-4);text-align:center;color:var(--text-muted);font-size:var(--text-xs)">No manual entries yet</td></tr>
+                        <tbody id="handLoanTbody">
+                            <tr><td colspan="6" style="padding:var(--space-4);text-align:center;color:var(--text-muted)">No hand loan entries yet</td></tr>
                         </tbody>
-                        <tfoot id="manualEntriesFoot" style="display:none">
+                        <tfoot id="handLoanFoot" style="display:none">
                             <tr style="border-top:2px solid var(--border);background:var(--surface-2)">
-                                <td colspan="2" style="padding:var(--space-2) var(--space-3);font-weight:700;font-size:var(--text-xs)">Totals</td>
-                                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--success,#22c55e)" id="mTotalIn">—</td>
-                                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--danger,#ef4444)" id="mTotalOut">—</td>
+                                <td colspan="3" style="padding:var(--space-2) var(--space-3);font-weight:700;font-size:var(--text-xs)">Totals</td>
+                                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--success,#22c55e)" id="hlTotalIn">—</td>
+                                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:700;color:var(--danger,#ef4444)" id="hlTotalOut">—</td>
+                                <td></td>
                             </tr>
                         </tfoot>
                     </table>
                 </div>
-            </div><!-- /manual entries -->
+
+                <!-- Always-open Add Hand Loan Form -->
+                <div class="cs-add-panel">
+                    <div class="text-sm" style="font-weight:600;margin-bottom:var(--space-3);color:var(--text-primary)">
+                        <i class="fas fa-plus-circle" style="color:#0891b2;margin-right:6px"></i>Add Hand Loan Entry
+                    </div>
+                    <div class="cs-add-grid">
+                        <div class="form-group">
+                            <label class="form-label">Party Name</label>
+                            <input type="text" id="hlParty" class="form-control" placeholder="e.g. Ahmed Ali">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Description</label>
+                            <input type="text" id="hlDesc" class="form-control" placeholder="Note or reference">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Amount In (AED)</label>
+                            <input type="number" id="hlAmtIn" class="form-control" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Amount Out (AED)</label>
+                            <input type="number" id="hlAmtOut" class="form-control" placeholder="0.00" min="0" step="0.01">
+                        </div>
+                    </div>
+                    <div class="cs-add-actions">
+                        <button class="btn btn-primary" onclick="submitAddHandLoan()">
+                            <i class="fas fa-check"></i> Save Entry
+                        </button>
+                        <button class="btn btn-secondary" onclick="clearHandLoanForm()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+            </div><!-- /hand loans -->
 
         </div><!-- /cs-right -->
     </div><!-- /cs-layout -->
@@ -643,14 +713,18 @@ function setVal(id, v)   { const e = document.getElementById(id); if (e) e.value
 function typeBadgeClass(type) {
     const m = {
         SALE: 'badge-sale', EXPENSE: 'badge-expense', RETURN: 'badge-return',
-        MANUAL_IN: 'badge-manual-in', MANUAL_OUT: 'badge-manual-out', OPENING: 'badge-opening'
+        MANUAL_IN: 'badge-manual-in', MANUAL_OUT: 'badge-manual-out',
+        HAND_LOAN_IN: 'badge-loan-in', HAND_LOAN_OUT: 'badge-loan-out',
+        OPENING: 'badge-opening'
     };
     return m[type] || '';
 }
 function typeBadgeLabel(type) {
     const m = {
         SALE: 'Sale', EXPENSE: 'Expense', RETURN: 'Return',
-        MANUAL_IN: 'Manual In', MANUAL_OUT: 'Manual Out', OPENING: 'Opening'
+        MANUAL_IN: 'Manual In', MANUAL_OUT: 'Manual Out',
+        HAND_LOAN_IN: 'Loan In', HAND_LOAN_OUT: 'Loan Out',
+        OPENING: 'Opening'
     };
     return m[type] || type;
 }
@@ -741,11 +815,11 @@ function applySheetData(data) {
     renderEntries();
     renderSummary();
     renderDenominations();
-    renderManualSummary();
+    renderHandLoanTable();
 
     // Print meta
     setEl('printTitle', `Cash Sheet — ${state.date}`);
-    setEl('printMeta', `Branch: ${state.branchId || 'All'} | Printed: ${new Date().toLocaleString()}`);
+    setEl('printMeta', `Branch: ${state.branchId || 'All'} | Printed: ${Format.datetime(new Date())}`);
 }
 
 function setLoading(on) {
@@ -865,21 +939,35 @@ function escHtml(str) {
 
 // ── RENDER SUMMARY ────────────────────────────────────────────
 function renderSummary() {
-    const s = state.summary || {};
-    setEl('sumOpeningBalance', fmtC(s.openingBalance));
-    setEl('sumTotalIn',        fmtC(s.totalIn));
-    setEl('sumTotalOut',       fmtC(s.totalOut));
-    setEl('sumSystemBalance',  fmtC(s.systemBalance));
-    setEl('sumHandLoan',       fmtC(s.handLoanTotal));
-    setEl('sumManualCash',     fmtC(s.manualCashTotal));
+    const s         = state.summary || {};
+    const handLoan  = parseAmt(state.sheet ? state.sheet.handLoanTotal : 0);
+    const systemBal = parseAmt(s.systemBalance);
+    const adjusted  = systemBal - handLoan;
+    const manualCash = parseAmt(s.manualCashTotal);
+    const excess    = manualCash - adjusted;
 
-    const excess   = parseAmt(s.excessShort);
+    setEl('sumOpeningBalance',  fmtC(s.openingBalance));
+    setEl('sumTotalIn',         fmtC(s.totalIn));
+    setEl('sumTotalOut',        fmtC(s.totalOut));
+    setEl('sumSystemBalance',   fmtC(systemBal));
+
+    // Hand loan shown as negative deduction
+    const hlEl = document.getElementById('sumHandLoan');
+    if (hlEl) hlEl.textContent = handLoan > 0 ? '− ' + fmtC(handLoan) : fmtC(0);
+
+    setEl('sumAdjustedBalance', fmtC(adjusted));
+    setEl('sumManualCash',      fmtC(manualCash));
+
     const excessEl = document.getElementById('sumExcessShort');
     if (excessEl) {
-        excessEl.textContent = fmtC(Math.abs(excess));
+        const sign = excess >= 0 ? '+' : '−';
+        excessEl.textContent = sign + ' ' + fmtC(Math.abs(excess)) + (excess >= 0 ? '  ✅' : '  ❌');
         excessEl.className   = 'summary-value big ' + (excess >= 0 ? 'excess-positive' : 'excess-negative');
     }
-    setEl('sumExcessLabel', excess >= 0 ? 'Excess' : 'Short');
+
+    // Keep hidden dHandLoan in sync for denomination recalc
+    const hidden = document.getElementById('dHandLoan');
+    if (hidden) hidden.value = handLoan;
 }
 
 // ── RENDER DENOMINATIONS ──────────────────────────────────────
@@ -936,25 +1024,23 @@ function recalcDenominations() {
     const cashTotal = notesTotal + mix + coins;
     setEl('denomTotal', fmtC(cashTotal));
 
-    const handLoan = parseFloat(document.getElementById('dHandLoan').value) || 0;
-    setEl('denomGrandTotal', fmtC(cashTotal + handLoan));
-
-    // Keep Summary card in sync
+    // Keep Summary card Manual Cash Count in sync
     setEl('sumManualCash', fmtC(cashTotal));
-    setEl('sumHandLoan',   fmtC(handLoan));
 
-    const systemBal = parseAmt(state.summary ? state.summary.systemBalance : 0);
-    const excess    = cashTotal - systemBal;
-    const excessEl  = document.getElementById('sumExcessShort');
+    // Adjusted Balance = System Balance − Hand Loan
+    const handLoan   = parseFloat(document.getElementById('dHandLoan').value) || 0;
+    const systemBal  = parseAmt(state.summary ? state.summary.systemBalance : 0);
+    const adjusted   = systemBal - handLoan;
+    setEl('sumAdjustedBalance', fmtC(adjusted));
+
+    // Excess/Short = Manual Count − Adjusted Balance
+    const excess   = cashTotal - adjusted;
+    const excessEl = document.getElementById('sumExcessShort');
     if (excessEl) {
-        excessEl.textContent = fmtC(Math.abs(excess));
+        const sign = excess >= 0 ? '+' : '−';
+        excessEl.textContent = sign + ' ' + fmtC(Math.abs(excess)) + (excess >= 0 ? '  ✅' : '  ❌');
         excessEl.className   = 'summary-value big ' + (excess >= 0 ? 'excess-positive' : 'excess-negative');
     }
-    setEl('sumExcessLabel', excess >= 0 ? 'Excess' : 'Short');
-
-    // Update manual entries summary card loan row
-    setEl('mSumLoan', fmtC(handLoan));
-    _recalcManualSummaryNet();
 }
 
 // ── DENOM AUTO-SAVE ───────────────────────────────────────────
@@ -999,63 +1085,59 @@ async function saveDenominations() {
     } catch (e) { /* API shows toast */ }
 }
 
-// ── MANUAL ENTRIES DETAIL TABLE ──────────────────────────────
-function renderManualSummary() {
-    const tbody  = document.getElementById('manualEntriesTbody');
-    const tfoot  = document.getElementById('manualEntriesFoot');
+// ── HAND LOANS TABLE ─────────────────────────────────────────
+function renderHandLoanTable() {
+    const tbody = document.getElementById('handLoanTbody');
+    const tfoot = document.getElementById('handLoanFoot');
     if (!tbody) return;
 
-    const manual = (state.entries || []).filter(
-        e => e.entryType === 'MANUAL_IN' || e.entryType === 'MANUAL_OUT'
+    const loans = (state.entries || []).filter(
+        e => e.entryType === 'HAND_LOAN_IN' || e.entryType === 'HAND_LOAN_OUT'
     );
 
-    if (manual.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="4" style="padding:var(--space-4);text-align:center;color:var(--text-muted);font-size:var(--text-xs)">No manual entries yet</td></tr>`;
+    let totalIn = 0, totalOut = 0, rowNum = 0, rows = '';
+
+    if (loans.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="padding:var(--space-4);text-align:center;color:var(--text-muted)">No hand loan entries yet</td></tr>`;
         if (tfoot) tfoot.style.display = 'none';
-        return;
+    } else {
+        loans.forEach(e => {
+            rowNum++;
+            const amtIn  = parseAmt(e.amountIn);
+            const amtOut = parseAmt(e.amountOut);
+            totalIn  += amtIn;
+            totalOut += amtOut;
+            const badge = e.entryType === 'HAND_LOAN_IN'
+                ? `<span class="type-badge badge-loan-in">Loan In</span>`
+                : `<span class="type-badge badge-loan-out">Loan Out</span>`;
+
+            rows += `
+            <tr style="border-bottom:1px solid var(--border)" id="hl-row-${e.id}">
+                <td style="padding:var(--space-2) var(--space-3);text-align:center;color:var(--text-muted)">${rowNum}</td>
+                <td style="padding:var(--space-2) var(--space-3)">
+                    <div style="font-weight:600;color:var(--text-primary)">${escHtml(e.partyName || '—')}</div>
+                    ${badge}
+                </td>
+                <td style="padding:var(--space-2) var(--space-3);color:var(--text-secondary)">${escHtml(e.description || '—')}</td>
+                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:var(--success,#22c55e)">${amtIn  > 0 ? fmtN(amtIn)  : '—'}</td>
+                <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:var(--danger,#ef4444)">${amtOut > 0 ? fmtN(amtOut) : '—'}</td>
+                <td style="padding:var(--space-2) var(--space-3)">
+                    <div style="display:inline-flex;gap:4px">
+                        <button class="icon-btn" onclick="startEditHandLoan(${e.id})" title="Edit"><i class="fas fa-pencil"></i></button>
+                        <button class="icon-btn danger" onclick="deleteHandLoan(${e.id})" title="Delete"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`;
+        });
+        tbody.innerHTML = rows;
+        if (tfoot) {
+            tfoot.style.display = '';
+            setEl('hlTotalIn',  totalIn  > 0 ? fmtN(totalIn)  : '—');
+            setEl('hlTotalOut', totalOut > 0 ? fmtN(totalOut) : '—');
+        }
     }
 
-    let totalIn  = 0;
-    let totalOut = 0;
-    let rows     = '';
-
-    manual.forEach(e => {
-        const amtIn  = parseAmt(e.amountIn);
-        const amtOut = parseAmt(e.amountOut);
-        totalIn  += amtIn;
-        totalOut += amtOut;
-
-        const typeBadge = e.entryType === 'MANUAL_IN'
-            ? `<span class="type-badge badge-manual-in" style="margin-left:4px">In</span>`
-            : `<span class="type-badge badge-manual-out" style="margin-left:4px">Out</span>`;
-
-        rows += `
-        <tr style="border-bottom:1px solid var(--border)">
-            <td style="padding:var(--space-2) var(--space-3)">
-                <div style="font-weight:600;color:var(--text-primary)">${escHtml(e.partyName || '—')}</div>
-                ${typeBadge}
-            </td>
-            <td style="padding:var(--space-2) var(--space-3);color:var(--text-secondary)">
-                ${escHtml(e.description || '—')}
-            </td>
-            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:var(--success,#22c55e)">
-                ${amtIn  > 0 ? fmtN(amtIn)  : '—'}
-            </td>
-            <td style="padding:var(--space-2) var(--space-3);text-align:right;font-weight:600;color:var(--danger,#ef4444)">
-                ${amtOut > 0 ? fmtN(amtOut) : '—'}
-            </td>
-        </tr>`;
-    });
-
-    tbody.innerHTML = rows;
-    if (tfoot) {
-        tfoot.style.display = '';
-        setEl('mTotalIn',  totalIn  > 0 ? fmtN(totalIn)  : '—');
-        setEl('mTotalOut', totalOut > 0 ? fmtN(totalOut) : '—');
-    }
 }
-
-function _recalcManualSummaryNet() { /* no-op — kept for call-site compatibility */ }
 
 // ── SYNC FROM POS ─────────────────────────────────────────────
 async function syncPOS() {
@@ -1119,7 +1201,11 @@ async function submitAddEntry() {
         clearAddForm();
         Toast.success('Entry added.');
         await loadSheet();
-    } catch (e) { /* API shows toast */ }
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Save failed — please try again.');
+        Toast.error(msg);
+        console.error('submitAddEntry error:', e);
+    }
 }
 
 // ── EDIT ENTRY (inline) ───────────────────────────────────────
@@ -1176,7 +1262,11 @@ async function saveEditEntry(id) {
         await API.put(`/api/cash-sheet/entry/${id}`, payload);
         Toast.success('Entry updated.');
         await loadSheet();
-    } catch (e) { /* API shows toast */ }
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Update failed.');
+        Toast.error(msg);
+        console.error('saveEditEntry error:', e);
+    }
 }
 
 async function deleteEntry(id) {
@@ -1185,7 +1275,134 @@ async function deleteEntry(id) {
         await API.delete(`/api/cash-sheet/entry/${id}`);
         Toast.success('Entry deleted.');
         await loadSheet();
-    } catch (e) { /* API shows toast */ }
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Delete failed.');
+        Toast.error(msg);
+        console.error('deleteEntry error:', e);
+    }
+}
+
+// ── HAND LOAN FORM ────────────────────────────────────────────
+function clearHandLoanForm() {
+    ['hlParty','hlDesc','hlAmtIn','hlAmtOut'].forEach(id => {
+        document.getElementById(id).value = '';
+    });
+    document.getElementById('hlParty').focus();
+}
+
+async function submitAddHandLoan() {
+    const partyName   = document.getElementById('hlParty').value.trim();
+    const description = document.getElementById('hlDesc').value.trim();
+    const amountIn    = parseFloat(document.getElementById('hlAmtIn').value)  || 0;
+    const amountOut   = parseFloat(document.getElementById('hlAmtOut').value) || 0;
+
+    if (amountIn === 0 && amountOut === 0) {
+        Toast.warning('Enter either an Amount In or Amount Out.');
+        return;
+    }
+
+    const entryType = (amountOut > 0 && amountIn === 0) ? 'HAND_LOAN_OUT' : 'HAND_LOAN_IN';
+    const payload = {
+        date:        state.date,
+        branchId:    state.branchId,
+        partyName,
+        description,
+        amountIn:    amountIn  > 0 ? amountIn  : 0,
+        amountOut:   amountOut > 0 ? amountOut : 0,
+        entryType,
+        createdBy:   (Auth.getUser ? Auth.getUser() : '') || ''
+    };
+
+    try {
+        await API.post('/api/cash-sheet/entry', payload);
+        clearHandLoanForm();
+        Toast.success('Hand loan entry added.');
+        await loadSheet();
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Save failed — please try again.');
+        Toast.error(msg);
+        console.error('submitAddHandLoan error:', e);
+    }
+}
+
+// ── HAND LOAN INLINE EDIT ─────────────────────────────────────
+function startEditHandLoan(id) {
+    const entry = (state.entries || []).find(e => e.id === id);
+    if (!entry) return;
+    const row = document.getElementById(`hl-row-${id}`);
+    if (!row) return;
+
+    row.innerHTML = `
+        <td style="padding:var(--space-2) var(--space-3);text-align:center;color:var(--primary)">
+            <i class="fas fa-pencil"></i>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3)" colspan="2">
+            <div style="display:flex;flex-direction:column;gap:4px">
+                <input type="text" class="form-control" id="hlep-${id}"
+                    value="${escHtml(entry.partyName || '')}"
+                    placeholder="Party name" style="font-size:var(--text-xs)">
+                <input type="text" class="form-control" id="hled-${id}"
+                    value="${escHtml(entry.description || '')}"
+                    placeholder="Description" style="font-size:var(--text-xs)">
+            </div>
+        </td>
+        <td style="padding:var(--space-2) var(--space-3)">
+            <input type="number" class="form-control" id="hlei-${id}"
+                value="${parseAmt(entry.amountIn) || ''}"
+                placeholder="0.00" min="0" step="0.01"
+                style="width:100%;font-size:var(--text-xs);text-align:right">
+        </td>
+        <td style="padding:var(--space-2) var(--space-3)">
+            <input type="number" class="form-control" id="hleo-${id}"
+                value="${parseAmt(entry.amountOut) || ''}"
+                placeholder="0.00" min="0" step="0.01"
+                style="width:100%;font-size:var(--text-xs);text-align:right">
+        </td>
+        <td style="padding:var(--space-2) var(--space-3)">
+            <div style="display:flex;flex-direction:column;gap:4px">
+                <button class="btn btn-sm btn-primary" style="font-size:var(--text-xs);padding:3px 8px"
+                    onclick="saveEditHandLoan(${id})">
+                    <i class="fas fa-check"></i>
+                </button>
+                <button class="btn btn-sm btn-secondary" style="font-size:var(--text-xs);padding:3px 8px"
+                    onclick="renderHandLoanTable()">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </td>`;
+
+    document.getElementById(`hlep-${id}`).focus();
+}
+
+async function saveEditHandLoan(id) {
+    const payload = {
+        partyName:   document.getElementById(`hlep-${id}`).value.trim(),
+        description: document.getElementById(`hled-${id}`).value.trim(),
+        amountIn:    parseFloat(document.getElementById(`hlei-${id}`).value) || 0,
+        amountOut:   parseFloat(document.getElementById(`hleo-${id}`).value) || 0
+    };
+    try {
+        await API.put(`/api/cash-sheet/entry/${id}`, payload);
+        Toast.success('Hand loan entry updated.');
+        await loadSheet();
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Update failed — please try again.');
+        Toast.error(msg);
+        console.error('saveEditHandLoan error:', e);
+    }
+}
+
+async function deleteHandLoan(id) {
+    if (!confirm('Delete this hand loan entry? This cannot be undone.')) return;
+    try {
+        await API.delete(`/api/cash-sheet/entry/${id}`);
+        Toast.success('Hand loan entry deleted.');
+        await loadSheet();
+    } catch (e) {
+        const msg = (e && e.message) ? e.message : (typeof e === 'string' ? e : 'Delete failed — please try again.');
+        Toast.error(msg);
+        console.error('deleteHandLoan error:', e);
+    }
 }
 
 // ── EDIT OPENING BALANCE ──────────────────────────────────────
@@ -1208,6 +1425,43 @@ async function saveOpeningBalance(value) {
         Toast.success('Opening balance updated.');
         await loadSheet();
     } catch (e) { /* API shows toast */ }
+}
+
+// ── HAND LOAN TOTAL (summary panel) ──────────────────────────
+function editHandLoanTotal() {
+    const current = parseAmt(state.sheet ? state.sheet.handLoanTotal : 0);
+    const input   = prompt(
+        `Set Total Hand Loan (AED) — cash currently out on loans:\n(Currently: ${fmtN(current)})`,
+        current.toFixed(2)
+    );
+    if (input === null) return;
+    const parsed = parseFloat(input);
+    if (isNaN(parsed) || parsed < 0) {
+        Toast.warning('Please enter a valid non-negative amount.');
+        return;
+    }
+    saveHandLoanTotal(parsed);
+}
+
+async function saveHandLoanTotal(value) {
+    if (!state.sheetId) return;
+    try {
+        const updated = await API.put(`/api/cash-sheet/day-sheet/${state.sheetId}`, {
+            handLoanTotal: value
+        });
+        if (updated && updated.id) {
+            state.sheet = updated;
+            // Sync hidden input used by recalcDenominations
+            const hidden = document.getElementById('dHandLoan');
+            if (hidden) hidden.value = value;
+            renderSummary();
+            recalcDenominations();
+            Toast.success('Hand loan total updated.');
+        }
+    } catch (e) {
+        Toast.error((e && e.message) ? e.message : 'Update failed.');
+        console.error('saveHandLoanTotal error:', e);
+    }
 }
 
 // ── DATE NAVIGATION ───────────────────────────────────────────
@@ -1262,11 +1516,15 @@ function printSheet() {
 
 // ── KEYBOARD SHORTCUTS ────────────────────────────────────────
 document.addEventListener('keydown', e => {
-    // Enter on any add-form field submits the entry
     if (e.key === 'Enter' && document.activeElement) {
         const id = document.activeElement.id;
+        // Main add-entry form
         if (['newParty','newDesc','newAmtIn','newAmtOut'].includes(id)) {
             submitAddEntry();
+        }
+        // Hand loan add form
+        if (['hlParty','hlDesc','hlAmtIn','hlAmtOut'].includes(id)) {
+            submitAddHandLoan();
         }
     }
 });

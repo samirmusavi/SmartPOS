@@ -1,0 +1,1086 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Parties – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        .kyc-badge { display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:0.68rem;font-weight:600;white-space:nowrap }
+        .kyc-not-verified { background:#f3f4f6;color:#6b7280 }
+        .kyc-pending      { background:#fef9c3;color:#92400e }
+        .kyc-verified     { background:#dcfce7;color:#15803d }
+        .kyc-expired      { background:#fee2e2;color:#b91c1c }
+        .type-badge { display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:20px;font-size:0.68rem;font-weight:600;margin-right:3px }
+        .type-supplier { background:#e0e7ff;color:#3730a3 }
+        .type-customer { background:#d1fae5;color:#065f46 }
+        .filter-tab { padding:6px 14px;border-radius:20px;font-size:var(--text-sm);font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text-secondary);transition:.15s }
+        .filter-tab.active { background:var(--primary);color:#fff;border-color:var(--primary) }
+        .doc-row { display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);margin-bottom:6px }
+        .doc-type-icon { width:32px;height:32px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:0.8rem;flex-shrink:0 }
+        .upload-zone { border:2px dashed var(--border);border-radius:var(--radius-lg);padding:24px;text-align:center;cursor:pointer;transition:.15s }
+        .upload-zone:hover { border-color:var(--primary);background:rgba(99,102,241,.04) }
+        .upload-zone input[type=file] { display:none }
+        .section-divider { border:none;border-top:1px solid var(--border);margin:var(--space-4) 0 }
+        .kyc-section-title { font-size:var(--text-xs);font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:var(--space-3) }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span>
+        </a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
+        <a href="/cash-sheet.html" class="nav-item">
+            <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
+        </a>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item active">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label">Expenses</span>
+        </a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label">Branches</span>
+        </a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">Parties</div>
+            <div class="page-breadcrumb">SmartPOS / Parties</div>
+        </div>
+    </div>
+    <div class="topbar-right">
+        <div class="avatar" id="userAvatar">S</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+
+    <!-- STAT CARDS -->
+    <div class="grid-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Total Parties</div>
+                <div class="stat-icon indigo"><i class="fas fa-handshake"></i></div>
+            </div>
+            <div class="stat-value" id="statTotal">—</div>
+            <div class="stat-sub">Suppliers & customers</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Suppliers</div>
+                <div class="stat-icon blue"><i class="fas fa-truck"></i></div>
+            </div>
+            <div class="stat-value" id="statSuppliers">—</div>
+            <div class="stat-sub">Supply products to you</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Customers</div>
+                <div class="stat-icon green"><i class="fas fa-user-group"></i></div>
+            </div>
+            <div class="stat-value" id="statCustomers">—</div>
+            <div class="stat-sub">Buy products from you</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-card-top">
+                <div class="stat-label">Both</div>
+                <div class="stat-icon amber"><i class="fas fa-arrows-left-right"></i></div>
+            </div>
+            <div class="stat-value" id="statBoth">—</div>
+            <div class="stat-sub">Supplier &amp; customer</div>
+        </div>
+    </div>
+
+    <!-- PARTIES TABLE -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">
+                <i class="fas fa-handshake" style="color:var(--primary);margin-right:8px"></i>
+                Party Directory
+            </span>
+            <button class="btn btn-primary btn-sm" onclick="openAddModal()">
+                <i class="fas fa-plus"></i> Add Party
+            </button>
+        </div>
+
+        <div class="toolbar">
+            <div class="toolbar-left" style="flex-wrap:wrap;gap:8px">
+                <div class="input-icon-wrap">
+                    <i class="fas fa-search input-icon"></i>
+                    <input type="text" id="searchInput" class="form-control"
+                           placeholder="Search parties..."
+                           style="width:240px" oninput="renderTable()">
+                </div>
+                <!-- Type filter tabs -->
+                <div class="flex gap-2" id="typeTabs">
+                    <button class="filter-tab active" data-type="all"       onclick="setTypeFilter('all',this)">All</button>
+                    <button class="filter-tab"         data-type="supplier"  onclick="setTypeFilter('supplier',this)">Suppliers</button>
+                    <button class="filter-tab"         data-type="customer"  onclick="setTypeFilter('customer',this)">Customers</button>
+                    <button class="filter-tab"         data-type="both"      onclick="setTypeFilter('both',this)">Both</button>
+                </div>
+                <!-- KYC filter -->
+                <select class="form-control" id="kycFilter" style="width:160px" onchange="renderTable()">
+                    <option value="">All KYC</option>
+                    <option value="NOT_VERIFIED">Not Verified</option>
+                    <option value="PENDING">Pending</option>
+                    <option value="VERIFIED">Verified</option>
+                    <option value="EXPIRED">Expired</option>
+                </select>
+            </div>
+            <div class="toolbar-right">
+                <span class="text-sm text-muted" id="countLabel">—</span>
+            </div>
+        </div>
+
+        <div class="table-wrap">
+            <table class="sp-table">
+                <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Party Name</th>
+                    <th>Type</th>
+                    <th>KYC</th>
+                    <th>Contact</th>
+                    <th>Phone / Email</th>
+                    <th>Products</th>
+                    <th>Actions</th>
+                </tr>
+                </thead>
+                <tbody id="partyTableBody">
+                <tr>
+                    <td colspan="8">
+                        <div class="empty-state">
+                            <div class="skeleton" style="width:200px;height:16px"></div>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- ADD / EDIT MODAL                                          -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="partyModal">
+    <div class="modal" style="max-width:680px">
+        <div class="modal-header">
+            <span class="modal-title" id="modalTitle">Add Party</span>
+            <button class="modal-close" onclick="Modal.close('partyModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="partyId">
+
+            <!-- ── Party Type ── -->
+            <div class="flex gap-4 mb-4">
+                <label class="flex items-center gap-2" style="cursor:pointer;font-size:var(--text-sm);font-weight:500">
+                    <input type="checkbox" id="fIsSupplier" checked style="width:16px;height:16px;accent-color:var(--primary)">
+                    <span><i class="fas fa-truck" style="color:#3730a3;margin-right:4px"></i>Supplier</span>
+                </label>
+                <label class="flex items-center gap-2" style="cursor:pointer;font-size:var(--text-sm);font-weight:500">
+                    <input type="checkbox" id="fIsCustomer" style="width:16px;height:16px;accent-color:var(--success)">
+                    <span><i class="fas fa-user-group" style="color:#065f46;margin-right:4px"></i>Customer</span>
+                </label>
+            </div>
+
+            <!-- ── Basic Info ── -->
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Company / Party Name *</label>
+                    <input type="text" id="fName" class="form-control"
+                           placeholder="e.g. Al-Futtaim Group">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Contact Person</label>
+                    <input type="text" id="fContactPerson" class="form-control"
+                           placeholder="e.g. Ahmad Ali">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Phone</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-phone input-icon"></i>
+                        <input type="text" id="fPhone" class="form-control"
+                               placeholder="+971501234567">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <div class="input-icon-wrap">
+                        <i class="fas fa-envelope input-icon"></i>
+                        <input type="email" id="fEmail" class="form-control"
+                               placeholder="party@example.ae">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Address</label>
+                <input type="text" id="fAddress" class="form-control"
+                       placeholder="e.g. Industrial Area 3, Sharjah">
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Notes</label>
+                <input type="text" id="fNotes" class="form-control"
+                       placeholder="e.g. Delivers on Sundays, preferred payment terms...">
+            </div>
+
+            <hr class="section-divider">
+
+            <!-- ── KYC Section ── -->
+            <div class="kyc-section-title"><i class="fas fa-id-card" style="margin-right:6px"></i>KYC / Compliance</div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">KYC Status</label>
+                    <select id="fKycStatus" class="form-control">
+                        <option value="NOT_VERIFIED">Not Verified</option>
+                        <option value="PENDING">Pending Review</option>
+                        <option value="VERIFIED">Verified</option>
+                        <option value="EXPIRED">Expired</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">ID Expiry Date</label>
+                    <input type="date" id="fIdExpiryDate" class="form-control">
+                </div>
+            </div>
+
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">Emirates ID</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="text" id="fEmiratesId" class="form-control"
+                               placeholder="784-YYYY-XXXXXXX-X">
+                        <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
+                                title="Attach Emirates ID document"
+                                onclick="triggerKycFileModal('EMIRATES_ID')">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                    </div>
+                    <span class="text-xs text-muted" id="pendingLabel_EMIRATES_ID"
+                          style="display:block;margin-top:3px;min-height:14px"></span>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Passport Number</label>
+                    <div style="display:flex;align-items:center;gap:6px">
+                        <input type="text" id="fPassportNumber" class="form-control"
+                               placeholder="e.g. A12345678">
+                        <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
+                                title="Attach Passport document"
+                                onclick="triggerKycFileModal('PASSPORT')">
+                            <i class="fas fa-paperclip"></i>
+                        </button>
+                    </div>
+                    <span class="text-xs text-muted" id="pendingLabel_PASSPORT"
+                          style="display:block;margin-top:3px;min-height:14px"></span>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Trade License Number</label>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <input type="text" id="fTradeLicenseNumber" class="form-control"
+                           placeholder="e.g. DED-123456">
+                    <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
+                            title="Attach Trade License document"
+                            onclick="triggerKycFileModal('TRADE_LICENSE')">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                </div>
+                <span class="text-xs text-muted" id="pendingLabel_TRADE_LICENSE"
+                      style="display:block;margin-top:3px;min-height:14px"></span>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">KYC Notes</label>
+                <div style="display:flex;align-items:center;gap:6px">
+                    <input type="text" id="fKycNotes" class="form-control"
+                           placeholder="e.g. Documents submitted on 01-Jan-2026, awaiting approval...">
+                    <button type="button" class="btn btn-secondary btn-sm btn-icon-only"
+                            title="Attach other KYC document"
+                            onclick="triggerKycFileModal('OTHER')">
+                        <i class="fas fa-paperclip"></i>
+                    </button>
+                </div>
+                <span class="text-xs text-muted" id="pendingLabel_OTHER"
+                      style="display:block;margin-top:3px;min-height:14px"></span>
+            </div>
+
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary"
+                    onclick="Modal.close('partyModal')">Cancel</button>
+            <button class="btn btn-primary" onclick="saveParty()">
+                <i class="fas fa-check"></i>
+                <span id="saveBtn">Save Party</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- VIEW MODAL                                                -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="viewModal">
+    <div class="modal" style="max-width:580px">
+        <div class="modal-header">
+            <span class="modal-title" id="viewModalTitle">Party Profile</span>
+            <button class="modal-close" onclick="Modal.close('viewModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="viewModalBody" style="max-height:70vh;overflow-y:auto"></div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('viewModal')">Close</button>
+            <button class="btn btn-primary" id="viewEditBtn">
+                <i class="fas fa-edit"></i> Edit
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!-- DELETE MODAL                                              -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <span class="modal-title">Delete Party</span>
+            <button class="modal-close" onclick="Modal.close('deleteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:var(--danger-light);color:var(--danger);margin:0 auto 16px">
+                <i class="fas fa-trash"></i>
+            </div>
+            <div class="empty-state-title mb-2">Delete this party?</div>
+            <div class="empty-state-text">
+                <strong id="deletePartyName" style="color:var(--text-primary)"></strong>
+                will be removed. Linked products will be unlinked and KYC documents deleted.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('deleteModal')">Cancel</button>
+            <button class="btn btn-danger" onclick="confirmDelete()">
+                <i class="fas fa-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Static KYC file inputs — placed once outside all modals, never recreated (FIX 8) -->
+<input type="file" id="kycUpload_EMIRATES_ID"   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
+<input type="file" id="kycUpload_PASSPORT"       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
+<input type="file" id="kycUpload_TRADE_LICENSE"  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
+<input type="file" id="kycUpload_OTHER"          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style="display:none">
+
+<script src="/js/smartpos.js"></script>
+<script>
+    RoleGuard.guardCurrentPage();
+
+    const PARTY_API   = '/api/suppliers';
+    const PRODUCT_API = '/api/products';
+    let allParties  = [];
+    let allProducts = [];
+    let deleteId    = null;
+    let typeFilter  = 'all';
+
+    // KYC upload state
+    let pendingUploads   = {};      // { EMIRATES_ID: File, PASSPORT: File, … } — queued in add/edit modal
+    let viewingPartyId   = null;    // party currently open in view modal
+    let kycUploadContext = 'modal'; // 'modal' → queue for save | 'view' → upload immediately
+
+    const KYC_SIZE_LIMITS = {
+        EMIRATES_ID:   20 * 1024 * 1024,   // 20 MB
+        PASSPORT:      20 * 1024 * 1024,
+        TRADE_LICENSE: 50 * 1024 * 1024,   // 50 MB
+        OTHER:         20 * 1024 * 1024
+    };
+    const KYC_DOC_LABELS = {
+        EMIRATES_ID:   'Emirates ID',
+        PASSPORT:      'Passport',
+        TRADE_LICENSE: 'Trade License',
+        OTHER:         'Other document'
+    };
+
+    // ── Data load ────────────────────────────────────────────────────
+    async function loadData() {
+        try {
+            const [parties, products, stats] = await Promise.all([
+                API.get(`${PARTY_API}/all`),
+                API.get(PRODUCT_API),
+                API.get(`${PARTY_API}/stats`)
+            ]);
+            allParties  = parties;
+            allProducts = products;
+            renderStats(stats);
+            renderTable();
+            setAvatarInitials('userAvatar', Auth.getUserName());
+        } catch (e) {
+            Toast.error('Failed to load parties.');
+        }
+    }
+
+    function renderStats(s) {
+        document.getElementById('statTotal').textContent     = s.total    ?? '—';
+        document.getElementById('statSuppliers').textContent = s.suppliers ?? '—';
+        document.getElementById('statCustomers').textContent = s.customers ?? '—';
+        document.getElementById('statBoth').textContent      = s.both      ?? '—';
+    }
+
+    // ── Type filter tabs ─────────────────────────────────────────────
+    function setTypeFilter(type, btn) {
+        typeFilter = type;
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        btn.classList.add('active');
+        renderTable();
+    }
+
+    // ── Render table ─────────────────────────────────────────────────
+    function renderTable() {
+        const q       = (document.getElementById('searchInput').value || '').toLowerCase();
+        const kycF    = document.getElementById('kycFilter').value;
+
+        let filtered = allParties.filter(p => {
+            const matchSearch =
+                p.name.toLowerCase().includes(q) ||
+                (p.contactPerson || '').toLowerCase().includes(q) ||
+                (p.phone || '').toLowerCase().includes(q) ||
+                (p.email || '').toLowerCase().includes(q);
+
+            const matchType = typeFilter === 'all'
+                ? true
+                : typeFilter === 'supplier' ? (p.isSupplier && !p.isCustomer)
+                : typeFilter === 'customer' ? (p.isCustomer && !p.isSupplier)
+                : /* both */                  (p.isSupplier && p.isCustomer);
+
+            const matchKyc = !kycF || (p.kycStatus || 'NOT_VERIFIED') === kycF;
+
+            return matchSearch && matchType && matchKyc;
+        });
+
+        document.getElementById('countLabel').textContent =
+            `${filtered.length} part${filtered.length !== 1 ? 'ies' : 'y'}`;
+
+        const tbody = document.getElementById('partyTableBody');
+        if (!filtered.length) {
+            tbody.innerHTML = `
+                <tr><td colspan="8">
+                    <div class="empty-state">
+                        <div class="empty-state-icon"><i class="fas fa-handshake"></i></div>
+                        <div class="empty-state-title">No parties found</div>
+                        <div class="empty-state-text">Add your first party to start managing suppliers and customers together.</div>
+                    </div>
+                </td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((p, i) => {
+            const typeBadges = [
+                p.isSupplier ? `<span class="type-badge type-supplier"><i class="fas fa-truck"></i> Supplier</span>` : '',
+                p.isCustomer ? `<span class="type-badge type-customer"><i class="fas fa-user-group"></i> Customer</span>` : ''
+            ].join('');
+
+            return `
+            <tr>
+                <td class="text-muted">${i + 1}</td>
+                <td>
+                    <div class="cell-primary">${escapeHtml(p.name)}</div>
+                    ${p.notes ? `<div class="text-xs text-muted" style="margin-top:2px">${escapeHtml(p.notes.length > 40 ? p.notes.substring(0,40)+'...' : p.notes)}</div>` : ''}
+                </td>
+                <td>${typeBadges || '<span class="text-muted">—</span>'}</td>
+                <td>${kycBadge(p.kycStatus)}</td>
+                <td class="text-secondary">${escapeHtml(p.contactPerson || '') || '<span class="text-muted">—</span>'}</td>
+                <td>
+                    <div style="display:flex;flex-direction:column;gap:2px">
+                        ${p.phone  ? `<a href="tel:${p.phone}" style="color:var(--primary);font-size:var(--text-xs)"><i class="fas fa-phone" style="font-size:0.65rem;margin-right:3px"></i>${p.phone}</a>` : ''}
+                        ${p.email  ? `<a href="mailto:${p.email}" style="color:var(--info);font-size:var(--text-xs)"><i class="fas fa-envelope" style="font-size:0.65rem;margin-right:3px"></i>${p.email}</a>` : ''}
+                        ${!p.phone && !p.email ? '<span class="text-muted">—</span>' : ''}
+                    </div>
+                </td>
+                <td>
+                    <span class="badge ${(p.productCount||0) > 0 ? 'badge-primary' : 'badge-neutral'}">
+                        ${p.productCount||0} product${p.productCount !== 1 ? 's' : ''}
+                    </span>
+                </td>
+                <td>
+                    <div class="flex gap-2">
+                        <button class="btn btn-ghost btn-sm btn-icon-only"
+                                onclick="openView(${p.id})" title="View Profile">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button class="btn btn-secondary btn-sm btn-icon-only"
+                                onclick="openEdit(${p.id})" title="Edit">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm btn-icon-only"
+                                onclick="openDelete(${p.id}, '${escapeHtml(p.name)}')" title="Delete">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    // ── KYC badge helper ─────────────────────────────────────────────
+    function kycBadge(status) {
+        const s = status || 'NOT_VERIFIED';
+        const map = {
+            'NOT_VERIFIED': ['kyc-not-verified', 'fas fa-circle-xmark', 'Not Verified'],
+            'PENDING':      ['kyc-pending',       'fas fa-clock',         'Pending'],
+            'VERIFIED':     ['kyc-verified',       'fas fa-circle-check', 'Verified'],
+            'EXPIRED':      ['kyc-expired',        'fas fa-circle-exclamation', 'Expired']
+        };
+        const [cls, icon, label] = map[s] || map['NOT_VERIFIED'];
+        return `<span class="kyc-badge ${cls}"><i class="${icon}"></i> ${label}</span>`;
+    }
+
+    // ── Open add modal ───────────────────────────────────────────────
+    function openAddModal() {
+        document.getElementById('partyId').value            = '';
+        document.getElementById('fName').value              = '';
+        document.getElementById('fContactPerson').value     = '';
+        document.getElementById('fPhone').value             = '';
+        document.getElementById('fEmail').value             = '';
+        document.getElementById('fAddress').value           = '';
+        document.getElementById('fNotes').value             = '';
+        document.getElementById('fIsSupplier').checked      = true;
+        document.getElementById('fIsCustomer').checked      = false;
+        document.getElementById('fKycStatus').value         = 'NOT_VERIFIED';
+        document.getElementById('fEmiratesId').value        = '';
+        document.getElementById('fPassportNumber').value    = '';
+        document.getElementById('fTradeLicenseNumber').value = '';
+        document.getElementById('fIdExpiryDate').value      = '';
+        document.getElementById('fKycNotes').value          = '';
+        document.getElementById('modalTitle').textContent   = 'Add Party';
+        document.getElementById('saveBtn').textContent      = 'Save Party';
+        // Clear any pending uploads from a previous session
+        pendingUploads = {};
+        ['EMIRATES_ID','PASSPORT','TRADE_LICENSE','OTHER'].forEach(t => {
+            const lbl = document.getElementById('pendingLabel_' + t);
+            if (lbl) lbl.textContent = '';
+            const inp = document.getElementById('kycUpload_' + t);
+            if (inp) inp.value = '';
+        });
+        Modal.open('partyModal');
+    }
+
+    // ── Open edit modal ──────────────────────────────────────────────
+    function openEdit(id) {
+        const p = allParties.find(p => p.id === id);
+        if (!p) return;
+        document.getElementById('partyId').value            = p.id;
+        document.getElementById('fName').value              = p.name;
+        document.getElementById('fContactPerson').value     = p.contactPerson || '';
+        document.getElementById('fPhone').value             = p.phone   || '';
+        document.getElementById('fEmail').value             = p.email   || '';
+        document.getElementById('fAddress').value           = p.address || '';
+        document.getElementById('fNotes').value             = p.notes   || '';
+        document.getElementById('fIsSupplier').checked      = !!p.isSupplier;
+        document.getElementById('fIsCustomer').checked      = !!p.isCustomer;
+        document.getElementById('fKycStatus').value         = p.kycStatus || 'NOT_VERIFIED';
+        document.getElementById('fEmiratesId').value        = p.emiratesId || '';
+        document.getElementById('fPassportNumber').value    = p.passportNumber || '';
+        document.getElementById('fTradeLicenseNumber').value = p.tradeLicenseNumber || '';
+        document.getElementById('fIdExpiryDate').value      = p.idExpiryDate || '';
+        document.getElementById('fKycNotes').value          = p.kycNotes || '';
+        document.getElementById('modalTitle').textContent   = 'Edit Party';
+        document.getElementById('saveBtn').textContent      = 'Save Changes';
+        // Clear any queued uploads
+        pendingUploads = {};
+        ['EMIRATES_ID','PASSPORT','TRADE_LICENSE','OTHER'].forEach(t => {
+            const lbl = document.getElementById('pendingLabel_' + t);
+            if (lbl) lbl.textContent = '';
+            const inp = document.getElementById('kycUpload_' + t);
+            if (inp) inp.value = '';
+        });
+        Modal.close('viewModal');
+        Modal.open('partyModal');
+    }
+
+    // ── Save party ───────────────────────────────────────────────────
+    async function saveParty() {
+        const id   = document.getElementById('partyId').value;
+        const name = document.getElementById('fName').value.trim();
+        if (!name) { Toast.error('Party name is required.'); return; }
+
+        const body = {
+            name,
+            contactPerson:      document.getElementById('fContactPerson').value.trim(),
+            phone:              document.getElementById('fPhone').value.trim(),
+            email:              document.getElementById('fEmail').value.trim(),
+            address:            document.getElementById('fAddress').value.trim(),
+            notes:              document.getElementById('fNotes').value.trim(),
+            isSupplier:         document.getElementById('fIsSupplier').checked,
+            isCustomer:         document.getElementById('fIsCustomer').checked,
+            kycStatus:          document.getElementById('fKycStatus').value,
+            emiratesId:         document.getElementById('fEmiratesId').value.trim(),
+            passportNumber:     document.getElementById('fPassportNumber').value.trim(),
+            tradeLicenseNumber: document.getElementById('fTradeLicenseNumber').value.trim(),
+            idExpiryDate:       document.getElementById('fIdExpiryDate').value,
+            kycNotes:           document.getElementById('fKycNotes').value.trim()
+        };
+
+        try {
+            let savedId;
+            if (id) {
+                await API.put(`${PARTY_API}/${id}`, body);
+                savedId = parseInt(id);
+                Toast.success('Party updated.');
+            } else {
+                const res = await API.post(PARTY_API, body);
+                savedId = (res && res.id) ? res.id : res;
+                Toast.success(`${name} added to your party directory.`);
+            }
+            Modal.close('partyModal');
+
+            // Upload any pending KYC documents queued via the paperclip buttons
+            const pendingKeys = Object.keys(pendingUploads);
+            if (pendingKeys.length > 0 && savedId) {
+                for (const docType of pendingKeys) {
+                    await handleKycUpload(savedId, docType, pendingUploads[docType], null);
+                }
+                pendingUploads = {};
+            }
+
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to save party.');
+        }
+    }
+
+    // ── View modal ───────────────────────────────────────────────────
+    async function openView(id) {
+        const p = allParties.find(p => p.id === id);
+        if (!p) return;
+        viewingPartyId = id;
+        const linked = allProducts.filter(prod => prod.supplierId === p.id);
+        document.getElementById('viewModalTitle').textContent = p.name;
+
+        let docsHtml = '';
+        try {
+            const docs = await API.get(`${PARTY_API}/${p.id}/kyc-documents`);
+            docsHtml = renderDocsList(p.id, docs);
+        } catch (e) {
+            docsHtml = '<div class="text-xs text-muted">Could not load documents.</div>';
+        }
+
+        const typeBadges = [
+            p.isSupplier ? `<span class="type-badge type-supplier"><i class="fas fa-truck"></i> Supplier</span>` : '',
+            p.isCustomer ? `<span class="type-badge type-customer"><i class="fas fa-user-group"></i> Customer</span>` : ''
+        ].join('');
+
+        document.getElementById('viewModalBody').innerHTML = `
+            <!-- Header -->
+            <div class="flex items-center gap-4 mb-5">
+                <div class="stat-icon indigo"
+                     style="width:52px;height:52px;border-radius:var(--radius-lg);font-size:1.2rem;flex-shrink:0">
+                    <i class="fas fa-handshake"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <div class="text-lg font-bold text-primary">${escapeHtml(p.name)}</div>
+                        ${typeBadges}
+                    </div>
+                    <div class="text-xs text-muted">Added ${Format.date(p.createdAt)}</div>
+                </div>
+            </div>
+
+            <!-- Contact info -->
+            <div class="flex flex-col gap-3 mb-5">
+                ${p.contactPerson ? infoRow('indigo','fas fa-user','Contact',escapeHtml(p.contactPerson)) : ''}
+                ${p.phone  ? infoRow('green','fas fa-phone','Phone',`<a href="tel:${p.phone}" style="color:var(--primary)">${p.phone}</a>`) : ''}
+                ${p.email  ? infoRow('blue','fas fa-envelope','Email',`<a href="mailto:${p.email}" style="color:var(--info)">${p.email}</a>`) : ''}
+                ${p.address ? infoRow('amber','fas fa-location-dot','Address',escapeHtml(p.address)) : ''}
+                ${p.notes   ? infoRow('','fas fa-sticky-note','Notes',escapeHtml(p.notes)) : ''}
+            </div>
+
+            <!-- KYC Summary -->
+            <hr class="section-divider">
+            <div class="kyc-section-title"><i class="fas fa-id-card" style="margin-right:6px"></i>KYC / Compliance</div>
+            <div class="flex items-center gap-3 mb-3">
+                ${kycBadge(p.kycStatus)}
+                ${p.idExpiryDate ? `<span class="text-xs text-muted"><i class="fas fa-calendar" style="margin-right:4px"></i>Expires ${Format.date(p.idExpiryDate)}</span>` : ''}
+            </div>
+            <div class="flex flex-col gap-2 mb-4" style="font-size:var(--text-sm)">
+                ${p.emiratesId        ? `<div><span class="text-muted">Emirates ID:</span> <span class="font-medium">${escapeHtml(p.emiratesId)}</span></div>` : ''}
+                ${p.passportNumber    ? `<div><span class="text-muted">Passport:</span> <span class="font-medium">${escapeHtml(p.passportNumber)}</span></div>` : ''}
+                ${p.tradeLicenseNumber ? `<div><span class="text-muted">Trade License:</span> <span class="font-medium">${escapeHtml(p.tradeLicenseNumber)}</span></div>` : ''}
+                ${p.kycNotes          ? `<div><span class="text-muted">KYC Notes:</span> <span class="text-secondary">${escapeHtml(p.kycNotes)}</span></div>` : ''}
+                ${!p.emiratesId && !p.passportNumber && !p.tradeLicenseNumber ? '<div class="text-muted text-xs">No KYC details recorded.</div>' : ''}
+            </div>
+
+            <!-- KYC Documents -->
+            <div class="kyc-section-title"><i class="fas fa-paperclip" style="margin-right:6px"></i>KYC Documents</div>
+            <div id="viewDocsList">${docsHtml}</div>
+            <div class="flex flex-col gap-2 mt-3">
+                ${kycUploadBtnRow('EMIRATES_ID','fas fa-id-card','Emirates ID','#3730a3','#e0e7ff',p.id)}
+                ${kycUploadBtnRow('PASSPORT','fas fa-passport','Passport','#065f46','#d1fae5',p.id)}
+                ${kycUploadBtnRow('TRADE_LICENSE','fas fa-building','Trade License','#92400e','#fef3c7',p.id)}
+                ${kycUploadBtnRow('OTHER','fas fa-file-alt','Other Document','#374151','#f3f4f6',p.id)}
+            </div>
+
+            <!-- Linked products -->
+            ${linked.length > 0 ? `
+            <hr class="section-divider">
+            <div class="kyc-section-title"><i class="fas fa-box-open" style="margin-right:6px"></i>Linked Products (${linked.length})</div>
+            <div class="flex flex-col gap-2">
+                ${linked.map(prod => `
+                    <div class="flex items-center justify-between"
+                         style="padding:var(--space-2) var(--space-3);background:var(--surface-2);border-radius:var(--radius-md);border:1px solid var(--border)">
+                        <div>
+                            <div class="text-sm font-medium text-primary">${escapeHtml(prod.name)}</div>
+                            <div class="text-xs text-muted">${escapeHtml(prod.category||'')}</div>
+                        </div>
+                        <div><span class="badge badge-primary">${prod.quantity} ${prod.unitType || 'PCS'}</span></div>
+                    </div>`).join('')}
+            </div>` : ''}`;
+
+        document.getElementById('viewEditBtn').onclick = () => openEdit(id);
+        Modal.open('viewModal');
+    }
+
+    // ── Render docs list ─────────────────────────────────────────────
+    function renderDocsList(partyId, docs) {
+        if (!docs || !docs.length) {
+            return '<div class="text-xs text-muted mb-2">No documents uploaded yet.</div>';
+        }
+        const docTypeLabels = {
+            'EMIRATES_ID':   ['fas fa-id-card',    'Emirates ID',   '#3730a3','#e0e7ff'],
+            'PASSPORT':      ['fas fa-passport',    'Passport',      '#065f46','#d1fae5'],
+            'TRADE_LICENSE': ['fas fa-building',    'Trade License', '#92400e','#fef3c7'],
+            'OTHER':         ['fas fa-file-alt',    'Document',      '#374151','#f3f4f6']
+        };
+        return docs.map(d => {
+            const [icon, label, textColor, bgColor] = docTypeLabels[d.documentType] || docTypeLabels['OTHER'];
+            const sizeMb = d.fileSize ? (d.fileSize / 1048576).toFixed(1) + ' MB' : '';
+            return `
+            <div class="doc-row" id="docRow_${d.id}">
+                <div class="flex items-center gap-3">
+                    <div class="doc-type-icon" style="background:${bgColor};color:${textColor}">
+                        <i class="${icon}"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-primary">${escapeHtml(d.fileName)}</div>
+                        <div class="text-xs text-muted">${label} · ${sizeMb} · ${Format.date(d.uploadedAt)}</div>
+                    </div>
+                </div>
+                <button class="btn btn-danger btn-sm" onclick="deleteDoc(${partyId}, ${d.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>`;
+        }).join('');
+    }
+
+    // ── Upload KYC document ──────────────────────────────────────────
+    // partyId    : number
+    // docType    : 'EMIRATES_ID' | 'PASSPORT' | 'TRADE_LICENSE' | 'OTHER'
+    // file       : File object (already size-validated by caller)
+    // btnEl      : button element to show loading state on (may be null when called from saveParty)
+    async function handleKycUpload(partyId, docType, file, btnEl) {
+        if (!file) return;
+
+        // FIX 5 — loading state
+        if (btnEl) {
+            btnEl.disabled = true;
+            btnEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('documentType', docType);
+        formData.append('uploadedBy', Auth.getUserName() || 'user');
+
+        try {
+            // FIX 3 — use API._headers() exactly like products.html image upload
+            const apiHeaders = API._headers ? API._headers() : {};
+            const headers = {};
+            if (apiHeaders['Authorization'])  headers['Authorization']  = apiHeaders['Authorization'];
+            if (apiHeaders['X-Business-Id'])  headers['X-Business-Id']  = apiHeaders['X-Business-Id'];
+            if (apiHeaders['X-Branch-Id'])    headers['X-Branch-Id']    = apiHeaders['X-Branch-Id'];
+
+            const resp = await fetch(`${PARTY_API}/${partyId}/kyc-documents`, {
+                method: 'POST',
+                headers,
+                body: formData
+            });
+            if (!resp.ok) {
+                const e = await resp.json().catch(() => ({}));
+                throw new Error(e.message || 'Upload failed');
+            }
+            Toast.success(`${KYC_DOC_LABELS[docType] || 'Document'} uploaded.`);
+            // Refresh docs list if view modal is showing this party
+            if (viewingPartyId === partyId) {
+                const docs = await API.get(`${PARTY_API}/${partyId}/kyc-documents`);
+                const el = document.getElementById('viewDocsList');
+                if (el) el.innerHTML = renderDocsList(partyId, docs);
+            }
+        } catch (e) {
+            Toast.error(e.message || 'Upload failed.');
+        } finally {
+            // FIX 5 — restore button
+            if (btnEl) {
+                btnEl.disabled = false;
+                btnEl.innerHTML = '<i class="fas fa-paperclip"></i> Upload';
+            }
+        }
+    }
+
+    // ── KYC upload button row (used inside view modal body HTML) ─────
+    function kycUploadBtnRow(docType, icon, label, textColor, bgColor, partyId) {
+        return `
+        <div class="flex items-center justify-between"
+             style="padding:7px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md)">
+            <div class="flex items-center gap-2">
+                <div class="doc-type-icon" style="background:${bgColor};color:${textColor}">
+                    <i class="${icon}"></i>
+                </div>
+                <span style="font-size:var(--text-sm);font-weight:600;color:${textColor}">${label}</span>
+            </div>
+            <button class="btn btn-secondary btn-sm" id="viewUploadBtn_${docType}"
+                    onclick="triggerViewUpload('${docType}',${partyId})">
+                <i class="fas fa-paperclip"></i> Upload
+            </button>
+        </div>`;
+    }
+
+    // ── Trigger file picker from add/edit modal (queues upload) ──────
+    function triggerKycFileModal(docType) {
+        kycUploadContext = 'modal';
+        const inp = document.getElementById('kycUpload_' + docType);
+        if (inp) inp.click();
+    }
+
+    // ── Trigger file picker from view modal (uploads immediately) ────
+    function triggerViewUpload(docType, partyId) {
+        viewingPartyId   = partyId;
+        kycUploadContext = 'view';
+        const inp = document.getElementById('kycUpload_' + docType);
+        if (inp) inp.click();
+    }
+
+    // ── Delete KYC document ──────────────────────────────────────────
+    async function deleteDoc(partyId, docId) {
+        try {
+            await API.delete(`${PARTY_API}/${partyId}/kyc-documents/${docId}`);
+            const el = document.getElementById(`docRow_${docId}`);
+            if (el) el.remove();
+            Toast.success('Document removed.');
+        } catch (e) {
+            Toast.error(e.message || 'Failed to delete document.');
+        }
+    }
+
+    // ── Delete party ─────────────────────────────────────────────────
+    function openDelete(id, name) {
+        deleteId = id;
+        document.getElementById('deletePartyName').textContent = name;
+        Modal.open('deleteModal');
+    }
+
+    async function confirmDelete() {
+        try {
+            await API.delete(`${PARTY_API}/${deleteId}`);
+            Modal.close('deleteModal');
+            Toast.success('Party deleted.');
+            deleteId = null;
+            loadData();
+        } catch (err) {
+            Toast.error(err.message || 'Failed to delete party.');
+        }
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function infoRow(color, icon, label, value) {
+        const bg = color ? `var(--surface-3)` : 'var(--surface-3)';
+        const iconColor = color ? `var(--${color === 'indigo' ? 'primary' : color})` : 'var(--text-muted)';
+        return `
+        <div class="flex items-center gap-3">
+            <div class="stat-icon" style="width:32px;height:32px;flex-shrink:0;background:${bg}">
+                <i class="${icon}" style="font-size:0.75rem;color:${iconColor}"></i>
+            </div>
+            <div>
+                <div class="text-xs text-muted uppercase tracking">${label}</div>
+                <div class="text-sm text-primary">${value}</div>
+            </div>
+        </div>`;
+    }
+
+    function escapeHtml(str) {
+        return String(str || '').replace(/[&<>"']/g, c =>
+            ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    // ── Wire up static KYC file inputs (FIX 4 size check + FIX 8 no re-creation) ──
+    ['EMIRATES_ID','PASSPORT','TRADE_LICENSE','OTHER'].forEach(docType => {
+        const inp = document.getElementById('kycUpload_' + docType);
+        if (!inp) return;
+        inp.addEventListener('change', function () {
+            const file = this.files[0];
+            if (!file) return;
+
+            // FIX 4 — validate file size before doing anything
+            const limit = KYC_SIZE_LIMITS[docType];
+            if (file.size > limit) {
+                const mb = Math.round(limit / 1024 / 1024);
+                Toast.error(`${KYC_DOC_LABELS[docType]} must be under ${mb} MB. Please choose a smaller file.`);
+                this.value = '';
+                kycUploadContext = 'modal';
+                return;
+            }
+
+            if (kycUploadContext === 'view' && viewingPartyId) {
+                // View modal — upload immediately; pass the Upload button for loading state (FIX 5)
+                const btn = document.getElementById('viewUploadBtn_' + docType);
+                handleKycUpload(viewingPartyId, docType, file, btn);
+            } else {
+                // Add/Edit modal — queue the file; show filename next to paperclip
+                pendingUploads[docType] = file;
+                const lbl = document.getElementById('pendingLabel_' + docType);
+                if (lbl) {
+                    const n = file.name;
+                    lbl.textContent = '📎 ' + (n.length > 24 ? n.substring(0, 24) + '…' : n);
+                }
+            }
+
+            // Reset so the same file can be re-selected if needed
+            this.value = '';
+            kycUploadContext = 'modal';
+        });
+    });
+
+    loadData();
+</script>
+</body>
+</html>

@@ -121,7 +121,7 @@ const PlanGuard = {
             '/dashboard.html', '/sales.html',
             '/products.html', '/archived-products.html',
             '/staff.html', '/stock-adjustments.html',
-            '/stockout.html', '/suppliers.html',
+            '/stockout.html', '/parties.html', '/suppliers.html',
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
             '/branch-select.html', '/branches.html',
@@ -131,7 +131,7 @@ const PlanGuard = {
             '/dashboard.html', '/sales.html',
             '/products.html', '/archived-products.html',
             '/staff.html', '/stock-adjustments.html',
-            '/stockout.html', '/suppliers.html',
+            '/stockout.html', '/parties.html', '/suppliers.html',
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
             '/branch-select.html', '/branches.html',
@@ -142,7 +142,7 @@ const PlanGuard = {
             '/dashboard.html', '/sales.html',
             '/products.html', '/archived-products.html',
             '/staff.html', '/stock-adjustments.html',
-            '/stockout.html', '/suppliers.html',
+            '/stockout.html', '/parties.html', '/suppliers.html',
             '/purchase-orders.html', '/returns.html',
             '/supplies.html', '/stock-transfers.html',
             '/branch-select.html', '/branches.html',
@@ -238,28 +238,34 @@ const RoleGuard = {
         OWNER: [
             '/dashboard.html', '/sales.html', '/sales-list.html', '/sales-return.html',
             '/products.html', '/archived-products.html', '/report.html', '/staff.html',
-            '/expenses.html', '/customers.html',
+            '/expenses.html', '/customers.html', '/parties.html', '/suppliers.html',
             '/stock-adjustments.html', '/stockout.html',
             '/predictions.html',
-            '/suppliers.html', '/purchase-orders.html',
-            '/returns.html', '/supplies.html',
+            '/purchase-orders.html',
+            '/returns.html', '/purchase-return.html', '/supplies.html',
             '/stock-transfers.html', '/branches.html',
-            '/branch-select.html', '/cash-sheet.html'
+            '/branch-select.html', '/cash-sheet.html',
+            '/purchase.html', '/purchase-list.html',
+            '/statement.html', '/metal-fix.html'
         ],
         MANAGER: [
             '/dashboard.html', '/sales.html', '/sales-list.html', '/sales-return.html',
             '/products.html', '/archived-products.html', '/report.html',
-            '/expenses.html', '/customers.html',
+            '/expenses.html', '/customers.html', '/parties.html', '/suppliers.html',
             '/stock-adjustments.html', '/stockout.html',
             '/predictions.html',
-            '/suppliers.html', '/purchase-orders.html',
-            '/returns.html', '/supplies.html',
+            '/purchase-orders.html',
+            '/returns.html', '/purchase-return.html', '/supplies.html',
             '/stock-transfers.html', '/branch-select.html',
-            '/cash-sheet.html'
+            '/cash-sheet.html',
+            '/purchase.html', '/purchase-list.html',
+            '/statement.html', '/metal-fix.html'
         ],
         CASHIER: [
             '/dashboard.html', '/sales.html', '/sales-list.html', '/branch-select.html',
-            '/cash-sheet.html'
+            '/cash-sheet.html', '/parties.html', '/suppliers.html',
+            '/purchase.html', '/purchase-list.html', '/purchase-return.html',
+            '/statement.html'
         ]
     },
 
@@ -270,7 +276,7 @@ const RoleGuard = {
             '/expenses.html', '/customers.html',
             '/stock-adjustments.html', '/stockout.html',
             '/predictions.html',
-            '/suppliers.html', '/purchase-orders.html',
+            '/purchase-orders.html',
             '/returns.html', '/supplies.html',
             '/stock-transfers.html', '/branches.html'
         ],
@@ -729,25 +735,26 @@ const Format = {
     date(dateStr) {
         if (!dateStr) return '—';
         try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return '—';
-            const locale = (typeof Translations !== 'undefined' && Translations.currentLang === 'ar') ? 'ar-AE' : 'en-AE';
-            return date.toLocaleDateString(locale, {
-                year: 'numeric', month: 'short', day: 'numeric'
-            });
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '—';
+            const day   = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year  = d.getFullYear();
+            return `${day}/${month}/${year}`;
         } catch { return '—'; }
     },
 
     datetime(dateStr) {
         if (!dateStr) return '—';
         try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return '—';
-            const locale = (typeof Translations !== 'undefined' && Translations.currentLang === 'ar') ? 'ar-AE' : 'en-AE';
-            return date.toLocaleString(locale, {
-                year: 'numeric', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
-            });
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return '—';
+            const day   = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const year  = d.getFullYear();
+            const hours = String(d.getHours()).padStart(2, '0');
+            const mins  = String(d.getMinutes()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${mins}`;
         } catch { return '—'; }
     },
 
@@ -829,8 +836,8 @@ const BranchGuard = {
     globalSafe: [
         '/dashboard.html', '/report.html', '/products.html',
         '/archived-products.html', '/branches.html',
-        '/staff.html', '/branch-select.html', '/customers.html',
-        '/expenses.html', '/predictions.html'
+        '/staff.html', '/branch-select.html', '/parties.html',
+        '/expenses.html', '/predictions.html', '/customers.html'
     ],
 
     // Call this at the top of any page that requires a branch.

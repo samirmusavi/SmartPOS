@@ -1,0 +1,2440 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>New Purchase – SmartPOS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <link rel="stylesheet" href="/css/smartpos.css"/>
+    <link rel="stylesheet" href="/css/rtl.css"/>
+    <script src="/js/translations.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/idb-helper.js"></script>
+    <style>
+        /* ── Layout ─────────────────────────────────────────── */
+        .pos-wrapper { display:grid; grid-template-columns:1fr 1fr; height:calc(100vh - var(--topbar-height)); overflow:hidden; margin:calc(-1 * var(--space-6)); }
+        @media(max-width:900px) { .pos-wrapper { grid-template-columns:1fr; overflow-y:auto; height:auto; } }
+
+        /* ── Left panel ──────────────────────────────────────── */
+        .pos-left { display:flex; flex-direction:column; border-right:1px solid var(--border); overflow:hidden; background:var(--surface-1); }
+        .pos-left-header { padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); flex-shrink:0; }
+        .pos-left-title { font-size:var(--text-sm); font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:var(--space-3); }
+        .quick-actions { display:flex; gap:var(--space-2); flex-wrap:wrap; }
+        .pos-form { flex:1; overflow-y:auto; padding:var(--space-5); }
+
+        /* ── Cart table ──────────────────────────────────────── */
+        .cart-table { width:100%; border-collapse:collapse; margin-bottom:var(--space-4); }
+        .cart-table th { font-size:var(--text-xs); font-weight:600; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-muted); padding:var(--space-2) var(--space-3); text-align:left; border-bottom:1px solid var(--border); background:var(--surface-2); white-space:nowrap; position:sticky; top:0; z-index:1; }
+        .cart-table td { padding:var(--space-2) var(--space-3); border-bottom:1px solid var(--border); font-size:var(--text-sm); color:var(--text-secondary); vertical-align:middle; }
+        .cart-table tr:last-child td { border-bottom:none; }
+        .cart-table tr:hover td { background:var(--surface-2); }
+
+        /* ── Inline field inputs ─────────────────────────────── */
+        .field-input { padding:4px 7px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:var(--text-xs); outline:none; width:100%; box-sizing:border-box; }
+        .field-input:focus { border-color:var(--primary); background:var(--surface-1); }
+        .field-select { padding:4px 6px; background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text-primary); font-size:var(--text-xs); outline:none; cursor:pointer; }
+        .field-select:focus { border-color:var(--primary); }
+        .name-fw { min-width:110px; }
+        .btn-remove { background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:0.85rem; padding:var(--space-1); border-radius:var(--radius-sm); transition:color var(--transition-fast); }
+        .btn-remove:hover { color:var(--danger); }
+        .total-cell { font-weight:700; color:var(--primary); white-space:nowrap; font-size:var(--text-sm); }
+
+        /* ── Supplier section ────────────────────────────────── */
+        .supplier-search-wrap { position:relative; }
+        .supplier-dropdown { position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius-md); box-shadow:var(--shadow-lg); z-index:100; max-height:200px; overflow-y:auto; display:none; }
+        .supplier-dropdown.open { display:block; }
+        .supplier-option { padding:var(--space-2) var(--space-3); cursor:pointer; font-size:var(--text-sm); color:var(--text-primary); border-bottom:1px solid var(--border); transition:background var(--transition-fast); }
+        .supplier-option:last-child { border-bottom:none; }
+        .supplier-option:hover { background:var(--primary-light); color:var(--primary); }
+        .supplier-selected-badge { display:inline-flex; align-items:center; gap:var(--space-2); padding:4px var(--space-3); background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); border-radius:var(--radius-full); color:var(--success); font-size:var(--text-xs); font-weight:600; }
+        .supplier-selected-badge .clear-btn { background:none; border:none; color:var(--success); cursor:pointer; padding:0; font-size:0.7rem; opacity:0.7; }
+        .supplier-selected-badge .clear-btn:hover { opacity:1; }
+
+        /* ── Payment method pills ────────────────────────────── */
+        .pm-pills { display:flex; flex-wrap:wrap; gap:var(--space-2); }
+        .pm-pill { padding:5px 12px; border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all var(--transition-fast); }
+        .pm-pill:hover { background:var(--surface-2); color:var(--text-primary); }
+        .pm-pill.active { background:var(--primary-light); color:var(--primary); border-color:rgba(99,102,241,0.4); }
+        .pm-pill.active-gold { background:rgba(245,158,11,0.12); color:#d97706; border-color:rgba(245,158,11,0.4); }
+
+        /* ── Summary box ─────────────────────────────────────── */
+        .summary-box { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-5); margin-bottom:var(--space-4); }
+        .summary-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3); font-size:var(--text-sm); }
+        .summary-row .s-label { color:var(--text-muted); }
+        .summary-row .s-val { color:var(--text-primary); font-weight:500; }
+        .summary-total { border-top:1px solid var(--border); padding-top:var(--space-3); margin-top:var(--space-3); display:flex; justify-content:space-between; align-items:center; }
+        .summary-total .s-label { font-size:var(--text-base); font-weight:700; color:var(--text-primary); }
+        .summary-total .s-val { font-size:var(--text-xl); font-weight:700; color:var(--primary); }
+
+        /* ── Payment button group ────────────────────────────── */
+        .pm-btn-group { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-3); }
+        .pm-btn { padding:6px 14px; border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all var(--transition-fast); }
+        .pm-btn:hover { background:var(--surface-2); color:var(--text-primary); }
+        .pm-btn.active { background:var(--primary-light); color:var(--primary); border-color:rgba(99,102,241,0.4); }
+
+        /* ── Add-to-cart + Complete / Cancel buttons ─────────── */
+        .btn-add-to-cart { flex:1; padding:var(--space-4); font-size:var(--text-md); font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px; background:var(--surface-3); border:1px solid var(--border); color:var(--text-primary); border-radius:var(--radius-md); cursor:pointer; transition:all var(--transition-fast); }
+        .btn-add-to-cart:hover:not(:disabled) { background:var(--surface-2); border-color:var(--primary); color:var(--primary); }
+        .btn-add-to-cart:disabled { opacity:0.5; cursor:not-allowed; }
+        .btn-complete-purchase { width:100%; padding:var(--space-4); background:var(--success); color:#fff; border:none; border-radius:var(--radius-md); font-size:var(--text-md); font-weight:700; cursor:pointer; transition:all var(--transition-fast); box-shadow:0 4px 16px rgba(34,197,94,0.3); }
+        .btn-complete-purchase:hover { background:#16a34a; transform:translateY(-1px); box-shadow:0 6px 24px rgba(34,197,94,0.35); }
+        .btn-complete-purchase:active { transform:scale(0.98); }
+        .btn-complete-purchase:disabled { opacity:0.6; cursor:not-allowed; transform:none; box-shadow:none; }
+        .btn-cancel-sale { width:100%; padding:var(--space-3); background:transparent; color:var(--text-muted); border:1px solid var(--border); border-radius:var(--radius-md); font-size:var(--text-sm); cursor:pointer; margin-top:var(--space-2); transition:all var(--transition-fast); }
+        .btn-cancel-sale:hover { background:rgba(239,68,68,0.08); color:var(--danger); border-color:rgba(239,68,68,0.3); }
+
+        /* ── VAT toggle bar ──────────────────────────────────── */
+        .vat-toggle-bar { display:flex; align-items:center; gap:var(--space-2); background:var(--surface-2); padding:var(--space-3); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:var(--space-3); }
+        .vat-toggle-bar input[type=checkbox] { width:16px; height:16px; cursor:pointer; }
+
+        /* ── Right panel ─────────────────────────────────────── */
+        .pos-right { display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+        .pos-search-bar { padding:var(--space-4) var(--space-5); border-bottom:1px solid var(--border); background:var(--surface-1); flex-shrink:0; }
+        .scanner-bar { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-3) var(--space-4); background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:var(--space-3); transition:all var(--transition-fast); }
+        .scanner-bar.active { border-color:var(--primary); background:var(--primary-light); }
+        .scanner-icon { width:32px; height:32px; border-radius:var(--radius-sm); background:var(--surface-3); display:flex; align-items:center; justify-content:center; font-size:0.9rem; color:var(--text-muted); flex-shrink:0; transition:all var(--transition-fast); }
+        .scanner-bar.active .scanner-icon { background:var(--primary-light); color:var(--primary); }
+        .scanner-input { flex:1; background:transparent; border:none; outline:none; font-size:var(--text-sm); color:var(--text-primary); }
+        .scanner-input::placeholder { color:var(--text-muted); }
+        .filter-pills { display:flex; gap:var(--space-2); flex-wrap:wrap; margin-top:var(--space-3); }
+        .filter-pill { padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:var(--text-xs); font-weight:600; border:1px solid var(--border); background:transparent; color:var(--text-muted); cursor:pointer; transition:all var(--transition-fast); }
+        .filter-pill:hover { background:var(--surface-2); color:var(--text-primary); }
+        .filter-pill.active { background:var(--primary-light); color:var(--primary); border-color:rgba(99,102,241,0.3); }
+
+        /* ── Product grid ────────────────────────────────────── */
+        .product-grid { flex:1; overflow-y:auto; padding:var(--space-4); display:grid; grid-template-columns:repeat(auto-fill,minmax(155px,1fr)); gap:var(--space-4); align-content:start; }
+        .product-card { background:var(--surface-1); border:1px solid var(--border); border-radius:var(--radius-xl); text-align:center; cursor:pointer; transition:all var(--transition-fast); position:relative; display:flex; flex-direction:column; }
+        .product-card:hover { border-color:var(--primary); transform:translateY(-3px); box-shadow:0 6px 20px rgba(99,102,241,0.2); }
+        .product-card.selected-product { border-color:var(--success); box-shadow:0 0 0 2px rgba(34,197,94,0.35); background:rgba(34,197,94,0.04); }
+        .product-card-image { width:100%; height:100px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; overflow:hidden; border-radius:var(--radius-xl) var(--radius-xl) 0 0; flex-shrink:0; }
+        .product-card-image img { width:100%; height:100%; object-fit:cover; }
+        .product-card-image .card-placeholder { font-size:1.8rem; color:var(--text-muted); opacity:0.3; }
+        .product-card-body { padding:8px 10px 10px; flex:1; display:flex; flex-direction:column; justify-content:center; min-height:52px; }
+        .product-card-name { font-size:0.72rem; font-weight:600; color:var(--text-primary); line-height:1.3; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .product-card-sub { font-size:0.6rem; color:var(--text-muted); }
+        .product-card-stock-badge { position:absolute; top:8px; right:8px; font-size:0.6rem; font-weight:700; padding:2px 7px; border-radius:var(--radius-full); background:rgba(0,0,0,0.5); color:#fff; backdrop-filter:blur(4px); }
+        .product-card-stock-badge.out { background:rgba(239,68,68,0.8); }
+        .product-card-stock-badge.low { background:rgba(245,158,11,0.8); }
+        .product-card-scrap { position:absolute; top:8px; left:8px; background:rgba(245,158,11,0.9); color:#fff; font-size:0.55rem; font-weight:700; padding:2px 6px; border-radius:var(--radius-full); letter-spacing:0.04em; }
+
+        /* ── Status + Scrap badges ───────────────────────────── */
+        .status-badge { display:inline-block; padding:2px 10px; border-radius:var(--radius-full); font-size:0.65rem; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; }
+        .status-FULLY_PAID      { background:rgba(34,197,94,0.12); color:var(--success); border:1px solid rgba(34,197,94,0.3); }
+        .status-PARTIALLY_PAID  { background:rgba(245,158,11,0.12); color:#d97706; border:1px solid rgba(245,158,11,0.3); }
+        .status-DUE             { background:rgba(239,68,68,0.12); color:var(--danger); border:1px solid rgba(239,68,68,0.3); }
+        .badge-scrap { display:inline-block; padding:1px 6px; border-radius:var(--radius-full); font-size:0.6rem; font-weight:700; background:rgba(245,158,11,0.12); color:#d97706; border:1px solid rgba(245,158,11,0.3); margin-left:4px; vertical-align:middle; }
+
+        /* ── Calculator toggle bar ───────────────────────────── */
+        .calc-toggle-bar { display:flex; align-items:center; justify-content:space-between; padding:var(--space-2) var(--space-3); background:var(--surface-3); border:1px solid var(--border); border-radius:var(--radius-md); margin-bottom:var(--space-3); }
+        .calc-toggle-bar .toggle-label { font-size:var(--text-xs); font-weight:600; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
+        .calc-toggle-bar .toggle-status { font-size:var(--text-xs); font-weight:700; min-width:24px; }
+        .calc-toggle-bar .toggle-status.on  { color:var(--primary); }
+        .calc-toggle-bar .toggle-status.off { color:var(--text-muted); }
+
+        /* ── Gold calc panel (same as sales.html) ────────────── */
+        .gold-calc-panel { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-4); margin-bottom:var(--space-4); }
+        .gold-calc-panel h4 { font-size:var(--text-sm); font-weight:700; color:var(--text-primary); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--space-2); }
+        .gold-row { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); margin-bottom:var(--space-3); }
+        .gold-result { background:var(--primary); color:#fff; border-radius:var(--radius); padding:var(--space-3); text-align:center; margin-top:var(--space-2); }
+        .discount-row { display:flex; gap:var(--space-2); align-items:center; margin-bottom:var(--space-2); }
+        .discount-row select { width:160px; flex-shrink:0; }
+
+        /* ── Receipt card (from sales.html) ──────────────────── */
+        .receipt-card { max-width:340px; margin:0 auto; background:#fff; color:#000; padding:20px 22px; border-radius:var(--radius-sm); box-shadow:0 4px 20px rgba(0,0,0,0.08); font-family:'Courier New','JetBrains Mono',monospace; font-size:12px; line-height:1.45; }
+        .receipt-header { text-align:center; border-bottom:1px dashed #bbb; padding-bottom:12px; margin-bottom:12px; }
+        .receipt-biz { font-size:15px; font-weight:700; color:#000; }
+        .receipt-branch { font-size:11px; color:#666; margin-top:2px; }
+        .receipt-items { padding-bottom:8px; margin-bottom:8px; border-bottom:1px dashed #bbb; }
+        .receipt-items .row { display:flex; justify-content:space-between; margin-bottom:3px; color:#333; font-size:11px; }
+        .receipt-totals .row { display:flex; justify-content:space-between; margin-bottom:2px; color:#333; font-size:11px; }
+        .receipt-totals .row.total { font-weight:700; font-size:13px; color:#000; margin-top:6px; }
+        .receipt-footer { text-align:center; border-top:1px dashed #bbb; padding-top:10px; margin-top:10px; font-size:11px; color:#444; }
+
+        /* ── Misc label ──────────────────────────────────────── */
+        .form-label-sm { font-size:var(--text-xs); font-weight:600; color:var(--text-muted); display:block; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em; }
+
+        @media print {
+            body > *:not(#receiptOverlay) { display:none !important; }
+            #receiptOverlay { display:block !important; position:static !important; background:none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <div class="sidebar-logo"><i class="fas fa-store"></i></div>
+        <span class="sidebar-brand-text">SmartPOS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-group-label">Overview</div>
+        <a href="/dashboard.html" class="nav-item">
+            <i class="fas fa-th-large"></i><span class="nav-label">Dashboard</span>
+        </a>
+        <div class="nav-group-label">Operations</div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="salesMenuToggle" onclick="toggleSalesMenu()">
+                <i class="fas fa-shopping-cart"></i>
+                <span class="nav-label">Sales</span>
+                <i class="fas fa-chevron-down nav-chevron" id="salesMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="salesMenuChildren">
+                <a href="/sales.html" class="nav-item nav-child">
+                    <i class="fas fa-cash-register"></i><span class="nav-label">POS</span>
+                </a>
+                <a href="/sales-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Sales List</span>
+                </a>
+                <a href="/sales-return.html" class="nav-item nav-child">
+                    <i class="fas fa-undo-alt"></i><span class="nav-label">Sales Return</span>
+                </a>
+            </div>
+        </div>
+        <div class="nav-group-item">
+            <button class="nav-item nav-has-children" id="purchaseMenuToggle" onclick="togglePurchaseMenu()">
+                <i class="fas fa-shopping-basket"></i>
+                <span class="nav-label">Purchase</span>
+                <i class="fas fa-chevron-down nav-chevron" id="purchaseMenuChevron"></i>
+            </button>
+            <div class="nav-children" id="purchaseMenuChildren">
+                <a href="/purchase.html" class="nav-item nav-child active">
+                    <i class="fas fa-plus-circle"></i><span class="nav-label">New Purchase</span>
+                </a>
+                <a href="/purchase-list.html" class="nav-item nav-child">
+                    <i class="fas fa-list-alt"></i><span class="nav-label">Purchase List</span>
+                </a>
+                <a href="/purchase-return.html" class="nav-item nav-child">
+                    <i class="fas fa-rotate-left"></i><span class="nav-label">Purchase Return</span>
+                </a>
+                <a href="/purchase-orders.html" class="nav-item nav-child">
+                    <i class="fas fa-clipboard-list"></i><span class="nav-label">Purchase Orders</span>
+                </a>
+            </div>
+        </div>
+        <a href="/cash-sheet.html" class="nav-item">
+            <i class="fas fa-file-invoice-dollar"></i><span class="nav-label">Cash Sheet</span>
+        </a>
+        <a href="/products.html" class="nav-item">
+            <i class="fas fa-box-open"></i><span class="nav-label">Products</span>
+        </a>
+        <div class="nav-group-label">System</div>
+        <a href="/archived-products.html" class="nav-item">
+            <i class="fas fa-box-archive"></i><span class="nav-label">Archived Products</span>
+        </a>
+        <a href="/stock-adjustments.html" class="nav-item">
+            <i class="fas fa-sliders"></i><span class="nav-label">Stock Adjustments</span>
+        </a>
+        <a href="/stockout.html" class="nav-item">
+            <i class="fas fa-triangle-exclamation"></i><span class="nav-label">Stockout Forecast</span>
+        </a>
+        <a href="/predictions.html" class="nav-item">
+            <i class="fas fa-wand-magic-sparkles"></i><span class="nav-label">Smart Predictions</span>
+        </a>
+        <a href="/supplies.html" class="nav-item">
+            <i class="fas fa-boxes-stacked"></i><span class="nav-label">Supplies</span>
+        </a>
+        <a href="/stock-transfers.html" class="nav-item">
+            <i class="fas fa-right-left"></i><span class="nav-label">Stock Transfers</span>
+        </a>
+        <div class="nav-group-label">Parties</div>
+        <a href="/parties.html" class="nav-item">
+            <i class="fas fa-handshake"></i>
+            <span class="nav-label">Parties</span>
+        </a>
+        <a href="/suppliers.html" class="nav-item">
+            <i class="fas fa-truck"></i>
+            <span class="nav-label">Suppliers</span>
+        </a>
+        <a href="/customers.html" class="nav-item">
+            <i class="fas fa-user-group"></i>
+            <span class="nav-label">Customers</span>
+        </a>
+        <div class="nav-group-label">Trading</div>
+        <a href="/statement.html" class="nav-item">
+            <i class="fas fa-file-lines"></i><span class="nav-label">Statement</span>
+        </a>
+        <a href="/metal-fix.html" class="nav-item">
+            <i class="fas fa-scale-balanced"></i><span class="nav-label">Metal Fix</span>
+        </a>
+        <div class="nav-group-label">Analytics</div>
+        <a href="/report.html" class="nav-item">
+            <i class="fas fa-chart-bar"></i><span class="nav-label">Reports</span>
+        </a>
+        <a href="/expenses.html" class="nav-item">
+            <i class="fas fa-receipt"></i><span class="nav-label">Expenses</span>
+        </a>
+        <div class="nav-group-label">Management</div>
+        <a href="/branches.html" class="nav-item">
+            <i class="fas fa-code-branch"></i><span class="nav-label">Branches</span>
+        </a>
+        <div class="nav-group-label">Team</div>
+        <a href="/staff.html" class="nav-item">
+            <i class="fas fa-users"></i><span class="nav-label">Staff</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/settings.html" class="nav-item">
+            <i class="fas fa-cog"></i><span class="nav-label">Settings</span>
+        </a>
+        <button class="nav-item" onclick="Auth.clientLogout()">
+            <i class="fas fa-sign-out-alt"></i>
+            <span class="nav-label text-danger">Logout</span>
+        </button>
+    </div>
+</aside>
+
+<!-- TOPBAR -->
+<header class="topbar" id="topbar">
+    <div class="topbar-left">
+        <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
+        <div>
+            <div class="page-title">New Purchase</div>
+            <div class="page-breadcrumb">SmartPOS / Purchase / New Purchase</div>
+        </div>
+    </div>
+    <div class="topbar-right" style="display:flex;align-items:center;gap:var(--space-4)">
+        <div style="display:flex;gap:var(--space-3);align-items:center;background:var(--surface-2);padding:4px var(--space-3);border:1px solid var(--border);border-radius:var(--radius-md);">
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+                <label style="font-size:var(--text-xs);font-weight:700;color:var(--text-muted);text-transform:uppercase;">🏆 Gold Oz ($):</label>
+                <input type="number" id="globalOzRate" value="2300" step="0.01"
+                    style="width:85px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);font-weight:700;text-align:center;outline:none;"
+                    oninput="syncGlobalRates()">
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+                <label style="font-size:var(--text-xs);font-weight:700;color:var(--text-muted);text-transform:uppercase;">🥈 Silver Oz ($):</label>
+                <input type="number" id="globalSilverOzRate" value="29" step="0.01"
+                    style="width:65px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);font-weight:700;text-align:center;outline:none;"
+                    oninput="syncGlobalRates()">
+            </div>
+            <div style="display:flex;align-items:center;gap:var(--space-2)">
+                <label style="font-size:var(--text-xs);font-weight:700;color:var(--text-muted);text-transform:uppercase;">💵 USD↔AED:</label>
+                <input type="number" id="globalExchangeRate" value="3.674" step="0.001"
+                    style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface-1);color:var(--text-primary);font-weight:700;text-align:center;outline:none;"
+                    oninput="syncGlobalRates()">
+            </div>
+        </div>
+        <div class="avatar" id="userAvatar">U</div>
+    </div>
+</header>
+
+<!-- MAIN -->
+<main class="main-content" id="mainContent">
+<div class="pos-wrapper">
+
+<!-- ═══════════════ LEFT: CART + DETAILS ═══════════════ -->
+<div class="pos-left">
+
+    <div class="pos-left-header">
+        <div class="pos-left-title"><i class="fas fa-shopping-basket" style="color:var(--success);margin-right:6px"></i>Purchase Items</div>
+        <div class="quick-actions">
+            <a href="/purchase-list.html" class="btn btn-secondary btn-sm"><i class="fas fa-list-alt"></i> Purchase List</a>
+            <button class="btn btn-secondary btn-sm" onclick="addAdHocItem()"><i class="fas fa-plus"></i> Ad-hoc Item</button>
+        </div>
+    </div>
+
+    <div class="pos-form">
+
+        <!-- Cart table -->
+        <table class="cart-table">
+            <thead>
+                <tr>
+                    <th style="width:28px">#</th>
+                    <th style="min-width:140px">Product</th>
+                    <th style="min-width:115px">Price</th>
+                    <th style="width:70px">Qty</th>
+                    <th style="width:95px">Sub (AED)</th>
+                    <th style="width:28px"></th>
+                </tr>
+            </thead>
+            <tbody id="purCartBody">
+                <tr id="emptyCartRow">
+                    <td colspan="6">
+                        <div class="empty-state" style="padding:var(--space-6) 0">
+                            <div class="empty-state-icon"><i class="fas fa-boxes-stacked"></i></div>
+                            <div class="empty-state-title">No items added yet</div>
+                            <div class="empty-state-text">Search for a product on the right, or click <b>Ad-hoc Item</b>.</div>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <hr class="divider">
+
+        <!-- Precious Metal Calculator (matches sales.html) -->
+        <div class="gold-calc-panel" id="goldCalcPanel" style="display:none">
+            <h4 id="calcTitle"><i class="fas fa-calculator"></i> Precious Metal Calculator</h4>
+
+            <!-- OPTIONAL CALC TOGGLE (PCS items only) -->
+            <div class="calc-toggle-bar" id="calcToggleBar" style="display:none">
+                <span class="toggle-label"><i class="fas fa-calculator"></i>Use Gold Calculator</span>
+                <label style="display:flex;align-items:center;gap:var(--space-2);cursor:pointer">
+                    <input type="checkbox" id="calcToggle" onchange="onCalcToggle()" style="width:14px;height:14px;cursor:pointer">
+                    <span class="toggle-status off" id="calcToggleLabel">OFF</span>
+                </label>
+            </div>
+
+            <!-- PCS: Quantity + Total Weight (PCS items only) -->
+            <div id="pcsQuantitySection" style="display:none;margin-bottom:var(--space-3)">
+                <div class="gold-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Quantity (PCS) *</label>
+                        <input type="number" id="pcsQtyInput" class="form-control" value="1" min="1" step="1" oninput="updateAddToCartBtnState()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Total Weight (grams) <span style="font-size:0.65rem;color:var(--text-muted);text-transform:none;letter-spacing:0">— optional</span></label>
+                        <input type="number" id="pcsTotalWeightInput" class="form-control" placeholder="" step="0.01" min="0">
+                    </div>
+                </div>
+            </div>
+
+            <!-- FIXED PRICE (PCS with calculator OFF) -->
+            <div id="fixedPriceSection" style="display:none;margin-bottom:var(--space-3)">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Price per piece (AED)</label>
+                    <input type="number" id="fixedPriceInput" class="form-control" placeholder="0.00" step="0.01" min="0" oninput="onFixedPriceInput()">
+                </div>
+            </div>
+
+            <!-- BULLION SECTION -->
+            <div id="bullionCalcSection">
+                <div class="gold-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Metal</label>
+                        <select id="metalType" class="form-control" onchange="onMetalTypeChange()">
+                            <option value="gold">Gold</option>
+                            <option value="silver">Silver</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Purity (e.g. 995.0, 750)</label>
+                        <input type="number" id="metalPurity" class="form-control" placeholder="995.0" step="0.1" oninput="calcGoldPrice()">
+                    </div>
+                </div>
+                <div class="gold-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Weight (grams)</label>
+                        <input type="number" id="metalWeight" class="form-control" placeholder="23.56" step="0.01" oninput="calcGoldPrice()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label" id="ozRateLabel">Gold Oz Rate (USD $)</label>
+                        <input type="number" id="ozRate" class="form-control" placeholder="2300" step="0.01" oninput="calcGoldPrice()">
+                    </div>
+                </div>
+                <div class="gold-row">
+                    <div class="form-group" style="margin-bottom:0; grid-column: 1 / span 2;">
+                        <label class="form-label">USD ↔ AED Exchange Rate</label>
+                        <input type="number" id="usdExchangeRate" class="form-control" value="3.674" step="0.001" oninput="calcGoldPrice()">
+                    </div>
+                </div>
+                <div id="goldResult" class="gold-result" style="display:none">
+                    <div style="font-size:var(--text-xs);opacity:0.85" id="goldFormula"></div>
+                    <div style="font-size:var(--text-xl);font-weight:700;margin-top:4px" id="goldPriceAED"></div>
+                    <div style="font-size:var(--text-xs);opacity:0.8;margin-top:2px" id="goldPriceUSD"></div>
+                </div>
+                <!-- PREMIUM -->
+                <div style="margin-top:var(--space-4);border-top:1px solid var(--border);padding-top:var(--space-3)">
+                    <label class="form-label" style="display:flex;align-items:center;gap:6px">
+                        Premium / Oz (USD $)
+                        <span style="background:rgba(34,197,94,0.15);color:var(--success);border:1px solid rgba(34,197,94,0.3);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;padding:0 6px">+ Add</span>
+                    </label>
+                    <input type="number" id="premiumValue" class="form-control" placeholder="0" step="0.01" min="0" oninput="calcGoldPrice()">
+                </div>
+                <!-- DISCOUNT -->
+                <div style="margin-top:var(--space-3);border-top:1px solid var(--border);padding-top:var(--space-3)">
+                    <label class="form-label">Discount</label>
+                    <div class="discount-row">
+                        <select id="discountType" class="form-control" onchange="calcGoldPrice()">
+                            <option value="none">No Discount</option>
+                            <option value="percent">% Percentage</option>
+                            <option value="per_oz">Per Oz (USD $)</option>
+                            <option value="flat">Flat Amount (AED)</option>
+                        </select>
+                        <input type="number" id="discountValue" class="form-control" placeholder="0" step="0.01" oninput="calcGoldPrice()" style="flex:1">
+                    </div>
+                </div>
+            </div>
+
+            <!-- JEWELLERY SECTION -->
+            <div id="jewelleryCalcSection" style="display:none">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:var(--space-3)">
+                    <span style="font-size:var(--text-xs);color:var(--text-muted);white-space:nowrap">Weight is:</span>
+                    <button id="jewelModePerPc" onclick="setJewelMode('perpiece')"
+                        style="padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--primary);color:#fff;border:1px solid var(--primary)">
+                        Per piece
+                    </button>
+                    <button id="jewelModeTotalSet" onclick="setJewelMode('totalset')"
+                        style="padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)">
+                        Total set
+                    </button>
+                </div>
+                <div class="gold-row">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label" id="jewelWeightLabel">Weight (grams)</label>
+                        <input type="number" id="jewelWeight" class="form-control" placeholder="2.2" step="0.01" oninput="calcJewelPrice()">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Price per Gram</label>
+                        <div style="display:flex;gap:4px">
+                            <input type="number" id="jewelPricePerGram" class="form-control" placeholder="120" step="0.01" oninput="calcJewelPrice()">
+                            <select id="jewelCurrency" class="form-control" onchange="calcJewelPrice()" style="width:75px;padding:0 4px">
+                                <option value="USD">USD ($)</option>
+                                <option value="AED">AED</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="gold-row" style="margin-top:var(--space-2)">
+                    <div class="form-group" style="margin-bottom:0">
+                        <label class="form-label">Discount</label>
+                        <select id="jewelDiscType" class="form-control" onchange="onJewelDiscTypeChange()">
+                            <option value="none">No Discount</option>
+                            <option value="percent">% Percentage</option>
+                            <option value="pergram">Per Gram (AED)</option>
+                            <option value="flat">Flat Amount (AED)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0;visibility:hidden" id="jewelDiscValueGroup">
+                        <label class="form-label" id="jewelDiscLabel">Value</label>
+                        <input type="number" id="jewelDiscValue" class="form-control" placeholder="0" step="0.01" min="0" oninput="calcJewelPrice()">
+                    </div>
+                </div>
+                <div id="jewelResult" class="gold-result" style="display:none;margin-top:var(--space-3)">
+                    <div style="font-size:var(--text-xs);opacity:0.85" id="jewelFormula"></div>
+                    <div style="font-size:var(--text-xl);font-weight:700;margin-top:4px" id="jewelPriceAED"></div>
+                    <div style="font-size:var(--text-xs);opacity:0.8;margin-top:2px" id="jewelPriceUSD"></div>
+                    <div id="jewelDiscountLine" style="display:none;margin-top:4px;font-size:var(--text-xs);font-weight:600;color:#ef4444"></div>
+                    <div id="jewelFinalLine"    style="display:none;margin-top:2px;font-size:var(--text-sm);font-weight:700;color:var(--success)"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Add to Cart button -->
+        <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-4)">
+            <button class="btn-add-to-cart" id="addToCartBtn" onclick="addToCartFromCalc()" disabled>
+                <i class="fas fa-cart-plus"></i> Add to Cart
+            </button>
+        </div>
+
+        <!-- Supplier -->
+        <div class="form-group">
+            <label class="form-label">Supplier</label>
+            <div id="supplierSelectedWrap" style="display:none;margin-bottom:6px"></div>
+            <div class="supplier-search-wrap" id="supplierSearchWrap">
+                <input type="text" id="supplierSearch" class="form-control"
+                    placeholder="Search supplier or type name…"
+                    oninput="onSupplierSearch(this.value)"
+                    onfocus="openSupplierDropdown()">
+                <div class="supplier-dropdown" id="supplierDropdown"></div>
+            </div>
+        </div>
+        <div id="supplierKycNotice" style="display:none;margin-top:-8px;margin-bottom:var(--space-3);padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);align-items:center;gap:8px;border:1px solid transparent"></div>
+
+        <!-- Date -->
+        <div class="form-group">
+            <label class="form-label">Purchase Date</label>
+            <input type="datetime-local" id="purchaseDate" class="form-control">
+        </div>
+
+        <!-- Payment Method -->
+        <div class="form-group">
+            <label class="form-label">Payment Method</label>
+            <div class="pm-btn-group" id="pmBtnGroup">
+                <button class="pm-btn active" data-pm="CASH"          onclick="selectPaymentMethod('CASH',this)">Cash</button>
+                <button class="pm-btn"        data-pm="BANK_TRANSFER" onclick="selectPaymentMethod('BANK_TRANSFER',this)">Bank Transfer</button>
+                <button class="pm-btn"        data-pm="CHEQUE"        onclick="selectPaymentMethod('CHEQUE',this)">Cheque</button>
+                <button class="pm-btn"        data-pm="GOLD_EXCHANGE" onclick="selectPaymentMethod('GOLD_EXCHANGE',this)">Gold Exchange</button>
+                <button class="pm-btn"        data-pm="CREDIT"        onclick="selectPaymentMethod('CREDIT',this)">Credit</button>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Amount Paid (AED)</label>
+                    <input type="number" id="amountPaid" class="form-control" value="0" min="0" step="0.01" placeholder="0.00" oninput="onPaidInput()">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label" style="color:var(--danger);font-weight:600">Due Amount (AED)</label>
+                    <input type="number" id="sumDueAmount" class="form-control" value="0.00" readonly
+                        style="color:var(--danger);font-weight:700;background:var(--surface-2)">
+                </div>
+            </div>
+        </div>
+
+        <!-- GOLD EXCHANGE PAYMENT DETAILS PANEL -->
+        <div id="goldPayPanel" style="display:none;background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.35);border-radius:var(--radius-lg);padding:var(--space-4);margin-top:var(--space-2)">
+            <div style="font-size:var(--text-sm);font-weight:700;color:#d97706;margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)">
+                <i class="fas fa-coins"></i> Gold Payment Details
+            </div>
+            <div class="gold-row">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Purity (per mille)</label>
+                    <input type="number" id="goldPay_purity" class="form-control" placeholder="e.g. 750" step="0.1" min="1" max="999.9" oninput="calcGoldPayment()">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Weight (grams)</label>
+                    <input type="number" id="goldPay_weight" class="form-control" placeholder="e.g. 10.5" step="0.01" min="0" oninput="calcGoldPayment()">
+                </div>
+            </div>
+            <div class="gold-row">
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Oz Rate (USD $)</label>
+                    <input type="number" id="goldPay_ozRate" class="form-control" placeholder="2300" step="0.01" min="0" oninput="calcGoldPayment()">
+                </div>
+                <div class="form-group" style="margin-bottom:0">
+                    <label class="form-label">Premium / Discount (%)</label>
+                    <input type="number" id="goldPay_premiumPct" class="form-control" value="0" step="0.01" placeholder="0 (neg = discount)" oninput="calcGoldPayment()">
+                </div>
+            </div>
+            <div id="goldPay_result" style="display:none;background:rgba(245,158,11,0.12);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-md);padding:var(--space-3);margin-top:var(--space-2);text-align:center">
+                <div style="font-size:var(--text-xs);color:#92400e" id="goldPay_formula"></div>
+                <div style="font-size:var(--text-xl);font-weight:700;color:#d97706;margin-top:4px" id="goldPay_valueAED"></div>
+                <div style="font-size:var(--text-xs);color:#92400e;margin-top:2px" id="goldPay_valueUSD"></div>
+            </div>
+            <div id="goldPay_summaryBlock" style="display:none;margin-top:var(--space-3);border-top:1px solid rgba(245,158,11,0.3);padding-top:var(--space-3)">
+                <div class="summary-row"><span class="s-label">Purchase Total</span><span class="s-val" id="goldPay_purchaseTotal">AED 0.00</span></div>
+                <div class="summary-row"><span class="s-label" style="color:#d97706">Gold Payment</span><span class="s-val" style="color:#d97706" id="goldPay_valueLine">− AED 0.00</span></div>
+                <div class="summary-row" id="goldPay_cashRow" style="display:none">
+                    <span class="s-label" style="color:var(--danger)">Remaining Due</span>
+                    <span class="s-val" style="color:var(--danger)" id="goldPay_remainingDue">AED 0.00</span>
+                </div>
+                <div class="form-group" id="goldPay_cashGroup" style="display:none;margin-top:var(--space-2);margin-bottom:0">
+                    <label class="form-label">Additional Cash Payment (AED)</label>
+                    <input type="number" id="goldPay_cashAmount" class="form-control" value="0.00" min="0" step="0.01" placeholder="0.00" oninput="onGoldPayCashInput()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+            <label class="form-label">Notes (optional)</label>
+            <textarea id="purNotes" class="form-control" rows="2"
+                placeholder="Notes about this purchase (supplier ref, lot number, etc.)…"
+                style="resize:vertical"></textarea>
+        </div>
+
+        <!-- VAT toggle -->
+        <div class="vat-toggle-bar">
+            <input type="checkbox" id="vatToggle" onchange="calcTotals()">
+            <label for="vatToggle" style="font-size:var(--text-sm);font-weight:600;cursor:pointer;color:var(--text-primary)">Apply 5% VAT</label>
+            <input type="number" id="vatPercent" class="form-control" value="5" min="0" step="0.1"
+                style="width:60px;margin-left:auto;text-align:center;padding:4px 6px"
+                oninput="calcTotals()">
+            <span style="font-size:var(--text-xs);color:var(--text-muted)">%</span>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-box">
+            <div class="summary-row">
+                <span class="s-label">Items in cart</span>
+                <span class="s-val" id="cartCount">0</span>
+            </div>
+            <div class="summary-row">
+                <span class="s-label">Subtotal</span>
+                <span class="s-val" id="subTotal">AED 0.00</span>
+            </div>
+            <div class="summary-row" id="premiumRow" style="display:none">
+                <span class="s-label" style="color:var(--success)">Premium</span>
+                <span class="s-val" style="color:var(--success)" id="premiumAmt">+ AED 0.00</span>
+            </div>
+            <div class="summary-row" id="discountRow" style="display:none">
+                <span class="s-label" style="color:var(--danger)">Discount</span>
+                <span class="s-val" style="color:var(--danger)" id="discountAmt">- AED 0.00</span>
+            </div>
+            <div class="summary-row" id="vatRow" style="display:none">
+                <span class="s-label" id="vatLabel">VAT (5%)</span>
+                <span class="s-val" id="vatAmt">AED 0.00</span>
+            </div>
+            <div class="summary-total">
+                <span class="s-label">Grand Total</span>
+                <span class="s-val" id="sumGrandTotal">AED 0.00</span>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <button class="btn-complete-purchase" id="btnCompletePur" onclick="submitPurchase()">
+            <i class="fas fa-check-circle"></i> &nbsp;Confirm Purchase
+        </button>
+        <button class="btn-cancel-sale" onclick="clearAll()">
+            <i class="fas fa-times"></i> Cancel &amp; Clear All
+        </button>
+
+    </div><!-- /pos-form -->
+</div><!-- /pos-left -->
+
+<!-- ═══════════════ RIGHT: PRODUCT SEARCH ═══════════════ -->
+<div class="pos-right">
+
+    <div class="pos-search-bar">
+        <div class="scanner-bar" id="scannerBar">
+            <div class="scanner-icon"><i class="fas fa-search"></i></div>
+            <input type="text" class="scanner-input" id="productSearch"
+                placeholder="Search products by name, purity or barcode…"
+                autocomplete="off" autocorrect="off" spellcheck="false"
+                oninput="filterProducts(this.value)"
+                onfocus="this.closest('.scanner-bar').classList.add('active')"
+                onblur="this.closest('.scanner-bar').classList.remove('active')">
+        </div>
+        <div class="filter-pills" id="filterPills">
+            <button class="filter-pill active" data-cat="ALL" onclick="setCategoryFilter('ALL',this)">All</button>
+        </div>
+    </div>
+
+    <div class="product-grid" id="productGrid">
+        <div style="grid-column:1/-1;text-align:center;padding:var(--space-8);color:var(--text-muted)">
+            <i class="fas fa-spinner fa-spin" style="font-size:1.5rem;margin-bottom:var(--space-3)"></i>
+            <div>Loading products…</div>
+        </div>
+    </div>
+
+</div><!-- /pos-right -->
+
+</div><!-- /pos-wrapper -->
+</main>
+
+<!-- ═══ SCRAP PURITY MODAL ═══ -->
+<div class="modal-overlay" id="scrapOverlay" onclick="closeScrapModal(event)">
+    <div class="modal" style="max-width:400px" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <span class="modal-title">
+                <i class="fas fa-gem" style="color:var(--warning);margin-right:8px"></i>Scrap Item — Enter Purity
+            </span>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-4)" id="scrapProductName"></p>
+            <div class="form-group">
+                <label class="form-label">Tested Purity (per mille — e.g. 750 = 18K, 999.9 = 24K)</label>
+                <input type="number" id="scrapPurityInput" class="form-control" step="0.1" min="1" max="999.9" placeholder="e.g. 750.0">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeScrapModal()">Cancel</button>
+            <button class="btn btn-primary" onclick="confirmScrapAdd()"><i class="fas fa-plus-circle"></i> Add to Purchase</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══ RECEIPT MODAL ═══ -->
+<div class="modal-overlay" id="receiptOverlay" onclick="closeReceiptModal(event)" style="align-items:flex-start;padding-top:40px;overflow-y:auto">
+    <div class="modal" style="max-width:420px;border-radius:var(--radius-lg);overflow:hidden;padding:0;background:var(--surface-1);margin-bottom:40px" onclick="event.stopPropagation()">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:var(--space-3) var(--space-4);background:var(--surface-2);border-bottom:1px solid var(--border)">
+            <span style="font-weight:600;font-size:var(--text-sm);color:var(--text-primary)">
+                <i class="fas fa-receipt" style="color:var(--success);margin-right:6px"></i>Purchase Receipt
+            </span>
+            <button style="background:none;border:none;color:var(--text-secondary);cursor:pointer;font-size:16px;padding:4px 8px;border-radius:var(--radius-sm)" onclick="closeReceiptModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div id="receiptContent" style="max-height:60vh;overflow-y:auto;background:var(--surface-2);padding:var(--space-4)">
+            <!-- Filled dynamically -->
+        </div>
+        <div style="background:var(--surface-1);border-top:1px solid var(--border);padding:var(--space-3) var(--space-4);display:flex;gap:var(--space-2)">
+            <button class="btn btn-secondary" style="flex:1" onclick="printVoucher()"><i class="fas fa-print"></i> Print</button>
+            <button class="btn btn-primary" style="flex:1;background:var(--success);border-color:var(--success)" onclick="startNewPurchase()"><i class="fas fa-plus"></i> New Purchase</button>
+        </div>
+    </div>
+</div>
+
+<script src="/js/smartpos.js"></script>
+<script>
+/* ============================================================
+   purchase.html — JavaScript
+   ============================================================ */
+
+function fmtQty(val) {
+    if (val === null || val === undefined) return '0';
+    const n = parseFloat(val);
+    if (Number.isInteger(n)) return n.toString();
+    return parseFloat(n.toFixed(4)).toString();
+}
+
+const state = {
+    items:            [],
+    products:         [],
+    suppliers:        [],
+    filteredProducts: [],
+    categories:       [],
+    activeCategory:   'ALL',
+    supplierId:       null,
+    supplierName:     '',
+    paymentMethod:    'CASH',
+    exchangeRate:     3.674,
+    goldOzRate:       2300,
+    silverOzRate:     29,
+    submitting:       false,
+    lastPurchase:     null,
+    // currently selected product in the right grid (not yet in cart)
+    activeProduct:    null,
+    // pending calculator values for active product
+    _calcPrice:       0,
+    _calcPremium:     0,
+    _calcDiscount:    0,
+    // for scrap purity prompt
+    pendingScrapProduct: null,
+    // index in state.items of item currently being configured via calculator
+    _activeItemIdx: null
+};
+
+// jewellery mode ('perpiece' | 'totalset')
+let purJewelMode = 'perpiece';
+
+/* ── Number helpers ───────────────────────────────────────── */
+function fmtC(n) {
+    const v = parseFloat(n) || 0;
+    return 'AED ' + v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+function fmtN(n, dp) {
+    return (parseFloat(n) || 0).toFixed(dp ?? 2);
+}
+function escHtml(s) {
+    if (!s) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Init ─────────────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', async () => {
+    if (!Auth.requireClient()) return;
+    RoleGuard.guardCurrentPage();
+    RoleGuard.applyToSidebar();
+
+    const av = document.getElementById('userAvatar');
+    if (av) av.textContent = (Auth.getUserName() || 'U')[0].toUpperCase();
+
+    // Restore saved rates from localStorage (shared with sales.html)
+    const savedGold     = localStorage.getItem('smartpos_global_oz_rate');
+    const savedSilver   = localStorage.getItem('smartpos_global_silver_oz_rate');
+    const savedExchange = localStorage.getItem('smartpos_global_exchange_rate');
+    if (savedGold)     { document.getElementById('globalOzRate').value         = savedGold;     state.goldOzRate   = +savedGold; }
+    if (savedSilver)   { document.getElementById('globalSilverOzRate').value   = savedSilver;   state.silverOzRate = +savedSilver; }
+    if (savedExchange) { document.getElementById('globalExchangeRate').value   = savedExchange; state.exchangeRate = +savedExchange; }
+
+    // Sync exchange rate into the calculator panel input
+    if (document.getElementById('usdExchangeRate')) {
+        document.getElementById('usdExchangeRate').value = state.exchangeRate;
+    }
+
+    // Set default date to now
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    const localDT = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    document.getElementById('purchaseDate').value = localDT;
+
+    // Load data in parallel
+    await Promise.all([loadProducts(), loadSuppliers()]);
+
+    // Close supplier dropdown on outside click
+    document.addEventListener('click', e => {
+        if (!e.target.closest('#supplierSearchWrap')) closeSupplierDropdown();
+    });
+});
+
+/* ── Load data ────────────────────────────────────────────── */
+async function loadProducts() {
+    try {
+        const data = await API.get('/api/products');
+        state.products = Array.isArray(data) ? data : (data.content || []);
+        state.filteredProducts = [...state.products];
+        buildCategoryPills();
+        renderProductGrid();
+    } catch (e) {
+        document.getElementById('productGrid').innerHTML =
+            '<div style="grid-column:1/-1;text-align:center;padding:var(--space-6);color:var(--text-muted)">Failed to load products.</div>';
+    }
+}
+
+async function loadSuppliers() {
+    try {
+        const data = await API.get('/api/suppliers');
+        state.suppliers = Array.isArray(data) ? data : [];
+    } catch (e) {
+        state.suppliers = [];
+    }
+}
+
+/* ── Category pills ───────────────────────────────────────── */
+function buildCategoryPills() {
+    const cats = [...new Set(state.products.map(p => p.category).filter(Boolean))].sort();
+    state.categories = cats;
+    const wrap = document.getElementById('filterPills');
+    wrap.innerHTML = '<button class="filter-pill active" data-cat="ALL" onclick="setCategoryFilter(\'ALL\',this)">All</button>';
+    cats.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-pill';
+        btn.dataset.cat = cat;
+        btn.textContent = cat;
+        btn.onclick = function() { setCategoryFilter(cat, this); };
+        wrap.appendChild(btn);
+    });
+}
+
+function setCategoryFilter(cat, el) {
+    state.activeCategory = cat;
+    document.querySelectorAll('#filterPills .filter-pill').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    filterProducts(document.getElementById('productSearch').value);
+}
+
+function filterProducts(query) {
+    const q = (query || '').toLowerCase().trim();
+    const cat = state.activeCategory;
+    state.filteredProducts = state.products.filter(p => {
+        const catOk = cat === 'ALL' || p.category === cat;
+        const nameOk = !q || p.name.toLowerCase().includes(q)
+            || (p.purity && p.purity.toLowerCase().includes(q))
+            || (p.barcode && p.barcode.toLowerCase().includes(q));
+        return catOk && nameOk && p.active;
+    });
+    renderProductGrid();
+}
+
+/* ── Render product grid ──────────────────────────────────── */
+function renderProductGrid() {
+    const grid = document.getElementById('productGrid');
+    if (!state.filteredProducts.length) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:var(--space-8);color:var(--text-muted)"><i class="fas fa-box-open" style="font-size:1.5rem;margin-bottom:var(--space-3);display:block;opacity:0.3"></i>No products found.</div>';
+        return;
+    }
+    grid.innerHTML = state.filteredProducts.map(p => {
+        const img = p.imagePath
+            ? `<img src="${escHtml(p.imagePath)}" alt="">`
+            : `<i class="fas fa-gem card-placeholder"></i>`;
+        const scrapTag = p.isScrap ? '<span class="product-card-scrap">SCRAP</span>' : '';
+        const sub = [p.purity ? `Purity: ${p.purity}` : '', p.unitType || 'PCS']
+            .filter(Boolean).join(' · ');
+        const isSelected = state.activeProduct && state.activeProduct.id === p.id;
+
+        // Stock badge
+        const stock = parseFloat(p.quantity) || 0;
+        let stockBadge = '';
+        if (stock === 0)       stockBadge = '<span class="product-card-stock-badge out">Out</span>';
+        else if (stock < 10)   stockBadge = `<span class="product-card-stock-badge low">${parseFloat(stock.toFixed(3))}</span>`;
+        else                   stockBadge = `<span class="product-card-stock-badge">${parseFloat(stock.toFixed(3))}</span>`;
+
+        const priceTag = (p.price && parseFloat(p.price) > 0)
+            ? `<div style="font-size:0.65rem;font-weight:700;color:var(--success);margin-top:2px">AED ${parseFloat(p.price).toFixed(2)}</div>` : '';
+
+        return `
+        <div class="product-card${isSelected ? ' selected-product' : ''}" onclick="addToCart(${p.id})">
+            ${stockBadge}
+            <div class="product-card-image">${img}</div>
+            ${scrapTag}
+            <div class="product-card-body">
+                <div class="product-card-name">${escHtml(p.name)}</div>
+                <div class="product-card-sub">${escHtml(sub)}</div>
+                ${priceTag}
+            </div>
+        </div>`;
+    }).join('');
+}
+
+/* ── Click card → add to cart immediately ─────────────────── */
+function addToCart(productId) {
+    const p = state.products.find(x => x.id === productId);
+    if (!p) return;
+
+    if (p.isScrap) {
+        state.pendingScrapProduct = p;
+        document.getElementById('scrapProductName').textContent = p.name;
+        document.getElementById('scrapPurityInput').value = '';
+        document.getElementById('scrapOverlay').classList.add('open');
+        setTimeout(() => document.getElementById('scrapPurityInput').focus(), 100);
+        return;
+    }
+
+    // ── Switching products: reset active state, leave cart untouched ─
+    if (state._activeItemIdx !== null) {
+        state._activeItemIdx = null;
+        state.activeProduct  = null;
+    }
+
+    const isGram = (p.unitType || 'PCS') === 'GRAM';
+
+    // Push item to cart immediately
+    const newItem = {
+        productId:     p.id,
+        productName:   p.name,
+        purity:        p.purity || '',
+        unitType:      p.unitType || 'PCS',
+        quantity:      isGram ? 0 : 1,
+        weightGrams:   null,
+        pricingMethod: isGram ? 'OZ_RATE' : 'FIXED_PRICE',
+        goldOzRate:    state.goldOzRate,
+        pricePerGram:  0,
+        unitPrice:     isGram ? 0 : (parseFloat(p.price) || 0),
+        totalPrice:    isGram ? 0 : (parseFloat(p.price) || 0),
+        scrapPurity:   null,
+        isScrap:       false,
+        _calcPremium:  0,
+        _calcDiscount: 0
+    };
+    state.items.push(newItem);
+    state._activeItemIdx = state.items.length - 1;
+    recalcItem(state._activeItemIdx);
+    renderCart();
+    updateTotals();
+
+    if (isGram) {
+        // Show calculator, focus weight input
+        state.activeProduct = p;
+        state._calcPrice    = 0;
+        state._calcPremium  = 0;
+        state._calcDiscount = 0;
+        renderProductGrid();
+
+        const panel = document.getElementById('goldCalcPanel');
+        document.getElementById('calcTitle').innerHTML =
+            `<i class="fas fa-calculator"></i> Calculator: <span style="color:var(--success)">${escHtml(p.name)}</span>`;
+        document.getElementById('calcToggleBar').style.display     = 'none';
+        document.getElementById('pcsQuantitySection').style.display = 'none';
+        document.getElementById('fixedPriceSection').style.display  = 'none';
+        document.getElementById('bullionCalcSection').style.display  = 'block';
+        document.getElementById('jewelleryCalcSection').style.display = 'none';
+
+        document.getElementById('metalWeight').value     = '';
+        document.getElementById('metalPurity').value     = parseFloat(p.purity) || 995;
+        const cat   = (p.category || '').toLowerCase();
+        const metal = cat.includes('silver') ? 'silver' : 'gold';
+        document.getElementById('metalType').value        = metal;
+        document.getElementById('ozRate').value           = metal === 'silver' ? state.silverOzRate : state.goldOzRate;
+        document.getElementById('usdExchangeRate').value  = state.exchangeRate;
+        document.getElementById('premiumValue').value     = 0;
+        document.getElementById('discountType').value     = 'none';
+        document.getElementById('discountValue').value    = 0;
+        document.getElementById('goldResult').style.display = 'none';
+        document.getElementById('ozRateLabel').textContent = (metal === 'gold' ? 'Gold' : 'Silver') + ' Oz Rate (USD $)';
+        panel.style.display = 'block';
+        updateAddToCartBtnState();
+        setTimeout(() => document.getElementById('metalWeight').focus(), 80);
+
+    } else {
+        // PCS: show jewellery calculator (same flow as GRAM)
+        state.activeProduct = p;
+        state._calcPrice    = 0;
+        state._calcPremium  = 0;
+        state._calcDiscount = 0;
+        renderProductGrid();
+
+        const panel = document.getElementById('goldCalcPanel');
+        document.getElementById('calcTitle').innerHTML =
+            `<i class="fas fa-gem"></i> Calculator: <span style="color:var(--success)">${escHtml(p.name)}</span>`;
+
+        // PCS mode: show toggle bar + qty section + jewellery calc (toggle ON)
+        document.getElementById('calcToggleBar').style.display        = 'flex';
+        document.getElementById('pcsQuantitySection').style.display   = 'block';
+        document.getElementById('fixedPriceSection').style.display    = 'none';
+        document.getElementById('bullionCalcSection').style.display   = 'none';
+        document.getElementById('jewelleryCalcSection').style.display = 'block';
+        document.getElementById('goldResult').style.display           = 'none';
+        document.getElementById('jewelResult').style.display          = 'none';
+
+        // Set calculator toggle to ON
+        const calcToggle = document.getElementById('calcToggle');
+        const calcLbl    = document.getElementById('calcToggleLabel');
+        if (calcToggle) { calcToggle.checked = true; }
+        if (calcLbl)    { calcLbl.textContent = 'ON'; calcLbl.className = 'toggle-status on'; }
+
+        // Pre-populate fields
+        document.getElementById('pcsQtyInput').value         = 1;
+        document.getElementById('pcsTotalWeightInput').value = '';
+        document.getElementById('fixedPriceInput').value     = '';
+        document.getElementById('jewelWeight').value         = '';
+        document.getElementById('jewelPricePerGram').value   = '';
+        document.getElementById('jewelCurrency').value       = 'USD';
+        document.getElementById('jewelDiscType').value       = 'none';
+        document.getElementById('jewelDiscValue').value      = '';
+        document.getElementById('jewelDiscValueGroup').style.visibility = 'hidden';
+        purJewelMode = 'perpiece';
+        setJewelMode('perpiece');
+
+        panel.style.display = 'block';
+        updateAddToCartBtnState();
+        setTimeout(() => document.getElementById('jewelWeight').focus(), 80);
+    }
+
+    Toast.success(`${p.name} added to cart`);
+}
+
+/* ── Select product (shows calculator, does NOT add to cart yet) ─ */
+function selectProduct(productId) {
+    const p = state.products.find(x => x.id === productId);
+    if (!p) return;
+
+    if (p.isScrap) {
+        state.pendingScrapProduct = p;
+        document.getElementById('scrapProductName').textContent = p.name;
+        document.getElementById('scrapPurityInput').value = '';
+        document.getElementById('scrapOverlay').classList.add('open');
+        setTimeout(() => document.getElementById('scrapPurityInput').focus(), 100);
+        return;
+    }
+
+    // Set as active product
+    state.activeProduct = p;
+    state._calcPrice    = 0;
+    state._calcPremium  = 0;
+    state._calcDiscount = 0;
+    renderProductGrid(); // re-render to show highlight
+
+    // Show calculator panel
+    const panel = document.getElementById('goldCalcPanel');
+    const isGram = (p.unitType || 'PCS') === 'GRAM';
+
+    // ── Set title ──────────────────────────────────────────────────
+    document.getElementById('calcTitle').innerHTML = isGram
+        ? `<i class="fas fa-calculator"></i> Calculator: <span style="color:var(--success)">${escHtml(p.name)}</span>`
+        : `<i class="fas fa-gem"></i> Price Entry: <span style="color:var(--success)">${escHtml(p.name)}</span>`;
+
+    // ── Toggle bar (PCS only) ──────────────────────────────────────
+    document.getElementById('calcToggleBar').style.display     = isGram ? 'none' : 'flex';
+    document.getElementById('pcsQuantitySection').style.display = isGram ? 'none' : 'block';
+
+    const calcToggle = document.getElementById('calcToggle');
+    const calcLbl    = document.getElementById('calcToggleLabel');
+
+    if (isGram) {
+        // GRAM: always show bullion calc, no toggle needed
+        if (calcToggle) calcToggle.checked = true;
+        document.getElementById('fixedPriceSection').style.display    = 'none';
+        document.getElementById('bullionCalcSection').style.display   = 'block';
+        document.getElementById('jewelleryCalcSection').style.display = 'none';
+
+        // Pre-populate bullion fields
+        document.getElementById('metalWeight').value     = '';
+        document.getElementById('metalPurity').value     = parseFloat(p.purity) || 995;
+        const cat   = (p.category || '').toLowerCase();
+        const metal = cat.includes('silver') ? 'silver' : 'gold';
+        document.getElementById('metalType').value       = metal;
+        document.getElementById('ozRate').value          = metal === 'silver' ? state.silverOzRate : state.goldOzRate;
+        document.getElementById('usdExchangeRate').value = state.exchangeRate;
+        document.getElementById('premiumValue').value    = 0;
+        document.getElementById('discountType').value    = 'none';
+        document.getElementById('discountValue').value   = 0;
+        document.getElementById('goldResult').style.display = 'none';
+        document.getElementById('ozRateLabel').textContent = (metal === 'gold' ? 'Gold' : 'Silver') + ' Oz Rate (USD $)';
+
+    } else {
+        // PCS: default toggle OFF → show fixed price, hide calculator sections
+        if (calcToggle)  { calcToggle.checked = false; }
+        if (calcLbl)     { calcLbl.textContent = 'OFF'; calcLbl.className = 'toggle-status off'; }
+
+        document.getElementById('fixedPriceSection').style.display    = 'block';
+        document.getElementById('bullionCalcSection').style.display   = 'none';
+        document.getElementById('jewelleryCalcSection').style.display = 'none';
+        document.getElementById('goldResult').style.display           = 'none';
+        document.getElementById('jewelResult').style.display          = 'none';
+
+        // Reset PCS inputs
+        document.getElementById('pcsQtyInput').value          = 1;
+        document.getElementById('pcsTotalWeightInput').value  = '';
+        document.getElementById('fixedPriceInput').value      = '';
+
+        // Pre-load jewellery fields (ready if user turns toggle ON)
+        document.getElementById('jewelWeight').value        = '';
+        document.getElementById('jewelPricePerGram').value  = '';
+        document.getElementById('jewelCurrency').value      = 'USD';
+        document.getElementById('jewelDiscType').value      = 'none';
+        document.getElementById('jewelDiscValue').value     = '';
+        document.getElementById('jewelDiscValueGroup').style.visibility = 'hidden';
+        purJewelMode = 'perpiece';
+        setJewelMode('perpiece');
+    }
+
+    panel.style.display = 'block';
+    updateAddToCartBtnState();
+}
+
+/* ── Click a cart row → load it into the calculator ──────── */
+function activateCartItem(idx) {
+    const item = state.items[idx];
+    if (!item || item.productId === null) return; // ad-hoc rows: no calculator
+
+    // Clicking the already-active row just refocuses the calculator input
+    const alreadyActive = state._activeItemIdx === idx;
+
+    state._activeItemIdx = idx;
+    state.activeProduct  = state.products.find(p => p.id === item.productId) || null;
+
+    const panel = document.getElementById('goldCalcPanel');
+
+    document.getElementById('calcTitle').innerHTML = item.unitType === 'GRAM'
+        ? `<i class="fas fa-calculator"></i> Calculator: <span style="color:var(--success)">${escHtml(item.productName)}</span>`
+        : `<i class="fas fa-gem"></i> Calculator: <span style="color:var(--success)">${escHtml(item.productName)}</span>`;
+
+    if (item.unitType === 'GRAM') {
+        // ── Bullion calculator ─────────────────────────────────────
+        document.getElementById('calcToggleBar').style.display        = 'none';
+        document.getElementById('pcsQuantitySection').style.display   = 'none';
+        document.getElementById('fixedPriceSection').style.display    = 'none';
+        document.getElementById('bullionCalcSection').style.display   = 'block';
+        document.getElementById('jewelleryCalcSection').style.display = 'none';
+
+        const cat   = ((state.activeProduct && state.activeProduct.category) || '').toLowerCase();
+        const metal = cat.includes('silver') ? 'silver' : 'gold';
+        document.getElementById('metalType').value       = metal;
+        document.getElementById('metalPurity').value     = parseFloat(item.scrapPurity || item.purity) || 995;
+        document.getElementById('metalWeight').value     = parseFloat(item.quantity) > 0 ? item.quantity : '';
+        document.getElementById('ozRate').value          = parseFloat(item.goldOzRate) || (metal === 'silver' ? state.silverOzRate : state.goldOzRate);
+        document.getElementById('usdExchangeRate').value = state.exchangeRate;
+        document.getElementById('ozRateLabel').textContent = (metal === 'gold' ? 'Gold' : 'Silver') + ' Oz Rate (USD $)';
+        document.getElementById('premiumValue').value    = 0;
+        document.getElementById('discountType').value    = 'none';
+        document.getElementById('discountValue').value   = 0;
+
+        if (parseFloat(item.quantity) > 0) {
+            calcGoldPrice(); // re-display the result for this item's weight
+        } else {
+            document.getElementById('goldResult').style.display = 'none';
+        }
+
+    } else {
+        // ── Jewellery calculator (PCS) ─────────────────────────────
+        document.getElementById('calcToggleBar').style.display        = 'flex';
+        document.getElementById('pcsQuantitySection').style.display   = 'block';
+        document.getElementById('fixedPriceSection').style.display    = 'none';
+        document.getElementById('bullionCalcSection').style.display   = 'none';
+        document.getElementById('jewelleryCalcSection').style.display = 'block';
+        document.getElementById('goldResult').style.display           = 'none';
+        document.getElementById('jewelResult').style.display          = 'none';
+
+        const calcToggle = document.getElementById('calcToggle');
+        const calcLbl    = document.getElementById('calcToggleLabel');
+        if (calcToggle) { calcToggle.checked = true; }
+        if (calcLbl)    { calcLbl.textContent = 'ON'; calcLbl.className = 'toggle-status on'; }
+
+        document.getElementById('pcsQtyInput').value         = parseInt(item.quantity) || 1;
+        document.getElementById('pcsTotalWeightInput').value = '';
+        document.getElementById('jewelWeight').value         = '';
+        document.getElementById('jewelPricePerGram').value   = '';
+        document.getElementById('jewelCurrency').value       = 'USD';
+        document.getElementById('jewelDiscType').value       = 'none';
+        document.getElementById('jewelDiscValue').value      = '';
+        document.getElementById('jewelDiscValueGroup').style.visibility = 'hidden';
+        purJewelMode = 'perpiece';
+        setJewelMode('perpiece');
+    }
+
+    panel.style.display = 'block';
+    updateAddToCartBtnState();
+    if (!alreadyActive) {
+        renderCart();        // update active-row highlight
+        renderProductGrid(); // update selected card in product grid
+    }
+
+    // Focus the primary input
+    const focusId = item.unitType === 'GRAM' ? 'metalWeight' : 'jewelWeight';
+    setTimeout(() => { const el = document.getElementById(focusId); if (el) el.focus(); }, 60);
+}
+
+/* ── Confirm / finalise the active calculator item ────────── */
+function addToCartFromCalc() {
+    // New flow: item is already in cart; this button confirms / clears the active selection.
+    if (state._activeItemIdx !== null && state._activeItemIdx !== undefined) {
+        const activeItem = state.items[state._activeItemIdx];
+        if (activeItem) {
+            if (activeItem.unitType === 'GRAM' && (parseFloat(activeItem.quantity) || 0) <= 0) {
+                Toast.warning('Enter weight in grams first.'); return;
+            }
+            if (activeItem.unitType === 'PCS') {
+                const calcOn = document.getElementById('calcToggle')?.checked;
+                if (!calcOn) {
+                    // Fixed price mode — read & apply from input
+                    const fixedP = parseFloat(document.getElementById('fixedPriceInput').value) || 0;
+                    if (fixedP <= 0 && !activeItem.isScrap) { Toast.warning('Enter a price first.'); return; }
+                    const qty = parseInt(document.getElementById('pcsQtyInput').value) || 1;
+                    activeItem.unitPrice  = fixedP;
+                    activeItem.quantity   = qty;
+                    activeItem.totalPrice = fixedP * qty;
+                    renderCart(); updateTotals();
+                } else {
+                    // Jewellery calculator mode
+                    if ((parseFloat(activeItem.unitPrice) || 0) <= 0 && !activeItem.isScrap) {
+                        Toast.warning('Enter weight and price in the jewellery calculator.'); return;
+                    }
+                    const qty = parseInt(document.getElementById('pcsQtyInput').value) || 1;
+                    activeItem.quantity   = qty;
+                    activeItem.totalPrice = (parseFloat(activeItem.unitPrice) || 0) * qty;
+                    renderCart(); updateTotals();
+                }
+            }
+        }
+        state._activeItemIdx = null;
+        state.activeProduct  = null;
+        state._calcPrice     = 0;
+        state._calcPremium   = 0;
+        state._calcDiscount  = 0;
+        document.getElementById('goldCalcPanel').style.display = 'none';
+        document.getElementById('goldResult').style.display    = 'none';
+        document.getElementById('jewelResult').style.display   = 'none';
+        updateAddToCartBtnState();
+        renderCart();        // clear active highlight from the confirmed row
+        renderProductGrid();
+        Toast.success('Item confirmed in cart.');
+        return;
+    }
+
+    // Legacy path: activeProduct set but no _activeItemIdx (e.g. selectProduct called directly)
+    if (!state.activeProduct) { Toast.warning('Select a product first.'); return; }
+    if (state._calcPrice <= 0) { Toast.warning('Enter a price first.'); return; }
+
+    const p      = state.activeProduct;
+    const isGram = (p.unitType || 'PCS') === 'GRAM';
+    let qty, weightGrams, pricingMethod, unitPrice, totalPrice;
+
+    if (isGram) {
+        qty           = parseFloat(document.getElementById('metalWeight').value) || 0;
+        if (qty <= 0) { Toast.warning('Enter weight in grams.'); return; }
+        weightGrams   = null;
+        unitPrice     = state._calcPrice;
+        totalPrice    = state._calcPrice * qty;
+        pricingMethod = 'OZ_RATE';
+    } else {
+        qty = parseInt(document.getElementById('pcsQtyInput').value) || 0;
+        if (qty <= 0) { Toast.warning('Enter a valid quantity (PCS).'); return; }
+        const wt = parseFloat(document.getElementById('pcsTotalWeightInput').value);
+        weightGrams = (wt && wt > 0) ? wt : null;
+        const calcOn = document.getElementById('calcToggle')?.checked;
+        if (calcOn && purJewelMode === 'totalset') {
+            unitPrice  = qty > 0 ? state._calcPrice / qty : state._calcPrice;
+            totalPrice = state._calcPrice;
+        } else {
+            unitPrice  = state._calcPrice;
+            totalPrice = state._calcPrice * qty;
+        }
+        pricingMethod = 'FIXED_PRICE';
+    }
+
+    pushItem({
+        productId: p.id, productName: p.name, purity: p.purity || '',
+        unitType: p.unitType || 'PCS', quantity: qty, weightGrams,
+        pricingMethod, goldOzRate: state.goldOzRate, pricePerGram: 0,
+        unitPrice, totalPrice, scrapPurity: null, isScrap: false,
+        _calcPremium: state._calcPremium, _calcDiscount: state._calcDiscount
+    });
+
+    state.activeProduct = null;
+    state._calcPrice = 0; state._calcPremium = 0; state._calcDiscount = 0;
+    document.getElementById('goldCalcPanel').style.display = 'none';
+    document.getElementById('goldResult').style.display    = 'none';
+    document.getElementById('jewelResult').style.display   = 'none';
+    updateAddToCartBtnState();
+    renderProductGrid();
+    Toast.success(`${p.name} added to cart`);
+}
+
+/* ── Update Add-to-Cart button state ─────────────────────── */
+function updateAddToCartBtnState() {
+    const btn = document.getElementById('addToCartBtn');
+    if (!btn) return;
+    // Enable whenever there is an active product being configured (new instant-add flow)
+    const enabled = state.activeProduct !== null || state._activeItemIdx !== null;
+    btn.disabled = !enabled;
+    btn.style.opacity = enabled ? '1' : '0.5';
+    btn.style.cursor  = enabled ? 'pointer' : 'not-allowed';
+    btn.innerHTML = state._activeItemIdx !== null
+        ? '<i class="fas fa-check-circle"></i> Confirm Item'
+        : '<i class="fas fa-cart-plus"></i> Add to Cart';
+}
+
+/* ── Ad-hoc item ──────────────────────────────────────────── */
+function addAdHocItem() {
+    pushItem({
+        productId:     null,
+        productName:   '',
+        purity:        '',
+        unitType:      'GRAM',
+        quantity:      1.0,
+        pricingMethod: 'OZ_RATE',
+        goldOzRate:    state.goldOzRate,
+        pricePerGram:  0,
+        unitPrice:     0,
+        totalPrice:    0,
+        scrapPurity:   null,
+        isScrap:       false
+    });
+    // Focus the name input of the new row
+    setTimeout(() => {
+        const inputs = document.querySelectorAll('#purCartBody .name-fw');
+        if (inputs.length) inputs[inputs.length - 1].focus();
+    }, 60);
+}
+
+function pushItem(item) {
+    state.items.push(item);
+    recalcItem(state.items.length - 1);
+    renderCart();
+    updateTotals();
+}
+
+/* ── Scrap modal ──────────────────────────────────────────── */
+function closeScrapModal(e) {
+    if (e && e.target !== document.getElementById('scrapOverlay')) return;
+    document.getElementById('scrapOverlay').classList.remove('open');
+    state.pendingScrapProduct = null;
+}
+
+function confirmScrapAdd() {
+    const p = state.pendingScrapProduct;
+    if (!p) return;
+    const purityVal = document.getElementById('scrapPurityInput').value.trim();
+    const purity = parseFloat(purityVal);
+    if (!purityVal || isNaN(purity) || purity < 1 || purity > 999.9) {
+        Toast.error('Enter a valid purity between 1 and 999.9');
+        return;
+    }
+    document.getElementById('scrapOverlay').classList.remove('open');
+    // For scrap items, activate the calculator pre-filled with tested purity
+    state.activeProduct = { ...p, purity: purityVal, unitType: 'GRAM', _scrapPurity: purityVal, isScrap: true };
+    state._calcPrice    = 0;
+    state._calcPremium  = 0;
+    state._calcDiscount = 0;
+
+    const panel = document.getElementById('goldCalcPanel');
+    document.getElementById('bullionCalcSection').style.display = 'block';
+    document.getElementById('jewelleryCalcSection').style.display = 'none';
+    document.getElementById('calcTitle').innerHTML =
+        `<i class="fas fa-calculator"></i> Calculator: <span style="color:var(--warning)">${escHtml(p.name)}</span> <span style="font-size:0.7rem;color:var(--text-muted)">(Tested: ${escHtml(purityVal)})</span>`;
+    document.getElementById('metalWeight').value      = '';
+    document.getElementById('metalPurity').value      = purityVal;
+    document.getElementById('metalType').value        = 'gold';
+    document.getElementById('ozRate').value           = state.goldOzRate;
+    document.getElementById('usdExchangeRate').value  = state.exchangeRate;
+    document.getElementById('premiumValue').value     = 0;
+    document.getElementById('discountType').value     = 'none';
+    document.getElementById('discountValue').value    = 0;
+    document.getElementById('goldResult').style.display = 'none';
+    panel.style.display = 'block';
+    updateAddToCartBtnState();
+    renderProductGrid();
+    state.pendingScrapProduct = null;
+}
+
+/* ── Remove item ──────────────────────────────────────────── */
+function removeItem(idx) {
+    // If removing the item currently being configured, close the calculator
+    if (state._activeItemIdx === idx) {
+        state._activeItemIdx = null;
+        state.activeProduct  = null;
+        document.getElementById('goldCalcPanel').style.display = 'none';
+        document.getElementById('goldResult').style.display    = 'none';
+        document.getElementById('jewelResult').style.display   = 'none';
+        updateAddToCartBtnState();
+        renderProductGrid();
+    } else if (state._activeItemIdx !== null && state._activeItemIdx > idx) {
+        // Shift active index down if a preceding item was removed
+        state._activeItemIdx--;
+    }
+    state.items.splice(idx, 1);
+    renderCart();
+    updateTotals();
+}
+
+/* ── Update field ─────────────────────────────────────────── */
+function updateField(idx, field, value) {
+    const item = state.items[idx];
+    if (!item) return;
+    item[field] = value;
+
+    // Auto-set pricing method for GRAM items switching from PCS
+    if (field === 'unitType' && value === 'GRAM' && item.pricingMethod === 'FIXED_PRICE') {
+        item.pricingMethod = 'OZ_RATE';
+    }
+    if (field === 'unitType' && value === 'PCS') {
+        item.pricingMethod = 'FIXED_PRICE';
+    }
+
+    recalcItem(idx);
+
+    // Targeted DOM updates to avoid losing focus
+    const rows = document.querySelectorAll('#purCartBody tr[data-idx]');
+    const row  = rows[idx];
+    if (row) {
+        row.querySelector('.total-cell').textContent = fmtC(item.totalPrice);
+
+        // If pricing method changed, re-render the rate cell
+        if (field === 'pricingMethod' || field === 'unitType') {
+            row.querySelector('.rate-cell').innerHTML = buildRateCellHTML(item, idx);
+            // Also update pricingMethod select value
+            const pmSel = row.querySelector('.pricing-select');
+            if (pmSel) pmSel.value = item.pricingMethod;
+        }
+
+        // Update oz-rate display if we just changed goldOzRate
+        if (field === 'goldOzRate' || field === 'purity') {
+            const rateCell = row.querySelector('.rate-cell');
+            if (rateCell && item.pricingMethod === 'OZ_RATE') {
+                const span = rateCell.querySelector('.calc-result');
+                if (span) span.textContent = '→ AED/g: ' + fmtN(item.unitPrice, 3);
+            }
+        }
+    }
+
+    updateTotals();
+}
+
+/* ── Price calculation ────────────────────────────────────── */
+function recalcItem(idx) {
+    const item = state.items[idx];
+    const exRate = parseFloat(document.getElementById('globalExchangeRate')?.value) || state.exchangeRate;
+    const grams  = parseFloat(item.quantity) || 0;
+
+    if (item.pricingMethod === 'OZ_RATE') {
+        const ozRate = parseFloat(item.goldOzRate) || state.goldOzRate;
+        const purity = parseFloat(item.scrapPurity || item.purity) || 1000;
+        const pricePerGram24k = ozRate * exRate / 31.1035;
+        item.unitPrice  = pricePerGram24k * (purity / 1000);
+        item.totalPrice = grams * item.unitPrice;
+        item.goldOzRate = ozRate;
+    } else if (item.pricingMethod === 'PER_GRAM') {
+        item.unitPrice  = parseFloat(item.pricePerGram) || 0;
+        item.totalPrice = grams * item.unitPrice;
+    } else {
+        // FIXED_PRICE
+        const qty = parseFloat(item.quantity) || 0;
+        item.totalPrice = qty * (parseFloat(item.unitPrice) || 0);
+    }
+}
+
+function recalcAll() {
+    state.items.forEach((_, idx) => recalcItem(idx));
+    renderCart();
+    updateTotals();
+}
+
+/* ── Render cart table ────────────────────────────────────── */
+function renderCart() {
+    const tbody = document.getElementById('purCartBody');
+    if (!state.items.length) {
+        tbody.innerHTML = `<tr id="emptyCartRow">
+            <td colspan="6">
+                <div class="empty-state" style="padding:var(--space-6) 0">
+                    <div class="empty-state-icon"><i class="fas fa-boxes-stacked"></i></div>
+                    <div class="empty-state-title">No items added yet</div>
+                    <div class="empty-state-text">Search for a product on the right, or click <b>Ad-hoc Item</b>.</div>
+                </div>
+            </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = state.items.map((item, idx) => {
+        const isGram = item.unitType === 'GRAM';
+
+        // ── Product item (from product list): clean read-only row ──────────
+        if (item.productId !== null) {
+            const purityBadge = item.purity
+                ? `<span style="display:inline-block;padding:1px 7px;border-radius:var(--radius-full);font-size:0.6rem;font-weight:700;background:rgba(99,102,241,0.12);color:var(--primary);border:1px solid rgba(99,102,241,0.3);margin-left:4px;vertical-align:middle">${escHtml(item.purity)}</span>` : '';
+            const scrapBadge = item.isScrap ? '<span class="badge-scrap">SCRAP</span>' : '';
+            const unitLabel  = isGram ? 'AED/g' : 'AED/pc';
+            const unitPrice  = isGram ? fmtN(item.unitPrice, 3) : fmtN(item.unitPrice, 2);
+            const qtyVal     = isGram ? (parseFloat(item.quantity) || 0) : (parseInt(item.quantity) || 1);
+            const qtyStep    = isGram ? '0.001' : '1';
+            const isActive   = state._activeItemIdx === idx;
+            const rowStyle   = isActive
+                ? 'background:rgba(10,122,47,0.07);box-shadow:inset 3px 0 0 var(--success);cursor:pointer;'
+                : 'cursor:pointer;';
+            return `
+            <tr data-idx="${idx}" style="${rowStyle}" onclick="activateCartItem(${idx})">
+                <td style="color:var(--text-muted);font-size:var(--text-xs);text-align:center;width:28px">${idx + 1}</td>
+                <td style="min-width:140px">
+                    <div style="font-size:var(--text-sm);font-weight:600;color:var(--text-primary);line-height:1.3">
+                        ${escHtml(item.productName)}${purityBadge}${scrapBadge}
+                    </div>
+                    ${item.scrapPurity ? `<div style="font-size:0.6rem;color:var(--warning);margin-top:2px;font-weight:600">Tested: ${escHtml(item.scrapPurity)}/1000</div>` : ''}
+                    <div style="font-size:0.6rem;color:var(--text-muted);margin-top:1px">${item.unitType}</div>
+                </td>
+                <td style="min-width:80px">
+                    <div style="font-size:0.6rem;color:var(--text-muted)">${unitLabel}</div>
+                    <div class="cart-unit-price" style="font-size:var(--text-sm);font-weight:600;color:var(--text-primary)">${unitPrice}</div>
+                </td>
+                <td style="width:80px">
+                    <input type="number" class="field-input cart-qty-input" value="${qtyVal}"
+                        step="${qtyStep}" min="0" placeholder="${isGram ? 'g' : 'PCS'}"
+                        oninput="updateField(${idx},'quantity',+this.value)">
+                </td>
+                <td class="total-cell" style="width:95px">${fmtC(item.totalPrice)}</td>
+                <td style="width:28px">
+                    <button class="btn-remove" onclick="removeItem(${idx})" title="Remove item">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </td>
+            </tr>`;
+        }
+
+        // ── Ad-hoc item (+ Ad-hoc Item button): full editable row ──────────
+        return `
+        <tr data-idx="${idx}">
+            <td style="color:var(--text-muted);font-size:var(--text-xs);text-align:center;width:28px">${idx + 1}</td>
+            <td style="min-width:140px">
+                <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px">
+                    <input type="text" class="field-input name-fw" value="${escHtml(item.productName)}"
+                        placeholder="Item name"
+                        onchange="updateField(${idx},'productName',this.value)">
+                    ${item.isScrap ? '<span class="badge-scrap">SCRAP</span>' : ''}
+                </div>
+                <div style="display:flex;align-items:center;gap:3px">
+                    <input type="text" class="field-input" value="${escHtml(item.purity || '')}"
+                        placeholder="Purity" style="width:46px${item.isScrap ? ';opacity:0.6' : ''}"
+                        ${item.isScrap ? 'readonly' : ''}
+                        onchange="updateField(${idx},'purity',this.value)">
+                    <select class="field-select" style="width:60px"
+                        onchange="updateField(${idx},'unitType',this.value)">
+                        <option value="PCS"  ${item.unitType === 'PCS'  ? 'selected' : ''}>PCS</option>
+                        <option value="GRAM" ${item.unitType === 'GRAM' ? 'selected' : ''}>GRAM</option>
+                    </select>
+                </div>
+                ${item.scrapPurity ? `<div style="font-size:0.6rem;color:var(--warning);margin-top:2px;font-weight:600">Tested: ${escHtml(item.scrapPurity)}/1000</div>` : ''}
+            </td>
+            <td style="min-width:115px">
+                <select class="field-select pricing-select" style="width:100%;margin-bottom:3px"
+                    onchange="updateField(${idx},'pricingMethod',this.value)">
+                    <option value="FIXED_PRICE" ${item.pricingMethod === 'FIXED_PRICE' ? 'selected' : ''}>Fixed</option>
+                    <option value="OZ_RATE"     ${item.pricingMethod === 'OZ_RATE'     ? 'selected' : ''}>Oz Rate</option>
+                    <option value="PER_GRAM"    ${item.pricingMethod === 'PER_GRAM'    ? 'selected' : ''}>Per Gram</option>
+                </select>
+                <div class="rate-cell">${buildRateCellHTML(item, idx)}</div>
+            </td>
+            <td style="width:80px">
+                <input type="number" class="field-input" value="${parseFloat(item.quantity) || 0}"
+                    step="${isGram ? '0.001' : '1'}" min="0"
+                    placeholder="${isGram ? 'g' : 'PCS'}"
+                    oninput="updateField(${idx},'quantity',+this.value)">
+                ${!isGram ? `<input type="number" class="field-input" style="margin-top:3px;font-size:0.62rem;color:var(--text-muted)"
+                    value="${item.weightGrams != null ? item.weightGrams : ''}"
+                    step="0.01" min="0" placeholder="g (opt)"
+                    oninput="updateField(${idx},'weightGrams',this.value?+this.value:null)">` : ''}
+            </td>
+            <td class="total-cell" style="width:95px">${fmtC(item.totalPrice)}</td>
+            <td style="width:28px">
+                <button class="btn-remove" onclick="removeItem(${idx})" title="Remove item">
+                    <i class="fas fa-times"></i>
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/* ── Targeted update for the active cart row (avoids full re-render) ── */
+function updateActiveCartRow() {
+    if (state._activeItemIdx === null || state._activeItemIdx === undefined) return;
+    const item = state.items[state._activeItemIdx];
+    if (!item) return;
+
+    const rows = document.querySelectorAll('#purCartBody tr[data-idx]');
+    const row  = rows[state._activeItemIdx];
+    if (!row) return;
+
+    const isGram = item.unitType === 'GRAM';
+
+    // Update unit price display (product rows only)
+    const priceEl = row.querySelector('.cart-unit-price');
+    if (priceEl) priceEl.textContent = fmtN(item.unitPrice, isGram ? 3 : 2);
+
+    // Update qty input only when it is not currently focused (preserve user typing)
+    const qtyInput = row.querySelector('.cart-qty-input');
+    if (qtyInput && document.activeElement !== qtyInput) {
+        qtyInput.value = isGram
+            ? (parseFloat(item.quantity) || 0)
+            : (parseInt(item.quantity)  || 1);
+    }
+
+    // Update total cell
+    const totalCell = row.querySelector('.total-cell');
+    if (totalCell) totalCell.textContent = fmtC(item.totalPrice);
+}
+
+function buildRateCellHTML(item, idx) {
+    if (item.pricingMethod === 'OZ_RATE') {
+        return `<div style="display:flex;flex-direction:column;gap:3px">
+            <div style="display:flex;align-items:center;gap:3px">
+                <input type="number" class="field-input" value="${parseFloat(item.goldOzRate) || state.goldOzRate}"
+                    step="0.01" style="width:72px" placeholder="Oz $"
+                    oninput="updateField(${idx},'goldOzRate',+this.value)">
+                <span style="font-size:0.62rem;color:var(--text-muted)">$/oz</span>
+            </div>
+            <span class="calc-result" style="font-size:0.62rem;color:var(--success)">→ AED/g: ${fmtN(item.unitPrice, 3)}</span>
+        </div>`;
+    } else if (item.pricingMethod === 'PER_GRAM') {
+        return `<div style="display:flex;align-items:center;gap:3px">
+            <input type="number" class="field-input" value="${parseFloat(item.pricePerGram) || 0}"
+                step="0.0001" style="width:80px" placeholder="AED/g"
+                oninput="updateField(${idx},'pricePerGram',+this.value)">
+            <span style="font-size:0.62rem;color:var(--text-muted)">AED/g</span>
+        </div>`;
+    } else {
+        return `<div style="display:flex;align-items:center;gap:3px">
+            <input type="number" class="field-input" value="${parseFloat(item.unitPrice) || 0}"
+                step="0.01" style="width:80px" placeholder="AED/unit"
+                oninput="updateField(${idx},'unitPrice',+this.value)">
+            <span style="font-size:0.62rem;color:var(--text-muted)">AED/pc</span>
+        </div>`;
+    }
+}
+
+/* ── Totals ───────────────────────────────────────────────── */
+function calcTotals() {
+    const sub      = state.items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+    const premium  = state.items.reduce((s, i) => s + (parseFloat(i._calcPremium)  || 0), 0);
+    const discount = state.items.reduce((s, i) => s + (parseFloat(i._calcDiscount) || 0), 0);
+    const discountedSub = Math.max(0, sub - discount);
+    const applyVat = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
+    const vatPct   = applyVat ? (parseFloat(document.getElementById('vatPercent')?.value) || 5) : 0;
+    const vat      = applyVat ? discountedSub * (vatPct / 100) : 0;
+    const grand    = discountedSub + vat;
+
+    // Items in cart count
+    const cartItemCount = state.items.reduce((s, i) =>
+        s + ((i.unitType === 'GRAM') ? 1 : (parseInt(i.quantity) || 1)), 0);
+    document.getElementById('cartCount').textContent = cartItemCount;
+
+    document.getElementById('subTotal').textContent = fmtC(sub);
+
+    const premiumRow = document.getElementById('premiumRow');
+    if (premium > 0) {
+        document.getElementById('premiumAmt').textContent = '+ ' + fmtC(premium);
+        premiumRow.style.display = 'flex';
+    } else {
+        premiumRow.style.display = 'none';
+    }
+
+    const discRow = document.getElementById('discountRow');
+    if (discount > 0) {
+        document.getElementById('discountAmt').textContent = '- ' + fmtC(discount);
+        discRow.style.display = 'flex';
+    } else {
+        discRow.style.display = 'none';
+    }
+
+    const vatRow = document.getElementById('vatRow');
+    if (applyVat && vat > 0) {
+        document.getElementById('vatLabel').textContent = `VAT (${vatPct}%)`;
+        document.getElementById('vatAmt').textContent   = fmtC(vat);
+        vatRow.style.display = 'flex';
+    } else {
+        vatRow.style.display = 'none';
+    }
+
+    document.getElementById('sumGrandTotal').textContent = fmtC(grand);
+
+    // Auto-set amount paid
+    if (state.paymentMethod === 'CREDIT') {
+        document.getElementById('amountPaid').value = '0.00';
+    } else {
+        const paidEl = document.getElementById('amountPaid');
+        const currentPaid = parseFloat(paidEl.value) || 0;
+        if (currentPaid === 0 || currentPaid === (state._lastGrand || 0)) {
+            paidEl.value = grand.toFixed(2);
+        }
+    }
+    state._lastGrand = grand;
+    onPaidInput();
+
+    // Keep gold payment summary in sync with updated total
+    if (state.paymentMethod === 'GOLD_EXCHANGE') updateGoldPaySummary();
+}
+
+// Keep backward compat alias
+function updateTotals() { calcTotals(); }
+
+function onPaidInput() {
+    const grand = parseFloat(document.getElementById('sumGrandTotal').textContent.replace('AED ','').replace(/,/g,'')) || 0;
+    const paid  = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const due   = Math.max(0, grand - paid);
+    const dueEl = document.getElementById('sumDueAmount');
+    dueEl.value = due.toFixed(2);
+    dueEl.style.color = due > 0 ? 'var(--danger)' : 'var(--text-primary)';
+}
+
+/* ── Gold Exchange payment calculator ────────────────────── */
+const goldPayState = { purity: 0, weight: 0, ozRate: 0, premiumPct: 0, value: 0, cashAmount: 0 };
+
+function calcGoldPayment() {
+    const purity      = parseFloat(document.getElementById('goldPay_purity').value)     || 0;
+    const weight      = parseFloat(document.getElementById('goldPay_weight').value)     || 0;
+    const ozRate      = parseFloat(document.getElementById('goldPay_ozRate').value)     || 0;
+    const premiumPct  = parseFloat(document.getElementById('goldPay_premiumPct').value) || 0;
+    const exRate      = state.exchangeRate;
+    const resultDiv   = document.getElementById('goldPay_result');
+
+    if (!purity || !weight || !ozRate) {
+        resultDiv.style.display = 'none';
+        goldPayState.value = 0;
+        updateGoldPaySummary(); return;
+    }
+
+    const TROY_OZ   = 31.1035;
+    const weightOz  = weight / TROY_OZ;
+    const purityFac = purity / 1000;
+    const baseUSD   = weightOz * purityFac * ozRate;
+    const premUSD   = baseUSD * (premiumPct / 100);
+    const finalUSD  = baseUSD + premUSD;
+    const finalAED  = finalUSD * exRate;
+
+    const formulaBase = `${weight}g ÷ 31.1035 × ${purity}/1000 × $${ozRate}`;
+    document.getElementById('goldPay_formula').textContent =
+        premiumPct !== 0
+            ? `${formulaBase} × ${(1 + premiumPct / 100).toFixed(4)} = $${finalUSD.toFixed(2)}`
+            : `${formulaBase} = $${finalUSD.toFixed(2)}`;
+    document.getElementById('goldPay_valueAED').textContent = `AED ${finalAED.toFixed(2)}`;
+    document.getElementById('goldPay_valueUSD').textContent = `USD $${finalUSD.toFixed(2)} × ${exRate}`;
+    resultDiv.style.display = 'block';
+
+    goldPayState.purity     = purity;
+    goldPayState.weight     = weight;
+    goldPayState.ozRate     = ozRate;
+    goldPayState.premiumPct = premiumPct;
+    goldPayState.value      = finalAED;
+    updateGoldPaySummary();
+}
+
+function updateGoldPaySummary() {
+    const grandText  = (document.getElementById('sumGrandTotal').textContent || 'AED 0.00');
+    const grandTotal = parseFloat(grandText.replace('AED ', '').replace(/,/g, '')) || 0;
+    const goldValue  = goldPayState.value;
+    const block      = document.getElementById('goldPay_summaryBlock');
+
+    if (!document.getElementById('goldPayPanel') ||
+        document.getElementById('goldPayPanel').style.display === 'none') return;
+
+    if (grandTotal > 0 || goldValue > 0) {
+        block.style.display = 'block';
+        document.getElementById('goldPay_purchaseTotal').textContent = `AED ${grandTotal.toFixed(2)}`;
+        document.getElementById('goldPay_valueLine').textContent     = `− AED ${goldValue.toFixed(2)}`;
+
+        const remaining  = Math.max(0, grandTotal - goldValue);
+        const cashRow    = document.getElementById('goldPay_cashRow');
+        const cashGroup  = document.getElementById('goldPay_cashGroup');
+        if (remaining > 0.005) {
+            document.getElementById('goldPay_remainingDue').textContent = `AED ${remaining.toFixed(2)}`;
+            cashRow.style.display  = 'flex';
+            cashGroup.style.display = 'block';
+            // Only auto-fill if user hasn't manually edited it
+            const curCash = parseFloat(document.getElementById('goldPay_cashAmount').value) || 0;
+            if (curCash === 0 || curCash === (goldPayState._lastRemaining || 0)) {
+                document.getElementById('goldPay_cashAmount').value = remaining.toFixed(2);
+                goldPayState.cashAmount = remaining;
+            }
+            goldPayState._lastRemaining = remaining;
+        } else {
+            cashRow.style.display   = 'none';
+            cashGroup.style.display = 'none';
+            document.getElementById('goldPay_cashAmount').value = '0.00';
+            goldPayState.cashAmount = 0;
+        }
+    } else {
+        block.style.display = 'none';
+    }
+}
+
+function onGoldPayCashInput() {
+    goldPayState.cashAmount = parseFloat(document.getElementById('goldPay_cashAmount').value) || 0;
+}
+
+function resetGoldPay() {
+    goldPayState.purity = 0; goldPayState.weight = 0; goldPayState.ozRate = 0;
+    goldPayState.premiumPct = 0; goldPayState.value = 0; goldPayState.cashAmount = 0;
+    goldPayState._lastRemaining = 0;
+    const fields = ['goldPay_purity','goldPay_weight','goldPay_ozRate','goldPay_premiumPct','goldPay_cashAmount'];
+    fields.forEach(id => { const el = document.getElementById(id); if (el) el.value = id === 'goldPay_premiumPct' ? '0' : ''; });
+    ['goldPay_result','goldPay_summaryBlock','goldPay_cashRow','goldPay_cashGroup'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.style.display = 'none';
+    });
+}
+
+/* ── Payment method ───────────────────────────────────────── */
+function selectPaymentMethod(pm, el) {
+    state.paymentMethod = pm;
+    document.querySelectorAll('#pmBtnGroup .pm-btn').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    else {
+        const btn = document.querySelector(`#pmBtnGroup .pm-btn[data-pm="${pm}"]`);
+        if (btn) btn.classList.add('active');
+    }
+
+    // Show / hide Gold Exchange payment panel
+    const goldPanel = document.getElementById('goldPayPanel');
+    if (goldPanel) {
+        if (pm === 'GOLD_EXCHANGE') {
+            goldPanel.style.display = 'block';
+            // Pre-fill oz rate from global topbar rate
+            const ozEl = document.getElementById('goldPay_ozRate');
+            if (ozEl && (!ozEl.value || parseFloat(ozEl.value) === 0))
+                ozEl.value = state.goldOzRate;
+            updateGoldPaySummary();
+        } else {
+            goldPanel.style.display = 'none';
+        }
+    }
+
+    if (pm === 'CREDIT') {
+        document.getElementById('amountPaid').value = '0.00';
+    } else {
+        const grand = parseFloat(document.getElementById('sumGrandTotal').textContent.replace('AED ','').replace(/,/g,'')) || 0;
+        document.getElementById('amountPaid').value = grand.toFixed(2);
+    }
+    onPaidInput();
+}
+
+/* ── Global rate sync (shared with sales.html localStorage) ── */
+function syncGlobalRates() {
+    const goldOzRate   = document.getElementById('globalOzRate').value;
+    const silverOzRate = document.getElementById('globalSilverOzRate').value;
+    const exchangeRate = document.getElementById('globalExchangeRate').value;
+
+    state.goldOzRate   = parseFloat(goldOzRate)   || state.goldOzRate;
+    state.silverOzRate = parseFloat(silverOzRate) || state.silverOzRate;
+    state.exchangeRate = parseFloat(exchangeRate) || state.exchangeRate;
+
+    localStorage.setItem('smartpos_global_oz_rate',        goldOzRate);
+    localStorage.setItem('smartpos_global_silver_oz_rate', silverOzRate);
+    localStorage.setItem('smartpos_global_exchange_rate',  exchangeRate);
+
+    // Keep calculator oz rate in sync based on current metal type
+    const metalType = document.getElementById('metalType')
+        ? document.getElementById('metalType').value : 'gold';
+    const activeOz = metalType === 'silver' ? silverOzRate : goldOzRate;
+    if (document.getElementById('ozRate'))          document.getElementById('ozRate').value = activeOz;
+    if (document.getElementById('usdExchangeRate')) document.getElementById('usdExchangeRate').value = exchangeRate;
+
+    recalcAll();
+
+    if (state.activeProduct) {
+        const isGram = (state.activeProduct.unitType || 'PCS') === 'GRAM';
+        if (!isGram) { calcJewelPrice(); } else { calcGoldPrice(); }
+    }
+
+    // Keep gold pay oz rate in sync when global rate changes
+    if (state.paymentMethod === 'GOLD_EXCHANGE') {
+        const gpOz = document.getElementById('goldPay_ozRate');
+        if (gpOz && (parseFloat(gpOz.value) || 0) === 0) {
+            gpOz.value = goldOzRate;
+            calcGoldPayment();
+        }
+    }
+}
+
+/* ── Calculator toggle (PCS items only) ──────────────────── */
+function onCalcToggle() {
+    const isOn  = document.getElementById('calcToggle').checked;
+    const lbl   = document.getElementById('calcToggleLabel');
+    lbl.textContent = isOn ? 'ON' : 'OFF';
+    lbl.className   = 'toggle-status ' + (isOn ? 'on' : 'off');
+
+    const fixedSection = document.getElementById('fixedPriceSection');
+
+    if (isOn) {
+        // Show jewellery calculator, hide fixed price
+        if (fixedSection) fixedSection.style.display = 'none';
+        document.getElementById('bullionCalcSection').style.display   = 'none';
+        document.getElementById('jewelleryCalcSection').style.display = 'block';
+        // Reset any previously typed fixed price
+        document.getElementById('fixedPriceInput').value = '';
+        state._calcPrice   = 0;
+        state._calcPremium = 0;
+        state._calcDiscount = 0;
+        updateAddToCartBtnState();
+        calcTotals();
+    } else {
+        // Hide calculator, show direct fixed price entry
+        if (fixedSection) fixedSection.style.display = 'block';
+        document.getElementById('bullionCalcSection').style.display   = 'none';
+        document.getElementById('jewelleryCalcSection').style.display = 'none';
+        document.getElementById('goldResult').style.display  = 'none';
+        document.getElementById('jewelResult').style.display = 'none';
+        state._calcPrice   = parseFloat(document.getElementById('fixedPriceInput').value) || 0;
+        state._calcPremium  = 0;
+        state._calcDiscount = 0;
+        updateAddToCartBtnState();
+        calcTotals();
+    }
+}
+
+function onFixedPriceInput() {
+    state._calcPrice    = parseFloat(document.getElementById('fixedPriceInput').value) || 0;
+    state._calcPremium  = 0;
+    state._calcDiscount = 0;
+    updateAddToCartBtnState();
+    calcTotals();
+}
+
+/* ── Precious Metal Calculator — Bullion ─────────────────── */
+function onMetalTypeChange() {
+    const metalType  = document.getElementById('metalType').value;
+    const isSilver   = metalType === 'silver';
+    const activeRate = isSilver
+        ? (state.silverOzRate || parseFloat(localStorage.getItem('smartpos_global_silver_oz_rate')) || 29)
+        : (state.goldOzRate   || parseFloat(localStorage.getItem('smartpos_global_oz_rate'))        || 2300);
+    document.getElementById('ozRate').value = activeRate;
+    document.getElementById('ozRateLabel').textContent = (isSilver ? 'Silver' : 'Gold') + ' Oz Rate (USD $)';
+    calcGoldPrice();
+}
+
+function calcGoldPrice() {
+    const weight       = parseFloat(document.getElementById('metalWeight').value)     || 0;
+    const purity       = parseFloat(document.getElementById('metalPurity').value)     || 0;
+    const ozRate       = parseFloat(document.getElementById('ozRate').value)          || 0;
+    const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+    const metal        = document.getElementById('metalType').value;
+    document.getElementById('ozRateLabel').textContent = (metal === 'gold' ? 'Gold' : 'Silver') + ' Oz Rate (USD $)';
+    const resultDiv = document.getElementById('goldResult');
+    if (!weight || !purity || !ozRate) {
+        resultDiv.style.display = 'none';
+        state._calcPrice = 0; state._calcPremium = 0; state._calcDiscount = 0;
+        updateAddToCartBtnState(); calcTotals(); return;
+    }
+
+    const TROY_OZ      = 31.1035;
+    const weightOz     = weight / TROY_OZ;
+    const purityFactor = purity / 1000;
+    const priceUSD     = weightOz * purityFactor * ozRate;
+
+    const premiumVal     = parseFloat(document.getElementById('premiumValue').value) || 0;
+    const premiumUSD     = weightOz * purityFactor * premiumVal;
+    const premiumAED     = premiumUSD * exchangeRate;
+    const priceWithPremiumUSD = priceUSD + premiumUSD;
+
+    const discountType = document.getElementById('discountType').value;
+    const discountVal  = parseFloat(document.getElementById('discountValue').value) || 0;
+    let discountUSD = 0;
+    if (discountType === 'percent')  discountUSD = priceWithPremiumUSD * (discountVal / 100);
+    else if (discountType === 'per_oz') discountUSD = weightOz * discountVal;
+    else if (discountType === 'flat')   discountUSD = discountVal / exchangeRate;
+
+    const finalPriceUSD = Math.max(0, priceWithPremiumUSD - discountUSD);
+    const finalPriceAED = finalPriceUSD * exchangeRate;
+    const discountAED   = discountUSD * exchangeRate;
+
+    if (premiumVal > 0) {
+        document.getElementById('goldFormula').textContent =
+            `${weight}g ÷ 31.1035 × ${purity}/1000 × ($${ozRate} + $${premiumVal}/oz) = $${fmtN(priceWithPremiumUSD)}`;
+    } else {
+        document.getElementById('goldFormula').textContent =
+            `${weight}g ÷ 31.1035 × ${purity}/1000 × $${ozRate} = $${fmtN(priceUSD)}`;
+    }
+
+    let badges = '';
+    if (premiumVal > 0)  badges += ` <span style="font-size:var(--text-xs);color:var(--success);font-weight:normal">(+AED ${fmtN(premiumAED)} premium)</span>`;
+    if (discountVal > 0) badges += ` <span style="font-size:var(--text-xs);color:var(--danger);font-weight:normal">(Save AED ${fmtN(discountAED)})</span>`;
+    document.getElementById('goldPriceAED').innerHTML = `AED ${fmtN(finalPriceAED)}${badges}`;
+    document.getElementById('goldPriceUSD').textContent = `USD $${fmtN(finalPriceUSD)} × ${exchangeRate}`;
+    resultDiv.style.display = 'block';
+
+    // Price per gram (undiscounted + premium) stored as unit price
+    const undiscountedPricePerGram = (priceWithPremiumUSD * exchangeRate) / weight;
+    state._calcPrice    = undiscountedPricePerGram;
+    state._calcPremium  = premiumAED;
+    state._calcDiscount = discountAED;
+
+    // Live-update the active cart item (instant-add flow)
+    if (state._activeItemIdx !== null && state._activeItemIdx !== undefined) {
+        const activeItem = state.items[state._activeItemIdx];
+        if (activeItem && activeItem.unitType === 'GRAM') {
+            activeItem.quantity      = weight;
+            activeItem.goldOzRate    = ozRate;
+            activeItem.unitPrice     = undiscountedPricePerGram;
+            activeItem.totalPrice    = finalPriceAED;
+            activeItem._calcPremium  = premiumAED;
+            activeItem._calcDiscount = discountAED;
+            updateActiveCartRow(); // targeted update — does not rebuild other rows
+        }
+    }
+
+    updateAddToCartBtnState();
+    calcTotals();
+}
+
+/* ── Precious Metal Calculator — Jewellery ───────────────── */
+function onJewelDiscTypeChange() {
+    const type  = document.getElementById('jewelDiscType').value;
+    const group = document.getElementById('jewelDiscValueGroup');
+    const lbl   = document.getElementById('jewelDiscLabel');
+    if (type === 'none') {
+        group.style.visibility = 'hidden';
+        document.getElementById('jewelDiscValue').value = '';
+    } else {
+        group.style.visibility = 'visible';
+        if (type === 'percent') lbl.textContent = 'Discount %';
+        if (type === 'pergram') lbl.textContent = 'Discount / gram (AED)';
+        if (type === 'flat')    lbl.textContent = 'Flat Amount (AED)';
+    }
+    calcJewelPrice();
+}
+
+function setJewelMode(mode) {
+    purJewelMode = mode;
+    const perPcBtn = document.getElementById('jewelModePerPc');
+    const totalBtn = document.getElementById('jewelModeTotalSet');
+    const lbl      = document.getElementById('jewelWeightLabel');
+    if (mode === 'totalset') {
+        perPcBtn.style.cssText = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)';
+        totalBtn.style.cssText = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:#d97706;color:#fff;border:1px solid #d97706';
+        lbl.textContent = 'Total Weight (all pcs)';
+    } else {
+        perPcBtn.style.cssText = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--primary);color:#fff;border:1px solid var(--primary)';
+        totalBtn.style.cssText = 'padding:2px 12px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--surface-2);color:var(--text-muted);border:1px solid var(--border)';
+        lbl.textContent = 'Weight (grams)';
+    }
+    calcJewelPrice();
+}
+
+function calcJewelPrice() {
+    const weight       = parseFloat(document.getElementById('jewelWeight').value) || 0;
+    const pricePerGram = parseFloat(document.getElementById('jewelPricePerGram').value) || 0;
+    const currency     = document.getElementById('jewelCurrency').value;
+    const exchangeRate = parseFloat(document.getElementById('usdExchangeRate').value) || 3.674;
+    const resultDiv    = document.getElementById('jewelResult');
+    const isTotalMode  = purJewelMode === 'totalset';
+    const discType     = document.getElementById('jewelDiscType').value;
+    const discValue    = parseFloat(document.getElementById('jewelDiscValue').value) || 0;
+    const itemQty      = 1; // purchase: single item qty
+
+    if (!weight || !pricePerGram) {
+        resultDiv.style.display = 'none';
+        state._calcPrice = 0; state._calcPremium = 0; state._calcDiscount = 0;
+        updateAddToCartBtnState(); calcTotals(); return;
+    }
+
+    let totalAED, totalUSD;
+    if (currency === 'USD') {
+        totalUSD = weight * pricePerGram;
+        totalAED = totalUSD * exchangeRate;
+        document.getElementById('jewelFormula').textContent = `${weight}g × $${pricePerGram}/g = $${fmtN(totalUSD)}`;
+        document.getElementById('jewelPriceUSD').textContent = `USD $${fmtN(totalUSD)} × ${exchangeRate}`;
+    } else {
+        totalAED = weight * pricePerGram;
+        totalUSD = totalAED / exchangeRate;
+        document.getElementById('jewelFormula').textContent = `${weight}g × AED ${pricePerGram}/g = AED ${fmtN(totalAED)}`;
+        document.getElementById('jewelPriceUSD').textContent = `USD $${fmtN(totalUSD)}`;
+    }
+    document.getElementById('jewelPriceAED').textContent = `AED ${fmtN(totalAED)}`;
+
+    let discountOnDisplayed = 0;
+    if (discType === 'percent' && discValue > 0)  discountOnDisplayed = totalAED * (discValue / 100);
+    else if (discType === 'pergram' && discValue > 0) discountOnDisplayed = weight * discValue;
+    else if (discType === 'flat' && discValue > 0)    discountOnDisplayed = discValue;
+    discountOnDisplayed = Math.min(discountOnDisplayed, totalAED);
+
+    const discLine  = document.getElementById('jewelDiscountLine');
+    const finalLine = document.getElementById('jewelFinalLine');
+    if (discountOnDisplayed > 0) {
+        let discLabel = '';
+        if (discType === 'percent')  discLabel = `−${discValue}%`;
+        else if (discType === 'pergram') discLabel = `−AED ${discValue}/g × ${weight}g`;
+        else if (discType === 'flat')    discLabel = `−AED ${discValue} flat`;
+        discLine.textContent  = `Discount (${discLabel}): −AED ${fmtN(discountOnDisplayed)}`;
+        discLine.style.display = 'block';
+        finalLine.textContent  = `After discount: AED ${fmtN(totalAED - discountOnDisplayed)}`;
+        finalLine.style.display = 'block';
+    } else {
+        discLine.style.display  = 'none';
+        finalLine.style.display = 'none';
+    }
+
+    resultDiv.style.display = 'block';
+
+    // per-piece price for the cart
+    const finalPriceAED = totalAED - discountOnDisplayed;
+    const perPieceAED   = isTotalMode ? finalPriceAED / itemQty : finalPriceAED;
+    state._calcPrice    = perPieceAED;
+    state._calcPremium  = 0;
+    state._calcDiscount = discountOnDisplayed;
+
+    // Live-update active cart item (instant-add flow, PCS gold)
+    if (state._activeItemIdx !== null && state._activeItemIdx !== undefined) {
+        const activeItem = state.items[state._activeItemIdx];
+        if (activeItem && activeItem.unitType === 'PCS') {
+            activeItem.unitPrice     = perPieceAED;
+            activeItem.totalPrice    = perPieceAED * (parseFloat(activeItem.quantity) || 1);
+            activeItem._calcPremium  = 0;
+            activeItem._calcDiscount = discountOnDisplayed;
+            updateActiveCartRow(); // targeted update — does not rebuild other rows
+        }
+    }
+
+    updateAddToCartBtnState();
+    calcTotals();
+}
+
+/* ── Supplier search ──────────────────────────────────────── */
+function openSupplierDropdown() {
+    renderSupplierDropdown(document.getElementById('supplierSearch').value);
+    document.getElementById('supplierDropdown').classList.add('open');
+}
+function closeSupplierDropdown() {
+    document.getElementById('supplierDropdown').classList.remove('open');
+}
+
+function onSupplierSearch(q) {
+    renderSupplierDropdown(q);
+    document.getElementById('supplierDropdown').classList.add('open');
+    // Update free-text supplier name
+    state.supplierId   = null;
+    state.supplierName = q.trim();
+}
+
+function renderSupplierDropdown(q) {
+    const query = (q || '').toLowerCase();
+    const list  = state.suppliers.filter(s =>
+        !query || (s.name && s.name.toLowerCase().includes(query))
+    ).slice(0, 10);
+
+    const dd = document.getElementById('supplierDropdown');
+    if (!list.length) {
+        dd.innerHTML = '<div class="supplier-option" style="color:var(--text-muted);cursor:default">No suppliers found — name will be used as typed</div>';
+    } else {
+        dd.innerHTML = list.map(s =>
+            `<div class="supplier-option" onclick="selectSupplier(${s.id},'${escHtml(s.name)}')">
+                <i class="fas fa-truck" style="margin-right:6px;font-size:0.7rem;color:var(--text-muted)"></i>
+                ${escHtml(s.name)}
+            </div>`
+        ).join('');
+    }
+}
+
+function selectSupplier(id, name) {
+    state.supplierId   = id;
+    state.supplierName = name;
+    closeSupplierDropdown();
+    document.getElementById('supplierSearch').value = name;
+    document.getElementById('supplierSelectedWrap').innerHTML =
+        `<div class="supplier-selected-badge">
+            <i class="fas fa-check-circle"></i> ${escHtml(name)}
+            <button class="clear-btn" onclick="clearSupplier()" title="Remove supplier"><i class="fas fa-times"></i></button>
+        </div>`;
+    document.getElementById('supplierSelectedWrap').style.display = 'block';
+    document.getElementById('supplierSearchWrap').style.display  = 'none';
+    checkSupplierKyc(id);
+}
+
+function clearSupplier() {
+    state.supplierId   = null;
+    state.supplierName = '';
+    document.getElementById('supplierSelectedWrap').style.display = 'none';
+    document.getElementById('supplierSearchWrap').style.display   = 'block';
+    document.getElementById('supplierSearch').value = '';
+    const notice = document.getElementById('supplierKycNotice');
+    if (notice) notice.style.display = 'none';
+}
+
+function checkSupplierKyc(id) {
+    const notice = document.getElementById('supplierKycNotice');
+    if (!notice) return;
+    const s = (state.suppliers || []).find(x => x.id === id);
+    if (!s || !s.kycStatus || s.kycStatus === 'VERIFIED') { notice.style.display = 'none'; return; }
+    const cfg = {
+        NOT_VERIFIED: { bg:'rgba(245,158,11,0.1)', border:'rgba(245,158,11,0.3)', color:'#d97706', icon:'fa-circle-exclamation', text:'KYC not verified — please complete verification for this supplier.' },
+        PENDING:      { bg:'rgba(99,102,241,0.1)',  border:'rgba(99,102,241,0.3)',  color:'var(--primary)', icon:'fa-clock', text:'KYC verification is pending for this supplier.' },
+        EXPIRED:      { bg:'rgba(239,68,68,0.1)',   border:'rgba(239,68,68,0.3)',   color:'#dc2626', icon:'fa-triangle-exclamation', text:'KYC documents have expired — please update supplier records.' }
+    }[s.kycStatus];
+    if (!cfg) { notice.style.display = 'none'; return; }
+    notice.style.cssText = `display:flex;margin-top:-8px;margin-bottom:var(--space-3);padding:8px 12px;border-radius:var(--radius-md);font-size:var(--text-xs);align-items:center;gap:8px;background:${cfg.bg};border:1px solid ${cfg.border};color:${cfg.color}`;
+    notice.innerHTML = `<i class="fas ${cfg.icon}"></i><span>${cfg.text} <a href="/parties.html" style="color:inherit;text-decoration:underline;font-weight:600">Manage in Parties</a></span>`;
+}
+
+/* ── Submit purchase ──────────────────────────────────────── */
+async function submitPurchase() {
+    if (state.submitting) return;
+    if (!state.items.length) { Toast.error('Add at least one item.'); return; }
+
+    const supplierName = state.supplierName ||
+        document.getElementById('supplierSearch').value.trim();
+    if (!supplierName) { Toast.error('Please enter a supplier name.'); return; }
+
+    const purchaseDateVal = document.getElementById('purchaseDate').value;
+    if (!purchaseDateVal) { Toast.error('Please set a purchase date.'); return; }
+
+    const grand = state.items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+    const paid  = parseFloat(document.getElementById('amountPaid').value) || 0;
+    const exRate = parseFloat(document.getElementById('globalExchangeRate').value) || state.exchangeRate || 3.674;
+
+    const payload = {
+        supplierId:    state.supplierId,
+        supplierName:  supplierName,
+        purchaseDate:  purchaseDateVal.includes(':') && purchaseDateVal.length === 16
+            ? purchaseDateVal + ':00' : purchaseDateVal,
+        paymentMethod: state.paymentMethod,
+        totalAmount:   grand,
+        amountPaid:    paid,
+        exchangeRate:  exRate,
+        notes:         document.getElementById('purNotes').value.trim() || null,
+        createdBy:     Auth.getUserName(),
+        // Gold Exchange payment fields
+        goldPaymentPurity:      state.paymentMethod === 'GOLD_EXCHANGE' && goldPayState.purity > 0
+                                    ? String(goldPayState.purity) : null,
+        goldPaymentWeightGrams: state.paymentMethod === 'GOLD_EXCHANGE' && goldPayState.weight > 0
+                                    ? goldPayState.weight : null,
+        goldPaymentOzRate:      state.paymentMethod === 'GOLD_EXCHANGE' && goldPayState.ozRate > 0
+                                    ? goldPayState.ozRate : null,
+        goldPaymentValue:       state.paymentMethod === 'GOLD_EXCHANGE' && goldPayState.value > 0
+                                    ? goldPayState.value : null,
+        cashAmountPaid:         state.paymentMethod === 'GOLD_EXCHANGE'
+                                    ? goldPayState.cashAmount : null,
+        items: state.items.map(item => ({
+            productId:     item.productId,
+            productName:   item.productName,
+            purity:        item.purity || null,
+            unitType:      item.unitType,
+            quantity:      parseFloat(item.quantity) || 0,
+            weightGrams:   item.unitType === 'GRAM'
+                ? (parseFloat(item.quantity) || 0)
+                : (item.weightGrams != null && item.weightGrams > 0 ? parseFloat(item.weightGrams) : null),
+            pricingMethod: item.pricingMethod,
+            goldOzRate:    item.pricingMethod === 'OZ_RATE'  ? (parseFloat(item.goldOzRate)  || null) : null,
+            pricePerGram:  item.pricingMethod === 'PER_GRAM' ? (parseFloat(item.pricePerGram) || null) : null,
+            unitPrice:     parseFloat(item.unitPrice)  || 0,
+            totalPrice:    parseFloat(item.totalPrice) || 0,
+            scrapPurity:   item.scrapPurity || null,
+            isScrap:       item.isScrap || false
+        }))
+    };
+
+    state.submitting = true;
+    const btn = document.getElementById('btnCompletePur');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving…';
+
+    try {
+        const result = await API.post('/api/purchases', payload);
+        state.lastPurchase = result;
+        Toast.success('Purchase saved! Invoice: ' + result.invoiceNumber);
+        showReceiptModal(result);
+    } catch (e) {
+        const msg = e && e.error ? e.error : (e && e.message ? e.message : 'Failed to save purchase.');
+        Toast.error(msg);
+        console.error('submitPurchase error:', e);
+    } finally {
+        state.submitting = false;
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-check-circle"></i> &nbsp;Confirm Purchase';
+    }
+}
+
+/* ── Clear all ────────────────────────────────────────────── */
+function clearAll() {
+    if (state.items.length > 0) {
+        if (!confirm('Clear all items and reset the purchase form?')) return;
+    }
+    state.items          = [];
+    state.supplierId     = null;
+    state.supplierName   = '';
+    state.paymentMethod  = 'CASH';
+    state.activeProduct  = null;
+    state._activeItemIdx = null;
+    state._calcPrice     = 0;
+    state._calcPremium   = 0;
+    state._calcDiscount  = 0;
+    clearSupplier();
+    // Reset gold payment panel
+    resetGoldPay();
+    const goldPanelEl = document.getElementById('goldPayPanel');
+    if (goldPanelEl) goldPanelEl.style.display = 'none';
+
+    // Hide calculator and reset PCS inputs
+    document.getElementById('goldCalcPanel').style.display = 'none';
+    document.getElementById('goldResult').style.display    = 'none';
+    document.getElementById('jewelResult').style.display   = 'none';
+    if (document.getElementById('pcsQtyInput'))         document.getElementById('pcsQtyInput').value = 1;
+    if (document.getElementById('pcsTotalWeightInput')) document.getElementById('pcsTotalWeightInput').value = '';
+    if (document.getElementById('fixedPriceInput'))     document.getElementById('fixedPriceInput').value = '';
+    renderCart();
+    renderProductGrid();
+    calcTotals();
+    updateAddToCartBtnState();
+    document.getElementById('purNotes').value   = '';
+    document.getElementById('amountPaid').value = '0.00';
+    if (document.getElementById('vatToggle')) document.getElementById('vatToggle').checked = false;
+    selectPaymentMethod('CASH');
+    // Reset date to now
+    const now = new Date();
+    const pad = n => String(n).padStart(2,'0');
+    document.getElementById('purchaseDate').value =
+        `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+}
+
+/* ── Receipt modal ────────────────────────────────────────── */
+function showReceiptModal(data) {
+    const items = data.items || [];
+    const itemsHtml = items.map(i => {
+        let qtyStr;
+        if (i.unitType === 'GRAM') {
+            qtyStr = `${parseFloat(i.weightGrams || i.quantity).toFixed(3)} g`;
+        } else {
+            qtyStr = `${parseInt(i.quantity)} PCS`;
+            if (i.weightGrams && parseFloat(i.weightGrams) > 0) {
+                qtyStr += ` / ${parseFloat(i.weightGrams).toFixed(2)}g`;
+            }
+        }
+        const purity = i.scrapPurity ? `${i.scrapPurity}/1000` : (i.purity || '');
+        return `<div class="row">
+            <span>${escHtml(i.productName)}${purity ? ' (' + escHtml(purity) + ')' : ''}<br>
+                <span style="font-size:10px;color:#888">${escHtml(qtyStr)}</span></span>
+            <span style="font-weight:600">AED ${parseFloat(i.totalPrice).toFixed(2)}</span>
+        </div>`;
+    }).join('');
+
+    const dateStr = Format.datetime(data.purchaseDate || data.createdAt || new Date());
+    const pm = { CASH:'Cash', BANK_TRANSFER:'Bank Transfer', CHEQUE:'Cheque',
+                 GOLD_EXCHANGE:'Gold Exchange', CREDIT:'Credit' }[data.paymentMethod] || data.paymentMethod;
+
+    document.getElementById('receiptContent').innerHTML = `
+        <div class="receipt-card">
+            <div class="receipt-header">
+                <div style="font-size:28px;margin-bottom:8px;color:#aaa"><i class="fas fa-store"></i></div>
+                <div class="receipt-biz">${escHtml(Auth.getBusinessName())}</div>
+                <div class="receipt-branch">${escHtml(Auth.getBranchName() || '')}</div>
+                <div style="font-size:10px;color:#888;margin-top:6px;text-transform:uppercase;letter-spacing:0.08em">Purchase Voucher</div>
+            </div>
+            <div style="font-size:11px;margin-bottom:8px">
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px"><b>Invoice:</b><span>${escHtml(data.invoiceNumber)}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px"><b>Date:</b><span>${dateStr}</span></div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:2px"><b>Supplier:</b><span>${escHtml(data.supplierName || '—')}</span></div>
+                <div style="display:flex;justify-content:space-between"><b>Payment:</b><span>${escHtml(pm)}</span></div>
+            </div>
+            <div class="receipt-items">${itemsHtml}</div>
+            <div class="receipt-totals">
+                <div class="row"><span>Items Total:</span><span>AED ${parseFloat(data.totalAmount).toFixed(2)}</span></div>
+                ${data.paymentMethod === 'GOLD_EXCHANGE' && data.goldPaymentValue ? `
+                <div class="row" style="color:#d97706">
+                    <span>Gold Payment (${data.goldPaymentWeightGrams ? parseFloat(data.goldPaymentWeightGrams).toFixed(3) + 'g' : ''} ${data.goldPaymentPurity ? data.goldPaymentPurity + '/1000' : ''}):</span>
+                    <span>− AED ${parseFloat(data.goldPaymentValue).toFixed(2)}</span>
+                </div>
+                ${parseFloat(data.cashAmountPaid) > 0 ? `<div class="row"><span>Additional Cash:</span><span>AED ${parseFloat(data.cashAmountPaid).toFixed(2)}</span></div>` : ''}
+                ` : `<div class="row"><span>Amount Paid:</span><span>AED ${parseFloat(data.amountPaid).toFixed(2)}</span></div>`}
+                ${parseFloat(data.dueAmount) > 0 ? `<div class="row" style="color:#e11d48"><span>Due Amount:</span><b>AED ${parseFloat(data.dueAmount).toFixed(2)}</b></div>` : ''}
+                <div class="row total"><span>Grand Total:</span><span>AED ${parseFloat(data.totalAmount).toFixed(2)}</span></div>
+            </div>
+            ${data.notes ? `<div style="border-top:1px dashed #bbb;margin-top:8px;padding-top:8px;font-size:10px;color:#555">${escHtml(data.notes)}</div>` : ''}
+            <div class="receipt-footer">Recorded by ${escHtml(data.createdBy || Auth.getUserName())}</div>
+        </div>`;
+
+    document.getElementById('receiptOverlay').classList.add('open');
+}
+
+function closeReceiptModal(e) {
+    if (e && e.target !== document.getElementById('receiptOverlay')) return;
+    document.getElementById('receiptOverlay').classList.remove('open');
+}
+
+function printVoucher() {
+    const content = document.getElementById('receiptContent').innerHTML;
+    const w = window.open('', '_blank', 'width=380,height=600');
+    w.document.write(`<html><head><style>
+        body{margin:0;padding:16px;font-family:'Courier New',monospace}
+        .receipt-card{max-width:340px;margin:0 auto}
+        .receipt-header{text-align:center;border-bottom:1px dashed #bbb;padding-bottom:12px;margin-bottom:12px}
+        .receipt-items .row,.receipt-totals .row{display:flex;justify-content:space-between;margin-bottom:3px;font-size:11px}
+        .receipt-totals .row.total{font-weight:700;font-size:13px;margin-top:6px}
+        .receipt-footer{text-align:center;border-top:1px dashed #bbb;padding-top:10px;margin-top:10px;font-size:11px;color:#444}
+    </style></head><body>${content}
+        <script>window.onload=()=>{window.print();window.close();}<\/script>
+    </body></html>`);
+    w.document.close();
+}
+
+function startNewPurchase() {
+    document.getElementById('receiptOverlay').classList.remove('open');
+    clearAll();
+}
+</script>
+</body>
+</html>
