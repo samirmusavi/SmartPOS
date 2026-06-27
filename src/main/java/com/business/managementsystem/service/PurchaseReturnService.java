@@ -53,6 +53,14 @@ public class PurchaseReturnService {
         List<PurchaseItem> items = purchaseItemRepo
                 .findByPurchaseIdOrderByIdAsc(purchase.getId());
 
+        // Sum ALL items' stored totalPrice so we can distribute the invoice total
+        // proportionally (the premium is stored at the invoice header level, not per-item)
+        BigDecimal purchaseTotalAmt = purchase.getTotalAmount();
+        BigDecimal sumItemTotals    = BigDecimal.ZERO;
+        for (PurchaseItem pi : items) {
+            if (pi.getTotalPrice() != null) sumItemTotals = sumItemTotals.add(pi.getTotalPrice());
+        }
+
         List<Map<String, Object>> itemMaps = new ArrayList<>();
         for (PurchaseItem item : items) {
             double alreadyReturned = returnItemRepo
@@ -62,6 +70,21 @@ public class PurchaseReturnService {
                     .setScale(4, RoundingMode.HALF_UP).doubleValue();
             if (remaining <= 0.0001) continue; // fully returned
 
+            // Effective unit price = this item's proportional share of the invoice total
+            // divided by its quantity.  For single-item invoices this equals
+            // purchase.totalAmount / quantity, which always includes the premium.
+            BigDecimal effectiveUnitPrice = item.getUnitPrice(); // safe fallback
+            if (purchaseTotalAmt != null && purchaseTotalAmt.compareTo(BigDecimal.ZERO) > 0
+                    && sumItemTotals.compareTo(BigDecimal.ZERO) > 0
+                    && item.getTotalPrice() != null && item.getTotalPrice().compareTo(BigDecimal.ZERO) > 0
+                    && item.getQuantity() > 0) {
+                BigDecimal proportion = item.getTotalPrice()
+                        .divide(sumItemTotals, 10, RoundingMode.HALF_UP);
+                BigDecimal effectiveItemTotal = purchaseTotalAmt.multiply(proportion);
+                effectiveUnitPrice = effectiveItemTotal.divide(
+                        BigDecimal.valueOf(item.getQuantity()), 6, RoundingMode.HALF_UP);
+            }
+
             Map<String, Object> m = new LinkedHashMap<>();
             m.put("purchaseItemId", item.getId());
             m.put("productId",      item.getProductId());
@@ -70,8 +93,8 @@ public class PurchaseReturnService {
             m.put("unitType",       item.getUnitType());
             m.put("quantity",       item.getQuantity());
             m.put("weightGrams",    item.getWeightGrams());
-            m.put("unitPrice",      item.getUnitPrice());
-            m.put("totalPrice",     item.getTotalPrice());
+            m.put("unitPrice",      effectiveUnitPrice);   // proportional — includes premium
+            m.put("totalPrice",     item.getTotalPrice()); // stored base total (for reference)
             m.put("remainingQty",   remaining);
             itemMaps.add(m);
         }
@@ -127,6 +150,20 @@ public class PurchaseReturnService {
 
         PurchaseReturn saved = returnRepo.save(pr);
 
+        // Load the purchase header and sum all items' stored totalPrice so we can
+        // compute each returned item's effective unit price including the premium
+        // (the premium is stored at the invoice level, not per purchase_item row)
+        Purchase purchaseHeader = purchaseId != null
+                ? purchaseRepo.findById(purchaseId).orElse(null) : null;
+        BigDecimal purchaseTotalAmt     = purchaseHeader != null ? purchaseHeader.getTotalAmount() : null;
+        BigDecimal sumAllItemTotals     = BigDecimal.ZERO;
+        if (purchaseId != null) {
+            for (PurchaseItem pi : purchaseItemRepo.findByPurchaseIdOrderByIdAsc(purchaseId)) {
+                if (pi.getTotalPrice() != null)
+                    sumAllItemTotals = sumAllItemTotals.add(pi.getTotalPrice());
+            }
+        }
+
         BigDecimal totalReturnAmount = BigDecimal.ZERO;
         List<Map<String, Object>> savedItemMaps = new ArrayList<>();
 
@@ -167,6 +204,26 @@ public class PurchaseReturnService {
                                 .multiply(BigDecimal.valueOf(
                                         orig.getWeightGrams() / orig.getQuantity()))
                                 .setScale(4, RoundingMode.HALF_UP).doubleValue();
+                    }
+                    // Fix: effective unit price = proportional share of invoice total ÷ qty
+                    // purchase.totalAmount already includes the premium; the per-item
+                    // totalPrice stored in purchase_item does NOT (it's just base × qty).
+                    // Distributing proportionally gives each item the correct premium share.
+                    if (purchaseTotalAmt != null
+                            && purchaseTotalAmt.compareTo(BigDecimal.ZERO) > 0
+                            && sumAllItemTotals.compareTo(BigDecimal.ZERO) > 0
+                            && orig.getTotalPrice() != null
+                            && orig.getTotalPrice().compareTo(BigDecimal.ZERO) > 0
+                            && orig.getQuantity() > 0) {
+                        BigDecimal proportion = orig.getTotalPrice()
+                                .divide(sumAllItemTotals, 10, RoundingMode.HALF_UP);
+                        BigDecimal effectiveItemTotal = purchaseTotalAmt.multiply(proportion);
+                        unitPrice = effectiveItemTotal.divide(
+                                BigDecimal.valueOf(orig.getQuantity()), 10, RoundingMode.HALF_UP);
+                    } else if (orig.getUnitPrice() != null
+                            && orig.getUnitPrice().compareTo(BigDecimal.ZERO) > 0) {
+                        // Fallback: use stored unit price if totals are unavailable
+                        unitPrice = orig.getUnitPrice();
                     }
                 }
             }
@@ -210,6 +267,22 @@ public class PurchaseReturnService {
         // Update total on the return header
         saved.setTotalReturnAmount(totalReturnAmount);
         returnRepo.save(saved);
+
+        // ── Mark purchase as RETURNED if every item is now fully returned ──────
+        if (purchaseHeader != null) {
+            boolean fullyReturned = true;
+            for (PurchaseItem pi : purchaseItemRepo.findByPurchaseIdOrderByIdAsc(purchaseId)) {
+                double alreadyRet = returnItemRepo.getTotalReturnedQtyByPurchaseItemId(pi.getId());
+                double remaining  = BigDecimal.valueOf(pi.getQuantity())
+                        .subtract(BigDecimal.valueOf(alreadyRet))
+                        .setScale(4, RoundingMode.HALF_UP).doubleValue();
+                if (remaining > 0.0001) { fullyReturned = false; break; }
+            }
+            if (fullyReturned) {
+                purchaseHeader.setStatus(Purchase.Status.RETURNED);
+                purchaseRepo.save(purchaseHeader);
+            }
+        }
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("id",                  saved.getId());

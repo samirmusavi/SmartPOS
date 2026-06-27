@@ -40,8 +40,8 @@ public class Business {
 
     private LocalDateTime expiryDate;
 
-    // Customizer config
-    @Column(columnDefinition = "TEXT")
+    // Customizer config — MEDIUMTEXT supports up to 16 MB (needed for base64-encoded logos)
+    @Column(columnDefinition = "MEDIUMTEXT")
     private String receiptLogoBase64;
 
     private String receiptFooter;
@@ -66,7 +66,7 @@ public class Business {
         this.phone        = phone;
         this.plan         = plan;
         this.status       = Status.ACTIVE;
-        this.expiryDate   = LocalDateTime.now().plusMonths(1);
+        this.expiryDate   = null; // no expiry — subscription managed separately
     }
 
     // Getters and Setters

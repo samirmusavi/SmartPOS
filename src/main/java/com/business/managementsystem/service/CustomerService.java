@@ -18,11 +18,14 @@ public class CustomerService {
 
     private final CustomerRepository customerRepository;
     private final SupplierRepository supplierRepository;
+    private final SupplierService    supplierService;
 
     public CustomerService(CustomerRepository customerRepository,
-                           SupplierRepository supplierRepository) {
+                           SupplierRepository supplierRepository,
+                           SupplierService    supplierService) {
         this.customerRepository = customerRepository;
         this.supplierRepository = supplierRepository;
+        this.supplierService    = supplierService;
     }
 
     @Transactional
@@ -206,6 +209,106 @@ public class CustomerService {
         Customer c = customerRepository.findByIdAndBusinessId(id, businessId)
                 .orElseThrow(() -> new RuntimeException("Customer not found."));
         customerRepository.delete(c);
+    }
+
+    // ── Promote customer → also a supplier (one-click "Both") ───────────
+    /**
+     * Promotes a customer so they also appear in the Suppliers list.
+     *
+     * Two paths depending on how the customer record is identified:
+     *
+     * Negative ID (supplier-backed customer, id = -supplierId):
+     *   The supplier record already exists in the supplier table with
+     *   isCustomer=true, isSupplier=false.  Simply flip isSupplier=true.
+     *   No new record is created.
+     *
+     * Positive ID (customer table record):
+     *   1. Duplicate guard: search for an existing supplier row with
+     *      matching phone or email.  If found, reuse it (set isSupplier=true,
+     *      isCustomer=true if not already), then link customer.linkedSupplierId.
+     *   2. If no match: create a new Supplier row (isSupplier=true, isCustomer=true)
+     *      copying the customer's name/phone/email/notes, generate a party code,
+     *      and link customer.linkedSupplierId.
+     *   The customer table record is kept intact so loyalty/spend data is preserved.
+     *   The deduplication in getAllCustomersMerged() ensures no duplicate appears
+     *   in customers.html (customer-table record wins when phone/email match).
+     *
+     * parties.html automatically reflects both badges because it reads the
+     * isSupplier/isCustomer flags directly from the supplier table. No change there.
+     */
+    @Transactional
+    public Map<String, Object> promoteToSupplier(Long id, Long businessId) {
+
+        // ── Path 1: supplier-backed customer (negative ID) ───────────────
+        if (id < 0) {
+            Long supplierId = -id;
+            Supplier s = supplierRepository.findByIdAndBusinessId(supplierId, businessId)
+                    .orElseThrow(() -> new RuntimeException("Customer not found."));
+            if (s.isSupplier()) {
+                throw new RuntimeException(s.getName() + " is already a supplier.");
+            }
+            s.setSupplier(true);
+            return toCustomerMapFromSupplier(supplierRepository.save(s));
+        }
+
+        // ── Path 2: pure customer-table record (positive ID) ─────────────
+        Customer c = customerRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new RuntimeException("Customer not found."));
+
+        // If already linked, validate the link is still valid and active
+        if (c.getLinkedSupplierId() != null) {
+            Optional<Supplier> linked =
+                    supplierRepository.findById(c.getLinkedSupplierId());
+            if (linked.isPresent()) {
+                Supplier s = linked.get();
+                if (s.isSupplier()) {
+                    throw new RuntimeException(c.getFullName() + " is already a supplier.");
+                }
+                // Linked record exists but isSupplier=false — promote it now
+                s.setSupplier(true);
+                supplierRepository.save(s);
+                return toMap(c);
+            }
+            // Stale linkedSupplierId (supplier was deleted) — clear it and continue
+            c.setLinkedSupplierId(null);
+        }
+
+        // Duplicate guard: find existing supplier with matching phone or email
+        Supplier matched = null;
+        for (Supplier s : supplierRepository.findByBusinessIdOrderByNameAsc(businessId)) {
+            boolean phoneMatch = c.getPhone() != null && !c.getPhone().isBlank()
+                    && c.getPhone().equalsIgnoreCase(s.getPhone());
+            boolean emailMatch = c.getEmail() != null && !c.getEmail().isBlank()
+                    && c.getEmail().equalsIgnoreCase(s.getEmail());
+            if (phoneMatch || emailMatch) {
+                matched = s;
+                break;
+            }
+        }
+
+        Supplier supplier;
+        if (matched != null) {
+            // Reuse the existing supplier record — set any missing flags
+            supplier = matched;
+            if (!supplier.isSupplier()) supplier.setSupplier(true);
+            if (!supplier.isCustomer()) supplier.setCustomer(true);
+            supplier = supplierRepository.save(supplier);
+        } else {
+            // Create a fresh supplier record mirroring the customer's data
+            supplier = new Supplier(businessId, c.getFullName(), null,
+                    c.getPhone(), c.getEmail(), null, c.getNotes());
+            supplier.setSupplier(true);
+            supplier.setCustomer(true);   // keeps them in the customer list too
+            supplier.setKycStatus("NOT_VERIFIED");
+            supplier.setPartyCode(supplierService.generatePartyCode(c.getFullName(), businessId));
+            supplier = supplierRepository.save(supplier);
+        }
+
+        // Link customer table record → supplier record
+        c.setLinkedSupplierId(supplier.getId());
+        customerRepository.save(c);
+
+        return toMap(c);
     }
 
     // ── Record purchase (customer table only) ────────────────────────────

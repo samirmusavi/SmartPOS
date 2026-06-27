@@ -536,13 +536,23 @@ document.addEventListener('keydown', e => {
 const Theme = {
     STORAGE_KEY: 'sp_theme',
 
+    // Returns the active theme.
+    // Priority: manual override → OS preference (never hard-codes a default).
     get() {
-        return localStorage.getItem(this.STORAGE_KEY) || 'dark';
+        const stored = localStorage.getItem(this.STORAGE_KEY);
+        if (stored) return stored;
+        // No manual override — mirror the OS colour scheme
+        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    },
+
+    // True when the user has explicitly chosen a theme (not just following OS).
+    isManual() {
+        return localStorage.getItem(this.STORAGE_KEY) !== null;
     },
 
     apply() {
         const theme = this.get();
-        // Also mirror to 'smartpos_theme' so settings page can read it
+        // Mirror to 'smartpos_theme' so settings page can read it
         localStorage.setItem('smartpos_theme', theme);
         if (theme === 'light') {
             document.documentElement.setAttribute('data-theme', 'light');
@@ -554,12 +564,20 @@ const Theme = {
     },
 
     toggle() {
+        // Switching manually always records an explicit override
         const next = this.get() === 'dark' ? 'light' : 'dark';
         localStorage.setItem(this.STORAGE_KEY, next);
         this.apply();
     },
 
-    init() { this.apply(); }
+    init() {
+        this.apply();
+        // Re-apply automatically when the OS colour scheme changes,
+        // but only while the user has not set a manual override.
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+            if (!this.isManual()) this.apply();
+        });
+    }
 };
 
 Theme.init();
@@ -1335,6 +1353,272 @@ const PWA = {
         });
     }
 };
+
+// ── NUMBER TO WORDS (AED) ─────────────────────────────────────
+function numberToWordsAED(amount) {
+    const ones = ['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+                  'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
+                  'Seventeen','Eighteen','Nineteen'];
+    const tens = ['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety'];
+
+    function _words(n) {
+        if (n === 0) return '';
+        if (n < 20)  return ones[n];
+        if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+        if (n < 1000)
+            return ones[Math.floor(n / 100)] + ' Hundred'
+                + (n % 100 ? ' ' + _words(n % 100) : '');
+        if (n < 1000000)
+            return _words(Math.floor(n / 1000)) + ' Thousand'
+                + (n % 1000 ? ' ' + _words(n % 1000) : '');
+        if (n < 1000000000)
+            return _words(Math.floor(n / 1000000)) + ' Million'
+                + (n % 1000000 ? ' ' + _words(n % 1000000) : '');
+        return _words(Math.floor(n / 1000000000)) + ' Billion'
+            + (n % 1000000000 ? ' ' + _words(n % 1000000000) : '');
+    }
+
+    const abs = Math.abs(parseFloat(amount) || 0);
+    const dirhams = Math.floor(abs);
+    const fils = Math.round((abs - dirhams) * 100);
+
+    let result = _words(dirhams) || 'Zero';
+    result += ' Dirhams';
+    if (fils > 0) result += ' And ' + _words(fils) + ' Fils';
+    result += ' Only';
+    if (parseFloat(amount) < 0) result = 'Minus ' + result;
+    return result;
+}
+
+// ── TAX INVOICE PRINT ─────────────────────────────────────────
+/**
+ * Opens a new window with a formatted Tax Invoice (Fixed) and triggers print.
+ *
+ * @param {Object} data        - Transaction result (from SaleService or PurchaseService)
+ * @param {string} voucherType - 'SAL' | 'PUR'
+ * @param {Array}  cartItems   - Line items (cart array from sales.html OR state.items from purchase.html)
+ */
+async function printTaxInvoice(data, voucherType, cartItems) {
+    if (!data) { if (typeof Toast !== 'undefined') Toast.warning('No transaction data available.'); return; }
+
+    const bizId      = Auth.getBusinessId();
+    const bizName    = Auth.getBusinessName();
+    const branchName = Auth.getBranchName() || '';
+    const isSale     = voucherType === 'SAL';
+
+    // ── Resolve party info ─────────────────────────────────
+    const partyName  = isSale ? (data.customerName || '') : (data.supplierName || '');
+    const partyId    = isSale ? data.customerId : data.supplierId;
+    const voucherNo  = isSale ? data.receiptNumber : data.invoiceNumber;
+    const dateStr    = isSale
+        ? (data.createdAt ? data.createdAt.substring(0, 10) : new Date().toISOString().substring(0, 10))
+        : (data.purchaseDate ? data.purchaseDate.substring(0, 10) : new Date().toISOString().substring(0, 10));
+    const payMethod  = data.paymentMethod || '—';
+    const cashier    = isSale ? (data.cashierName || '') : (data.createdBy || '');
+    const inclDecl   = isSale && (data.includeReverseChargeDeclaration === true);
+
+    // ── Amounts ────────────────────────────────────────────
+    const subtotal    = parseFloat(data.subtotal   || 0);
+    const discount    = parseFloat(data.discountAmount || 0);
+    const premium     = parseFloat(data.premiumAmount  || 0);
+    const vat         = parseFloat(data.vatAmount   || 0);
+    const roundOff    = parseFloat(data.roundOffAmount || 0);
+    const total       = parseFloat(data.totalAmount || 0);
+
+    // ── Fetch ledger narration (best-effort) ───────────────
+    let ledgerNarration = '';
+    if (partyId && bizId) {
+        try {
+            const stmt = await fetch(
+                `/api/party-ledger/${partyId}/statement?businessId=${bizId}`
+            ).then(r => r.ok ? r.json() : null);
+            if (stmt && stmt.entries) {
+                const match = stmt.entries.find(e => e.voucherNumber === voucherNo);
+                if (match) ledgerNarration = match.narration || '';
+            }
+        } catch (_) { /* non-critical */ }
+    }
+
+    // ── Format helpers ─────────────────────────────────────
+    const fmtAed = v => 'AED ' + Number(v || 0).toLocaleString('en-AE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const fmtDate = s => {
+        if (!s) return '';
+        const d = new Date(s);
+        return isNaN(d) ? s : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+    };
+    const esc = s => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    // ── Line items ─────────────────────────────────────────
+    let itemRows = '';
+    const items = Array.isArray(cartItems) ? cartItems : [];
+    items.forEach((item, idx) => {
+        const name  = esc(item.productName || item.name || 'Item');
+        const purity = esc(item.purity || item.scrapPurity || '—');
+        const unit  = esc(item.unitType || item.unit || 'PCS');
+        const qty   = parseFloat(item.quantity || item.qty || item.quantitySold || 0);
+        const rate  = parseFloat(item.unitPrice || item.pricePerGram || item.priceAtSale || item.price || 0);
+        const lineTotal = parseFloat(item.totalPrice || item.totalAmount || (qty * rate) || 0);
+        itemRows += `
+        <tr>
+            <td style="text-align:center">${idx + 1}</td>
+            <td>${name}</td>
+            <td style="text-align:center">${purity}</td>
+            <td style="text-align:center">${unit}</td>
+            <td style="text-align:right">${qty % 1 === 0 ? qty : qty.toFixed(3)}</td>
+            <td style="text-align:right">${rate.toFixed(2)}</td>
+            <td style="text-align:right">${lineTotal.toFixed(2)}</td>
+        </tr>`;
+    });
+
+    // ── CR/DR direction ────────────────────────────────────
+    const direction = isSale ? 'DEBITED' : 'CREDITED';
+
+    // ── Declaration note ───────────────────────────────────
+    const declarationHtml = inclDecl ? `
+        <div style="margin-top:20px;padding:10px 14px;border:1px solid #666;border-radius:4px;font-size:8.5pt;color:#333;line-height:1.55">
+            <strong style="display:block;margin-bottom:4px">UAE Reverse-Charge VAT Declaration (Cabinet Decision No. 127/2024)</strong>
+            The supplier named herein is not registered for VAT in the UAE. Pursuant to Cabinet Decision
+            No. 127/2024, the recipient (buyer) is responsible for self-accounting for VAT on this
+            supply under the reverse-charge mechanism. The applicable VAT must be declared and paid
+            directly to the Federal Tax Authority by the recipient.
+        </div>` : '';
+
+    // ── Totals section rows ────────────────────────────────
+    let totalsHtml = `
+        <tr><td colspan="5" style="text-align:right;font-weight:600">Subtotal</td>
+            <td style="text-align:right">${subtotal.toFixed(2)}</td></tr>`;
+    if (discount > 0) totalsHtml += `
+        <tr><td colspan="5" style="text-align:right;color:#dc2626">Discount</td>
+            <td style="text-align:right;color:#dc2626">- ${discount.toFixed(2)}</td></tr>`;
+    if (premium !== 0) totalsHtml += `
+        <tr><td colspan="5" style="text-align:right;color:#059669">Premium</td>
+            <td style="text-align:right;color:#059669">${premium >= 0 ? '+ ' : ''}${premium.toFixed(2)}</td></tr>`;
+    if (vat > 0) totalsHtml += `
+        <tr><td colspan="5" style="text-align:right">VAT (${data.vatPercent || 5}%)</td>
+            <td style="text-align:right">${vat.toFixed(2)}</td></tr>`;
+    if (roundOff !== 0) totalsHtml += `
+        <tr><td colspan="5" style="text-align:right;color:#6b7280">Round-off</td>
+            <td style="text-align:right;color:#6b7280">${roundOff >= 0 ? '+ ' : ''}${roundOff.toFixed(2)}</td></tr>`;
+    totalsHtml += `
+        <tr style="background:#f0f0f0;font-weight:700">
+            <td colspan="5" style="text-align:right;border-top:2px solid #333;font-size:11pt">TOTAL</td>
+            <td style="text-align:right;border-top:2px solid #333;font-size:11pt">${total.toFixed(2)}</td>
+        </tr>`;
+
+    // ── Build HTML ─────────────────────────────────────────
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Tax Invoice – ${esc(voucherNo)}</title>
+<style>
+    * { box-sizing:border-box; margin:0; padding:0 }
+    body { font-family:'Arial',sans-serif; font-size:9.5pt; color:#111; padding:18mm 16mm; }
+    h1 { font-size:16pt; font-weight:700; text-align:center; letter-spacing:.12em; text-transform:uppercase; margin:6px 0 2px }
+    .double-rule { border:none; border-top:3px double #000; margin:4px 0 }
+    .section-title { font-size:8pt; text-align:center; letter-spacing:.1em; text-transform:uppercase; color:#555; margin-bottom:10px }
+    .header-biz { text-align:center; margin-bottom:12px }
+    .biz-name { font-size:13pt; font-weight:700; letter-spacing:.04em }
+    .biz-sub  { font-size:8.5pt; color:#555 }
+    table.items { width:100%; border-collapse:collapse; font-size:9pt; margin:10px 0 }
+    table.items th { background:#222; color:#fff; padding:5px 7px; font-size:8pt; text-align:left; }
+    table.items td { padding:4px 7px; border-bottom:1px solid #ddd; }
+    table.items tfoot td { background:#f5f5f5; }
+    .info-grid { display:flex; gap:20px; margin:10px 0 }
+    .info-box { flex:1; border:1px solid #bbb; border-radius:3px; padding:8px 10px; font-size:8.5pt; line-height:1.6 }
+    .info-box dt { font-size:7.5pt; font-weight:700; color:#777; text-transform:uppercase; letter-spacing:.04em }
+    .info-box dd { font-weight:600; color:#111; margin-bottom:2px }
+    .acct-update { margin:14px 0 10px; padding:8px 12px; background:#f0f0f0; border:1px solid #ccc; border-radius:3px; font-size:9pt }
+    .narration { margin:8px 0; font-size:8.5pt; color:#444; font-style:italic }
+    .sig-row { display:flex; gap:30px; margin-top:30px }
+    .sig-box { flex:1; border-top:1px solid #333; padding-top:4px; text-align:center; font-size:8pt; color:#555 }
+    .words-line { font-size:8pt; color:#333; margin:4px 0 10px; font-style:italic }
+    @media print { body { padding:10mm 12mm } button { display:none } }
+</style>
+</head>
+<body>
+
+<!-- Company header -->
+<div class="header-biz">
+    <div class="biz-name">${esc(bizName)}</div>
+    ${branchName ? `<div class="biz-sub">${esc(branchName)}</div>` : ''}
+</div>
+
+<hr class="double-rule">
+<h1>Tax Invoice (Fixed)</h1>
+<hr class="double-rule">
+<div class="section-title">Accounts Copy</div>
+
+<!-- Party info + voucher info -->
+<div class="info-grid">
+    <div class="info-box">
+        <dl>
+            <dt>Party</dt><dd>${esc(partyName || '—')}</dd>
+            <dt>Type</dt><dd>${isSale ? 'Customer' : 'Supplier'}</dd>
+        </dl>
+    </div>
+    <div class="info-box" style="text-align:right">
+        <dl>
+            <dt>Voucher No.</dt><dd>${esc(voucherNo || '—')}</dd>
+            <dt>Date</dt><dd>${fmtDate(dateStr)}</dd>
+            <dt>Branch</dt><dd>${esc(branchName || '—')}</dd>
+            <dt>Ref. By</dt><dd>${esc(cashier || '—')}</dd>
+            <dt>Payment</dt><dd>${esc(payMethod)}</dd>
+        </dl>
+    </div>
+</div>
+
+<!-- Line items table -->
+<table class="items">
+    <thead>
+        <tr>
+            <th style="width:30px;text-align:center">#</th>
+            <th>Description</th>
+            <th style="width:70px;text-align:center">Purity</th>
+            <th style="width:50px;text-align:center">Unit</th>
+            <th style="width:65px;text-align:right">Qty</th>
+            <th style="width:80px;text-align:right">Rate (AED)</th>
+            <th style="width:90px;text-align:right">Amount (AED)</th>
+        </tr>
+    </thead>
+    <tbody>${itemRows || '<tr><td colspan="7" style="text-align:center;color:#999">No items</td></tr>'}</tbody>
+    <tfoot>${totalsHtml}</tfoot>
+</table>
+
+<!-- Amount in words -->
+<div class="words-line">Amount in Words: <strong>${numberToWordsAED(total)}</strong></div>
+
+<!-- Account update line -->
+<div class="acct-update">
+    <strong>Account Update:</strong>
+    ${esc(partyName || 'Party')} account has been
+    <strong>${direction}</strong> with
+    <strong>${fmtAed(total)}</strong>
+    against ${isSale ? 'Sale' : 'Purchase'} Voucher No. <strong>${esc(voucherNo || '')}</strong>.
+</div>
+
+<!-- Narration footer -->
+${ledgerNarration ? `<div class="narration"><strong>Narration:</strong> ${esc(ledgerNarration)}</div>` : ''}
+
+${declarationHtml}
+
+<!-- Signature blocks -->
+<div class="sig-row">
+    <div class="sig-box">Prepared By</div>
+    <div class="sig-box">Checked By</div>
+    <div class="sig-box">Authorised Signatory</div>
+    <div class="sig-box">${esc(partyName || 'Party')} Signature</div>
+</div>
+
+<script>window.onload = () => window.print();<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    if (!win) { if (typeof Toast !== 'undefined') Toast.error('Pop-up blocked — please allow pop-ups for this page.'); return; }
+    win.document.write(html);
+    win.document.close();
+}
 
 // ── INIT ON DOM READY ────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {

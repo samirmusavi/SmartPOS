@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -347,6 +347,40 @@
     </div>
 </div>
 
+<!-- PROMOTE-TO-SUPPLIER CONFIRM MODAL -->
+<div class="modal-overlay" id="promoteModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-truck-fast" style="margin-right:8px;color:#3730a3"></i>Add as Supplier?</span>
+            <button class="modal-close" onclick="Modal.close('promoteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:#e0e7ff;color:#3730a3;margin:0 auto 16px">
+                <i class="fas fa-truck-fast"></i>
+            </div>
+            <div class="empty-state-title mb-2">
+                Add <strong id="promoteCustomerName"></strong> as a Supplier?
+            </div>
+            <div class="empty-state-text">
+                They will appear in both <strong>Customers</strong> and
+                <strong>Suppliers</strong> lists, and in Parties as
+                <em>Both</em>. Existing loyalty points and purchase history
+                are preserved.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('promoteModal')">Cancel</button>
+            <button class="btn btn-sm" id="promoteConfirmBtn"
+                    style="background:#3730a3;color:#fff;border:none;padding:8px 18px;border-radius:var(--radius-md)">
+                <i class="fas fa-truck-fast"></i> Yes, Add as Supplier
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal" style="max-width:400px">
@@ -555,6 +589,12 @@
                                     onclick="openEdit(${c.id})" title="Edit">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            ${!c.linkedSupplierId ? `<button class="btn btn-sm btn-icon-only"
+                                    style="background:#e0e7ff;color:#3730a3;border:none"
+                                    onclick="openPromoteToSupplier(${c.id}, '${escapeHtml(c.fullName)}')"
+                                    title="Also add as Supplier">
+                                <i class="fas fa-truck-fast"></i>
+                            </button>` : ''}
                             <button class="btn btn-danger btn-sm btn-icon-only"
                                     onclick="openDelete(${c.id}, '${escapeHtml(c.fullName)}')"
                                     title="Delete">
@@ -796,6 +836,34 @@
             await loadCustomers();
             openEdit(customerId);
         } catch (e) { Toast.error(e.message || 'Failed to unlink.'); }
+    }
+
+    // ── Promote-to-Supplier ──────────────────────────────────────────────
+    let _promoteId   = null;
+    let _promoteName = null;
+
+    function openPromoteToSupplier(id, name) {
+        _promoteId   = id;
+        _promoteName = name;
+        document.getElementById('promoteCustomerName').textContent = name;
+        document.getElementById('promoteConfirmBtn').onclick = confirmPromoteToSupplier;
+        Modal.open('promoteModal');
+    }
+
+    async function confirmPromoteToSupplier() {
+        const btn = document.getElementById('promoteConfirmBtn');
+        btn.disabled = true;
+        try {
+            await API.put(`${CUSTOMER_API}/${_promoteId}/promote-to-supplier`, {});
+            Modal.close('promoteModal');
+            Toast.success(`${_promoteName} is now also a Supplier`);
+            _promoteId = _promoteName = null;
+            loadCustomers();
+        } catch (e) {
+            Toast.error(e.message || 'Failed to promote to supplier.');
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     loadCustomers();

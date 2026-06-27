@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -474,6 +474,9 @@ function toggleMenu(btn, rowIdx) {
         <div class="drop-item" onclick="viewInvoice('${tx.receiptNumber||''}');closeMenu()">
             <i class="fas fa-receipt"></i> View Invoice
         </div>
+        <div class="drop-item" onclick="downloadSaleInvoicePdf(${tx.transactionId});closeMenu()">
+            <i class="fas fa-file-pdf" style="color:#dc2626"></i> Download Tax Invoice (PDF)
+        </div>
         <div class="drop-item" onclick="goToReturn('${tx.receiptNumber||''}');closeMenu()">
             <i class="fas fa-undo-alt"></i> Process Return
         </div>
@@ -505,6 +508,24 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('scroll', closeMenu, true);
 window.addEventListener('resize', closeMenu);
+
+// ── Download Tax Invoice PDF ──────────────────────────────────
+async function downloadSaleInvoicePdf(transactionId) {
+    if (!transactionId) { Toast.warning('No transaction selected.'); return; }
+    const url = `${SALES_API}/${transactionId}/invoice/pdf`;
+    try {
+        const res = await fetch(url, { headers: API._headers() });
+        if (res.status === 401) { Auth.logout(); return; }
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        const blob   = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const win    = window.open(objUrl, '_blank');
+        if (!win) Toast.warning('Allow pop-ups for this site to view the PDF.');
+        setTimeout(() => URL.revokeObjectURL(objUrl), 120_000);
+    } catch (e) {
+        Toast.error('PDF generation failed: ' + (e.message || 'Unknown error'));
+    }
+}
 
 // ── View Invoice ──────────────────────────────────────────────
 async function viewInvoice(receiptNumber) {

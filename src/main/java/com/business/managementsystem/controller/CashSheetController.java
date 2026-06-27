@@ -76,6 +76,21 @@ public class CashSheetController {
         return ResponseEntity.ok(response);
     }
 
+    // ── POST /api/cash-sheet/sync-purchases?date=2026-05-22&branchId=1 ─
+    @PostMapping("/sync-purchases")
+    public ResponseEntity<Map<String, Object>> syncPurchases(
+            @RequestHeader(value = "X-Business-Id", required = false) String bh,
+            @RequestParam String date,
+            @RequestParam(required = false) Long branchId) {
+
+        Long businessId  = requireBusinessId(bh);
+        LocalDate sheetDate = LocalDate.parse(date);
+
+        cashSheetService.syncFromPurchase(businessId, branchId, sheetDate);
+        Map<String, Object> response = cashSheetService.getFullDayResponse(businessId, branchId, sheetDate);
+        return ResponseEntity.ok(response);
+    }
+
     // ── POST /api/cash-sheet/entry ────────────────────────────────
     @PostMapping("/entry")
     public ResponseEntity<Map<String, Object>> addEntry(

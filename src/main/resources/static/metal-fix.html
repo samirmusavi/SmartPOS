@@ -1,9 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>Metal Fix (HPF) – SmartPOS</title>
+    <title>Metal Fix – SmartPOS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -114,6 +114,57 @@
         /* ── Diff label ──────────────────────────────────────── */
         .diff-cr { color:#059669;font-weight:700 }
         .diff-dr { color:#dc2626;font-weight:700 }
+
+        /* ── Create-modal mode toggle (Standalone | From Unfixed) ── */
+        .mode-btn {
+            flex:1;padding:9px 12px;border:1px solid var(--border);
+            background:var(--surface-1);font-size:var(--text-sm);font-weight:600;
+            color:var(--text-muted);cursor:pointer;transition:all .15s
+        }
+        .mode-btn:first-child { border-radius:var(--radius-md) 0 0 var(--radius-md) }
+        .mode-btn:last-child  { border-radius:0 var(--radius-md) var(--radius-md) 0;border-left:none }
+        .mode-btn-active { background:var(--primary);border-color:var(--primary);color:#fff }
+
+        /* ── Position type mini-toggle inside modal ──────────────── */
+        .pos-type-btn {
+            flex:1;padding:7px 10px;border:1px solid var(--border);
+            background:var(--surface-1);font-size:var(--text-xs);font-weight:700;
+            letter-spacing:.03em;cursor:pointer;transition:all .15s
+        }
+        .pos-type-btn:first-child { border-radius:var(--radius-sm) 0 0 var(--radius-sm) }
+        .pos-type-btn:last-child  { border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-left:none }
+        .pos-type-sale-active     { background:#dcfce7;border-color:#16a34a;color:#15803d }
+        .pos-type-purchase-active { background:#dbeafe;border-color:#2563eb;color:#1d4ed8 }
+
+        /* ── Locked premium display ──────────────────────────────── */
+        .locked-field {
+            padding:8px 12px;background:var(--surface-2);border:1px solid var(--border);
+            border-radius:var(--radius-md);font-size:var(--text-sm);font-weight:600;
+            color:var(--text-primary);display:flex;align-items:center;gap:6px
+        }
+
+        /* ── Exposure dashboard — tab strip ─────────────────── */
+        .exp-tab {
+            background:transparent;border:none;border-bottom:2px solid transparent;
+            padding:8px 16px;font-size:var(--text-sm);font-weight:600;
+            color:var(--text-muted);cursor:pointer;margin-bottom:-2px;
+            transition:color .15s,border-color .15s
+        }
+        .exp-tab:hover  { color:var(--text-primary) }
+        .exp-tab-active { color:var(--primary);border-bottom-color:var(--primary) }
+        .exp-badge {
+            display:inline-flex;align-items:center;justify-content:center;
+            background:var(--primary);color:#fff;border-radius:999px;
+            font-size:0.63rem;font-weight:700;min-width:18px;height:18px;
+            padding:0 5px;margin-left:6px;line-height:1
+        }
+        /* chevron rotate when collapsed */
+        .exp-chevron-open  { transform:rotate(0deg);transition:transform .2s }
+        .exp-chevron-closed { transform:rotate(-90deg);transition:transform .2s }
+        /* net position colour coding */
+        .net-positive { color:#059669 }   /* net long — AED flows in */
+        .net-negative { color:#dc2626 }   /* net short — AED flows out */
+        .net-zero     { color:var(--text-muted) }
 
         /* ── Print ───────────────────────────────────────────── */
         @media print {
@@ -255,7 +306,7 @@
     <div class="topbar-left">
         <button class="btn-toggle" id="toggleBtn"><i class="fas fa-bars"></i></button>
         <div>
-            <div class="page-title">Metal Fix (HPF)</div>
+            <div class="page-title">Metal Fix</div>
             <div class="page-breadcrumb">SmartPOS / Trading / Metal Fix</div>
         </div>
     </div>
@@ -272,7 +323,7 @@
     <!-- ── Stats strip ────────────────────────────────────────── -->
     <div class="mf-stat-strip">
         <div class="mf-stat">
-            <div class="mf-stat-label">Open HPF</div>
+            <div class="mf-stat-label">Open Fixes</div>
             <div class="mf-stat-value" id="statOpen">—</div>
             <div class="mf-stat-sub">Awaiting rate fix</div>
         </div>
@@ -293,6 +344,174 @@
         </div>
     </div>
 
+    <!-- ── Open Unfixed Position Exposure ──────────────────────── -->
+    <div class="card mb-5" id="exposureCard">
+        <div class="card-header" style="cursor:pointer" onclick="toggleExposureCard()">
+            <span class="card-title">
+                <i class="fas fa-chart-mixed" style="color:#f59e0b;margin-right:8px"></i>
+                Open Unfixed Position Exposure
+            </span>
+            <div style="display:flex;align-items:center;gap:10px">
+                <button class="btn btn-secondary btn-sm"
+                        onclick="event.stopPropagation();loadExposure()"
+                        title="Refresh exposure">
+                    <i class="fas fa-rotate" id="exposureRefreshIcon"></i>
+                </button>
+                <i class="fas fa-chevron-down exp-chevron-open" id="exposureChevron"
+                   style="color:var(--text-muted)"></i>
+            </div>
+        </div>
+
+        <div id="exposureBody">
+            <!-- ── Aggregate stats ────────────────────────────── -->
+            <div class="mf-stat-strip"
+                 style="border-bottom:1px solid var(--border);margin-bottom:0;
+                        border-radius:0;padding:var(--space-3) var(--space-4);gap:12px">
+
+                <div class="mf-stat">
+                    <div class="mf-stat-label">
+                        <i class="fas fa-arrow-up-from-bracket" style="color:#16a34a;margin-right:4px"></i>
+                        Unfixed Sale Weight
+                    </div>
+                    <div class="mf-stat-value" id="expSaleGrams">—</div>
+                    <div class="mf-stat-sub" id="expSaleAed">— g remaining</div>
+                </div>
+
+                <div class="mf-stat">
+                    <div class="mf-stat-label">
+                        <i class="fas fa-arrow-down-to-bracket" style="color:#2563eb;margin-right:4px"></i>
+                        Unfixed Purchase Weight
+                    </div>
+                    <div class="mf-stat-value" id="expPurchaseGrams">—</div>
+                    <div class="mf-stat-sub" id="expPurchaseAed">— g remaining</div>
+                </div>
+
+                <div class="mf-stat">
+                    <div class="mf-stat-label">
+                        <i class="fas fa-scale-balanced" style="color:var(--primary);margin-right:4px"></i>
+                        Net Position
+                    </div>
+                    <div class="mf-stat-value" id="expNetGrams">—</div>
+                    <div class="mf-stat-sub" id="expNetLabel">—</div>
+                </div>
+
+                <!-- Live rate estimator -->
+                <div class="mf-stat" style="background:rgba(245,158,11,0.06);
+                     border-color:rgba(245,158,11,0.3)">
+                    <div class="mf-stat-label" style="color:#92400e">
+                        <i class="fas fa-bolt" style="margin-right:4px"></i>
+                        Live AED Estimator
+                    </div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+                        <input type="number" id="expOzRate" class="form-control"
+                               placeholder="$/oz spot"
+                               style="width:100px;height:30px;font-size:0.78rem;padding:4px 8px"
+                               min="0" step="0.01" oninput="refreshExposureAed()">
+                        <input type="number" id="expXRate" class="form-control"
+                               value="3.6740"
+                               style="width:80px;height:30px;font-size:0.78rem;padding:4px 8px"
+                               min="0" step="0.0001" oninput="refreshExposureAed()"
+                               title="USD → AED exchange rate">
+                    </div>
+                    <div style="font-size:0.62rem;color:var(--text-muted);margin-top:4px">
+                        Spot $/oz · AED/USD rate
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Position tables ────────────────────────────── -->
+            <div style="padding:var(--space-3) var(--space-4)">
+
+                <!-- Tab strip -->
+                <div style="display:flex;gap:0;border-bottom:2px solid var(--border);
+                            margin-bottom:var(--space-3)">
+                    <button id="expTabSale"
+                            class="exp-tab exp-tab-active"
+                            onclick="switchExpTab('sale')">
+                        <i class="fas fa-arrow-up-from-bracket"
+                           style="margin-right:6px;color:#16a34a"></i>
+                        Unfixed Sales
+                        <span id="expSaleCountBadge" class="exp-badge">0</span>
+                    </button>
+                    <button id="expTabPurchase"
+                            class="exp-tab"
+                            onclick="switchExpTab('purchase')">
+                        <i class="fas fa-arrow-down-to-bracket"
+                           style="margin-right:6px;color:#2563eb"></i>
+                        Unfixed Purchases
+                        <span id="expPurchaseCountBadge" class="exp-badge">0</span>
+                    </button>
+                </div>
+
+                <!-- Sale positions -->
+                <div id="expSalePanel">
+                    <div style="overflow-x:auto">
+                        <table class="hpf-table">
+                            <thead><tr>
+                                <th>Receipt #</th>
+                                <th>Customer</th>
+                                <th class="num">Orig. Weight (g)</th>
+                                <th class="num">Remaining (g)</th>
+                                <th class="num">Locked Prem ($/oz)</th>
+                                <th class="num">Est. AED</th>
+                                <th>Date</th>
+                                <th style="text-align:center">Action</th>
+                            </tr></thead>
+                            <tbody id="expSaleTbody">
+                                <tr><td colspan="8"
+                                        style="text-align:center;padding:28px;
+                                               color:var(--text-muted)">
+                                    <i class="fas fa-circle-notch fa-spin"></i> Loading…
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="expSaleEmpty"
+                         style="display:none;text-align:center;padding:28px;
+                                color:var(--text-muted)">
+                        <i class="fas fa-check-circle"
+                           style="font-size:1.5rem;color:var(--success);
+                                  display:block;margin-bottom:8px"></i>
+                        No open unfixed sale positions
+                    </div>
+                </div>
+
+                <!-- Purchase positions -->
+                <div id="expPurchasePanel" style="display:none">
+                    <div style="overflow-x:auto">
+                        <table class="hpf-table">
+                            <thead><tr>
+                                <th>Invoice #</th>
+                                <th>Supplier</th>
+                                <th class="num">Orig. Weight (g)</th>
+                                <th class="num">Remaining (g)</th>
+                                <th class="num">Locked Prem ($/oz)</th>
+                                <th class="num">Est. AED</th>
+                                <th>Date</th>
+                                <th style="text-align:center">Action</th>
+                            </tr></thead>
+                            <tbody id="expPurchaseTbody">
+                                <tr><td colspan="8"
+                                        style="text-align:center;padding:28px;
+                                               color:var(--text-muted)">
+                                    <i class="fas fa-circle-notch fa-spin"></i> Loading…
+                                </td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="expPurchaseEmpty"
+                         style="display:none;text-align:center;padding:28px;
+                                color:var(--text-muted)">
+                        <i class="fas fa-check-circle"
+                           style="font-size:1.5rem;color:var(--success);
+                                  display:block;margin-bottom:8px"></i>
+                        No open unfixed purchase positions
+                    </div>
+                </div>
+            </div>
+        </div><!-- /exposureBody -->
+    </div><!-- /exposureCard -->
+
     <!-- ── Filter Card ────────────────────────────────────────── -->
     <div class="card mb-5" id="filterCard">
         <div class="card-header">
@@ -301,7 +520,7 @@
                 Hold Price Fix Agreements
             </span>
             <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
-                <i class="fas fa-plus"></i> New HPF
+                <i class="fas fa-plus"></i> New Fix
             </button>
         </div>
         <div style="padding:var(--space-3) var(--space-4)">
@@ -343,7 +562,7 @@
             <table class="hpf-table" id="hpfTable">
                 <thead>
                     <tr>
-                        <th>HPF #</th>
+                        <th>Fix #</th>
                         <th>Date</th>
                         <th>Party</th>
                         <th>Type</th>
@@ -367,7 +586,7 @@
         <div id="hpfEmpty" style="display:none;text-align:center;padding:48px 24px;color:var(--text-muted)">
             <i class="fas fa-scale-balanced" style="font-size:2.5rem;margin-bottom:12px;opacity:.3"></i>
             <div style="font-weight:600">No metal fixes found</div>
-            <div style="font-size:var(--text-sm);margin-top:4px">Create the first HPF using the button above</div>
+            <div style="font-size:var(--text-sm);margin-top:4px">Create the first fix using the button above</div>
         </div>
     </div>
 
@@ -380,7 +599,7 @@
     <div class="detail-panel" id="detailPanel">
         <div class="detail-header">
             <div>
-                <div style="font-weight:700;font-size:var(--text-base)" id="dpFixNumber">HPF-0001</div>
+                <div style="font-weight:700;font-size:var(--text-base)" id="dpFixNumber">—</div>
                 <div style="font-size:var(--text-xs);color:var(--text-muted)" id="dpFixDate"></div>
             </div>
             <div class="flex items-center gap-2">
@@ -402,23 +621,88 @@
 <div class="modal-overlay" id="createModal">
     <div class="modal" style="max-width:560px;width:100%">
         <div class="modal-header">
-            <h3 class="modal-title"><i class="fas fa-scale-balanced" style="margin-right:8px"></i>New Hold Price Fix</h3>
+            <h3 class="modal-title" id="createModalTitle"><i class="fas fa-scale-balanced" style="margin-right:8px"></i>New Sale Fix (SF)</h3>
             <button class="btn-close" onclick="closeCreateModal()"><i class="fas fa-xmark"></i></button>
         </div>
         <div class="modal-body">
-            <div class="flex gap-3 flex-wrap">
-                <div class="form-group" style="flex:1;min-width:200px">
-                    <label class="form-label">Party <span class="text-danger">*</span></label>
-                    <select id="cParty" class="form-control"></select>
-                </div>
-                <div class="form-group" style="width:160px">
-                    <label class="form-label">Fix Type <span class="text-danger">*</span></label>
-                    <select id="cFixType" class="form-control">
-                        <option value="SALE_FIX">Sale Fix</option>
-                        <option value="PURCHASE_FIX">Purchase Fix</option>
-                    </select>
+
+            <!-- ── Mode toggle ───────────────────────────────────────── -->
+            <div style="display:flex;margin-bottom:var(--space-4)">
+                <button class="mode-btn mode-btn-active" id="cModeStandaloneBtn"
+                        onclick="setCreateMode('standalone')">
+                    <i class="fas fa-scale-balanced" style="margin-right:6px"></i>Standalone HPF
+                </button>
+                <button class="mode-btn" id="cModeUnfixedBtn"
+                        onclick="setCreateMode('unfixed')">
+                    <i class="fas fa-link" style="margin-right:6px"></i>Fix Unfixed Position
+                </button>
+            </div>
+
+            <!-- ── Section A: Standalone — party + fix type ──────────── -->
+            <div id="cStandaloneSection">
+                <div class="flex gap-3 flex-wrap">
+                    <div class="form-group" style="flex:1;min-width:200px">
+                        <label class="form-label">Party <span class="text-danger">*</span></label>
+                        <select id="cParty" class="form-control"></select>
+                    </div>
+                    <div class="form-group" style="width:160px">
+                        <label class="form-label">Fix Type <span class="text-danger">*</span></label>
+                        <select id="cFixType" class="form-control" onchange="updateModalTitle()">
+                            <option value="SALE_FIX">Sale Fix</option>
+                            <option value="PURCHASE_FIX">Purchase Fix</option>
+                        </select>
+                    </div>
                 </div>
             </div>
+
+            <!-- ── Section B: Unfixed position picker ────────────────── -->
+            <div id="cUnfixedSection" style="display:none">
+                <!-- Position type toggle -->
+                <div class="form-group">
+                    <label class="form-label">Position Type <span class="text-danger">*</span></label>
+                    <div style="display:flex">
+                        <button class="pos-type-btn pos-type-sale-active" id="cPosSaleBtn"
+                                onclick="setPositionType('UNFIXED_SALE')">
+                            <i class="fas fa-arrow-up-from-bracket" style="margin-right:4px"></i>
+                            Unfixed Sale
+                        </button>
+                        <button class="pos-type-btn" id="cPosPurchaseBtn"
+                                onclick="setPositionType('UNFIXED_PURCHASE')">
+                            <i class="fas fa-arrow-down-to-bracket" style="margin-right:4px"></i>
+                            Unfixed Purchase
+                        </button>
+                    </div>
+                </div>
+                <!-- Position dropdown -->
+                <div class="form-group">
+                    <label class="form-label">Open Position <span class="text-danger">*</span></label>
+                    <select id="cPositionSelect" class="form-control"
+                            onchange="onPositionSelected()">
+                        <option value="">— Select a position —</option>
+                    </select>
+                </div>
+                <!-- Position summary info -->
+                <div id="cPositionInfo"
+                     style="display:none;margin-bottom:var(--space-3);padding:10px 14px;
+                            background:rgba(99,102,241,0.06);border-radius:var(--radius-md);
+                            border:1px solid rgba(99,102,241,0.18);font-size:var(--text-sm)">
+                </div>
+                <!-- Locked premium display -->
+                <div id="cLockedPremRow" style="display:none;margin-bottom:var(--space-3)">
+                    <label class="form-label">
+                        <i class="fas fa-lock"
+                           style="margin-right:4px;font-size:0.75rem;color:var(--text-muted)"></i>
+                        Locked Prem/Disc ($/oz) — set at deal time
+                    </label>
+                    <div class="locked-field">
+                        <i class="fas fa-lock"
+                           style="color:var(--text-muted);font-size:0.75rem"></i>
+                        <span id="cLockedPremValue">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── Metal + Purity + Weight (always shown) ────────────── -->
             <div class="flex gap-3 flex-wrap">
                 <div class="form-group" style="width:130px">
                     <label class="form-label">Metal <span class="text-danger">*</span></label>
@@ -448,20 +732,26 @@
                     <label class="form-label">Weight (g) <span class="text-danger">*</span></label>
                     <input type="number" id="cWeight" class="form-control" placeholder="0.000"
                            min="0.001" step="0.001" oninput="recalcCreate()">
+                    <div id="cWeightHint"
+                         style="display:none;font-size:0.65rem;color:var(--text-muted);
+                                margin-top:3px"></div>
                 </div>
             </div>
+
+            <!-- ── Rate fields ────────────────────────────────────────── -->
             <div class="flex gap-3 flex-wrap">
                 <div class="form-group" style="flex:1;min-width:120px">
                     <label class="form-label">Deal Rate ($/oz) <span class="text-danger">*</span></label>
                     <input type="number" id="cTxRate" class="form-control" placeholder="0.00"
                            min="0" step="0.01" oninput="recalcCreate()">
                 </div>
-                <div class="form-group" style="width:130px">
+                <!-- Disc/Prem: standalone only (unfixed mode = locked from position, hidden) -->
+                <div class="form-group" style="width:130px" id="cDiscPremGroup">
                     <label class="form-label">Disc/Prem</label>
-                    <input type="number" id="cDiscPrem" class="form-control" placeholder="0.00"
-                           step="0.01" oninput="recalcCreate()">
+                    <input type="number" id="cDiscPrem" class="form-control"
+                           placeholder="0.00" step="0.01" oninput="recalcCreate()">
                 </div>
-                <div class="form-group" style="width:130px">
+                <div class="form-group" style="width:130px" id="cDpTypeGroup">
                     <label class="form-label">D/P Type</label>
                     <select id="cDpType" class="form-control" onchange="recalcCreate()">
                         <option value="PER_OZ">Per Oz</option>
@@ -475,12 +765,14 @@
                     <input type="number" id="cExRate" class="form-control" value="3.6740"
                            min="0" step="0.0001" oninput="recalcCreate()">
                 </div>
-                <div class="form-group" style="width:110px">
+                <!-- Margin: standalone only (not applicable for position fixes) -->
+                <div class="form-group" style="width:110px" id="cMarginGroup">
                     <label class="form-label">Margin %</label>
-                    <input type="number" id="cMargin" class="form-control" placeholder="0.00"
-                           min="0" step="0.01" oninput="recalcCreate()">
+                    <input type="number" id="cMargin" class="form-control"
+                           placeholder="0.00" min="0" step="0.01" oninput="recalcCreate()">
                 </div>
             </div>
+
             <!-- Live calc preview -->
             <div class="calc-box" id="createCalcBox">
                 <div class="calc-row">
@@ -501,18 +793,20 @@
                 </div>
                 <div class="calc-row">
                     <span class="calc-label">Total AED</span>
-                    <span class="calc-value" id="ccTotalAed" style="font-size:1.05rem;color:var(--primary)">—</span>
+                    <span class="calc-value" id="ccTotalAed"
+                          style="font-size:1.05rem;color:var(--primary)">—</span>
                 </div>
             </div>
             <div class="form-group mt-3">
                 <label class="form-label">Notes</label>
-                <textarea id="cNotes" class="form-control" rows="2" placeholder="Optional remarks…"></textarea>
+                <textarea id="cNotes" class="form-control" rows="2"
+                          placeholder="Optional remarks…"></textarea>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
             <button class="btn btn-primary" id="createSaveBtn" onclick="submitCreate()">
-                <i class="fas fa-scale-balanced"></i> Create HPF
+                <i class="fas fa-scale-balanced"></i> <span id="createSaveBtnLabel">Create Sale Fix (SF)</span>
             </button>
         </div>
     </div>
@@ -529,7 +823,7 @@
         </div>
         <div class="modal-body">
             <p style="font-size:var(--text-sm);color:var(--text-muted);margin-bottom:var(--space-3)">
-                Enter the agreed market rate at which this HPF has been fixed.
+                Enter the agreed market rate at which this fix has been fixed.
                 The status will change from <strong>Open → Fixed</strong>.
             </p>
             <div id="fmFixInfo" style="padding:10px 14px;background:var(--surface-2);border-radius:var(--radius-md);
@@ -566,9 +860,12 @@
                  font-size:var(--text-sm);margin-bottom:var(--space-3)"></div>
             <div class="flex gap-3 flex-wrap">
                 <div class="form-group" style="flex:1;min-width:140px">
-                    <label class="form-label">Fixed Rate ($/oz) <span class="text-danger">*</span></label>
+                    <label class="form-label">Market Rate at Settlement ($/oz) <span class="text-danger">*</span></label>
                     <input type="number" id="smRate" class="form-control" placeholder="0.00"
                            min="0" step="0.01" oninput="recalcSettle()">
+                    <div style="font-size:0.68rem;color:var(--text-muted);margin-top:3px">
+                        Today's live spot rate — deal disc/prem is reapplied automatically
+                    </div>
                 </div>
                 <div class="form-group" style="width:160px">
                     <label class="form-label">Exchange Rate</label>
@@ -583,15 +880,19 @@
             <!-- Settlement calc preview -->
             <div class="calc-box" id="settleCalcBox">
                 <div class="calc-row">
+                    <span class="calc-label">Effective Rate (mkt ± disc/prem)</span>
+                    <span class="calc-value" id="scEffRate">—</span>
+                </div>
+                <div class="calc-row">
                     <span class="calc-label">Settlement AED</span>
                     <span class="calc-value" id="scSettleAed">—</span>
                 </div>
                 <div class="calc-row">
-                    <span class="calc-label">Original AED (deal)</span>
+                    <span class="calc-label">Original AED (deal estimate)</span>
                     <span class="calc-value" id="scOrigAed">—</span>
                 </div>
                 <div class="calc-row">
-                    <span class="calc-label">Difference</span>
+                    <span class="calc-label">Net difference (CR+/DR−)</span>
                     <span class="calc-value" id="scDiff">—</span>
                 </div>
             </div>
@@ -621,10 +922,17 @@ const TROY_OZ = 31.1035;
 
 /* ── State ──────────────────────────────────────────────────── */
 let _bizId    = null;
-let _parties  = [];   // full party list from /api/suppliers/all
+let _parties  = [];   // merged: /api/suppliers/all (parties) + /api/customers (pure customers)
 let _fixes    = [];   // current loaded fix list
 let _activeFixId = null;  // fix being acted on (fix/settle)
 let _activeFixData = null; // fix object for settle calc
+
+/* Stage 5 — create modal mode state */
+let _createMode    = 'standalone';   // 'standalone' | 'unfixed'
+let _createPosType = 'UNFIXED_SALE'; // 'UNFIXED_SALE' | 'UNFIXED_PURCHASE'
+let _openSalePositions     = [];     // cached for position dropdown
+let _openPurchasePositions = [];
+let _selectedPosition      = null;  // currently selected position object
 
 /* ── Bootstrap ──────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
@@ -639,6 +947,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('smDate').value  = today;
 
     loadDashboard();
+    loadExposure();
     loadParties();
 
     // avatar
@@ -666,8 +975,38 @@ async function loadDashboard() {
 /* ── Load parties for filter + create modal ─────────────────── */
 async function loadParties() {
     try {
-        const result = await API.get(`/api/suppliers/all`);
-        _parties = Array.isArray(result) ? result : [];
+        // Fetch parties (suppliers/parties table) AND pure customers in parallel.
+        // Customers with id < 0 are supplier-backed — already represented in
+        // the parties list — so they are excluded to avoid duplicates.
+        const [partyRes, custRes] = await Promise.all([
+            API.get('/api/suppliers/all').catch(() => []),
+            API.get('/api/customers').catch(() => [])
+        ]);
+
+        const parties   = Array.isArray(partyRes) ? partyRes : [];
+        const customers = Array.isArray(custRes)  ? custRes  : [];
+
+        // Normalise parties → {id, name, partyCode, tag}
+        const partyItems = parties.map(p => ({
+            id:        p.id,
+            name:      p.name || p.fullName || '',
+            partyCode: p.partyCode || null,
+            tag:       'Party'
+        }));
+
+        // Pure customers only (id > 0); skip negatives (supplier-backed duplicates)
+        const existingIds = new Set(partyItems.map(p => p.id));
+        const custItems = customers
+            .filter(c => c.id > 0 && !existingIds.has(c.id))
+            .map(c => ({
+                id:        c.id,
+                name:      c.fullName || c.name || '',
+                partyCode: null,
+                tag:       'Customer'
+            }));
+
+        _parties = [...partyItems, ...custItems]
+            .sort((a, b) => a.name.localeCompare(b.name));
     } catch(e) {
         console.error('Party load failed', e);
         _parties = [];
@@ -684,13 +1023,15 @@ function buildPartySelects() {
 
     if (!_parties.length) {
         createSel.innerHTML =
-            '<option value="" disabled selected>No parties found — add on Parties page</option>';
+            '<option value="" disabled selected>No parties found — add on Parties or Customers page</option>';
         return;
     }
 
     createSel.innerHTML = '<option value="">— Select party —</option>';
     _parties.forEach(p => {
-        const label = p.partyCode ? `${p.name} (${p.partyCode})` : p.name;
+        // parties show their code; pure customers show [Customer] tag
+        const suffix = p.partyCode ? ` (${p.partyCode})` : (p.tag === 'Customer' ? ' [Customer]' : '');
+        const label  = p.name + suffix;
         filterSel.appendChild(new Option(label, p.id));
         createSel.appendChild(new Option(label, p.id));
     });
@@ -851,6 +1192,42 @@ function buildDetailHtml(f) {
             </div>
         </div>`);
 
+    // ── Linked transaction (Fix 6)
+    if (f.linkedSaleId || f.linkedPurchaseId) {
+        let linkHtml = '';
+        if (f.linkedSaleId) {
+            const receiptNo = f.linkedSaleReceiptNumber || ('Sale #' + f.linkedSaleId);
+            linkHtml = `
+                <div style="display:flex;align-items:center;gap:8px">
+                    <i class="fas fa-receipt" style="color:var(--primary)"></i>
+                    <span style="color:var(--text-muted);font-size:var(--text-xs)">Linked Sale:</span>
+                    <strong>${escapeHtml(receiptNo)}</strong>
+                    <a href="/sales.html" target="_blank"
+                       style="font-size:var(--text-xs);color:var(--primary);text-decoration:none;margin-left:4px">
+                        View Receipt →</a>
+                </div>`;
+        } else if (f.linkedPurchaseId) {
+            const invoiceNo = f.linkedPurchaseInvoiceNumber || ('Purchase #' + f.linkedPurchaseId);
+            linkHtml = `
+                <div style="display:flex;align-items:center;gap:8px">
+                    <i class="fas fa-file-invoice" style="color:var(--success)"></i>
+                    <span style="color:var(--text-muted);font-size:var(--text-xs)">Linked Purchase:</span>
+                    <strong>${escapeHtml(invoiceNo)}</strong>
+                    <a href="/purchase.html" target="_blank"
+                       style="font-size:var(--text-xs);color:var(--success);text-decoration:none;margin-left:4px">
+                        View Voucher →</a>
+                </div>`;
+        }
+        sections.push(`
+            <div style="margin-bottom:var(--space-4);padding:10px 14px;
+                 background:rgba(99,102,241,0.06);border-radius:var(--radius-md);
+                 border:1px solid rgba(99,102,241,0.15)">
+                <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+                     color:var(--text-muted);margin-bottom:8px">Linked Transaction</div>
+                ${linkHtml}
+            </div>`);
+    }
+
     // ── Fix info (if fixed or settled)
     if (f.fixedRate || f.fixedDate) {
         sections.push(`
@@ -882,6 +1259,7 @@ function buildDetailHtml(f) {
             <tr>
                 <td>${escapeHtml(s.settlementNumber)}</td>
                 <td>${fmtShort(s.settlementDate)}</td>
+                <td class="num">${s.settlementMarketRate ? fmtNum(s.settlementMarketRate, 2) : '—'}</td>
                 <td class="num">${fmtNum(s.fixedRate, 2)}</td>
                 <td class="num">${fmtAed(s.settlementAed)}</td>
                 <td class="num">
@@ -899,7 +1277,8 @@ function buildDetailHtml(f) {
                     <table class="sfx-table">
                         <thead><tr>
                             <th>SFX #</th><th>Date</th>
-                            <th class="num" style="text-align:right">Rate</th>
+                            <th class="num" style="text-align:right">Mkt Rate</th>
+                            <th class="num" style="text-align:right">Eff. Rate</th>
                             <th class="num" style="text-align:right">AED</th>
                             <th class="num" style="text-align:right">Diff</th>
                         </tr></thead>
@@ -940,24 +1319,66 @@ function closeDetailDirect() {
 
 /* ── Create HPF Modal ────────────────────────────────────────── */
 function openCreateModal() {
-    document.getElementById('cParty').value   = '';
-    document.getElementById('cFixType').value = 'SALE_FIX';
-    document.getElementById('cMetalType').value = 'GOLD';
-    document.getElementById('cPurity').value       = '';
-    document.getElementById('cPurityCustom').value  = '';
+    // Reset mode state
+    _createMode        = 'standalone';
+    _createPosType     = 'UNFIXED_SALE';
+    _selectedPosition  = null;
+    _openSalePositions     = [];   // force fresh fetch next time
+    _openPurchasePositions = [];
+
+    // Reset form fields
+    document.getElementById('cParty').value          = '';
+    document.getElementById('cFixType').value        = 'SALE_FIX';
+    document.getElementById('cMetalType').value      = 'GOLD';
+    document.getElementById('cPurity').value         = '';
+    document.getElementById('cPurityCustom').value   = '';
     document.getElementById('cPurityCustom').style.display = 'none';
-    document.getElementById('cWeight').value  = '';
-    document.getElementById('cTxRate').value  = '';
-    document.getElementById('cDiscPrem').value = '';
-    document.getElementById('cDpType').value  = 'PER_OZ';
-    document.getElementById('cExRate').value  = '3.6740';
-    document.getElementById('cMargin').value  = '';
-    document.getElementById('cNotes').value   = '';
+    document.getElementById('cWeight').value         = '';
+    document.getElementById('cWeight').removeAttribute('max');
+    document.getElementById('cTxRate').value         = '';
+    document.getElementById('cDiscPrem').value       = '';
+    document.getElementById('cDpType').value         = 'PER_OZ';
+    document.getElementById('cExRate').value         = '3.6740';
+    document.getElementById('cMargin').value         = '';
+    document.getElementById('cNotes').value          = '';
+
+    // Reset mode UI — always start in standalone mode
+    document.getElementById('cModeStandaloneBtn').className = 'mode-btn mode-btn-active';
+    document.getElementById('cModeUnfixedBtn').className    = 'mode-btn';
+    document.getElementById('cStandaloneSection').style.display = '';
+    document.getElementById('cUnfixedSection').style.display    = 'none';
+    document.getElementById('cDiscPremGroup').style.display     = '';
+    document.getElementById('cDpTypeGroup').style.display       = '';
+    document.getElementById('cMarginGroup').style.display       = '';
+    document.getElementById('cPositionInfo').style.display      = 'none';
+    document.getElementById('cLockedPremRow').style.display     = 'none';
+    document.getElementById('cWeightHint').style.display        = 'none';
+    // Reset position type buttons to SALE default
+    document.getElementById('cPosSaleBtn').className     = 'pos-type-btn pos-type-sale-active';
+    document.getElementById('cPosPurchaseBtn').className = 'pos-type-btn';
+
     clearCalcCreate();
+    updateModalTitle();
     document.getElementById('createModal').classList.add('open');
 }
 function closeCreateModal() {
     document.getElementById('createModal').classList.remove('open');
+}
+function updateModalTitle() {
+    if (_createMode === 'unfixed') {
+        const isSale = _createPosType === 'UNFIXED_SALE';
+        const label  = isSale ? 'Sale Fix (SF)' : 'Purchase Fix (PF)';
+        document.getElementById('createModalTitle').innerHTML =
+            '<i class="fas fa-link" style="margin-right:8px"></i>Fix Unfixed Position — ' + label;
+        document.getElementById('createSaveBtnLabel').textContent =
+            'Post ' + label;
+    } else {
+        const isSale = document.getElementById('cFixType').value === 'SALE_FIX';
+        const label  = isSale ? 'Sale Fix (SF)' : 'Purchase Fix (PF)';
+        document.getElementById('createModalTitle').innerHTML =
+            '<i class="fas fa-scale-balanced" style="margin-right:8px"></i>New ' + label;
+        document.getElementById('createSaveBtnLabel').textContent = 'Create ' + label;
+    }
 }
 
 function recalcCreate() {
@@ -999,49 +1420,119 @@ function clearCalcCreate() {
 }
 
 async function submitCreate() {
-    const partyId  = document.getElementById('cParty').value;
-    const weight   = parseFloat(document.getElementById('cWeight').value);
-    const txRate   = parseFloat(document.getElementById('cTxRate').value);
+    const btn = document.getElementById('createSaveBtn');
 
-    if (!partyId) { Toast.show('Please select a party', 'error'); return; }
-    if (!weight || weight <= 0) { Toast.show('Weight must be > 0', 'error'); return; }
-    if (!txRate || txRate <= 0) { Toast.show('Deal rate must be > 0', 'error'); return; }
+    if (_createMode === 'unfixed') {
+        // ── UNFIXED POSITION FIX PATH ──────────────────────────────
+        if (!_selectedPosition) {
+            Toast.show('Please select a position', 'error'); return;
+        }
+        const weight = parseFloat(document.getElementById('cWeight').value);
+        const txRate = parseFloat(document.getElementById('cTxRate').value);
+        if (!weight || weight <= 0) { Toast.show('Weight must be > 0', 'error'); return; }
+        if (!txRate  || txRate  <= 0) { Toast.show('Deal rate must be > 0', 'error'); return; }
 
-    const party    = _parties.find(p => String(p.id) === String(partyId));
-    const btn      = document.getElementById('createSaveBtn');
-    btn.disabled   = true;
+        const maxW = _selectedPosition.remainingOpenWeightGrams || 0;
+        if (weight > maxW + 0.0001) {
+            Toast.show(`Weight exceeds remaining open weight (${fmtGrams(maxW)} g)`, 'error');
+            return;
+        }
 
-    const payload = {
-        businessId:          _bizId,
-        partyId:             Number(partyId),
-        partyName:           party ? party.name : '',
-        fixType:             document.getElementById('cFixType').value,
-        metalType:           document.getElementById('cMetalType').value,
-        purity:              (() => {
+        const isSale = _createPosType === 'UNFIXED_SALE';
+        btn.disabled = true;
+
+        const purity = (() => {
             const s = document.getElementById('cPurity').value;
             if (s === 'custom') return document.getElementById('cPurityCustom').value || null;
             return s || null;
-        })(),
-        weightGrams:         weight,
-        transactionRate:     txRate,
-        discountPremium:     parseFloat(document.getElementById('cDiscPrem').value) || 0,
-        discountPremiumType: document.getElementById('cDpType').value,
-        exchangeRate:        parseFloat(document.getElementById('cExRate').value) || 3.6740,
-        marginPercent:       parseFloat(document.getElementById('cMargin').value)  || null,
-        notes:               document.getElementById('cNotes').value.trim() || null,
-        createdBy:           Auth.getUserName() || null
-    };
+        })();
 
-    try {
-        await API.post('/api/metal-fixes', payload);
-        Toast.show('HPF created successfully', 'success');
-        closeCreateModal();
-        loadDashboard();
-        loadFixes();
-    } catch(e) {
-        Toast.show('Failed to create HPF: ' + (e.message || ''), 'error');
-    } finally {
-        btn.disabled = false;
+        const payload = {
+            businessId:           _bizId,
+            partyId:              isSale
+                    ? _selectedPosition.customerId
+                    : _selectedPosition.supplierId,
+            partyName:            isSale
+                    ? _selectedPosition.customerName
+                    : _selectedPosition.supplierName,
+            metalType:            document.getElementById('cMetalType').value,
+            purity:               purity,
+            weightGrams:          weight,
+            transactionRate:      txRate,
+            exchangeRate:         parseFloat(document.getElementById('cExRate').value) || 3.6740,
+            notes:                document.getElementById('cNotes').value.trim() || null,
+            createdBy:            Auth.getUserName() || null,
+            linkedTransactionType: _createPosType,
+        };
+        if (isSale) {
+            payload.linkedSaleId = _selectedPosition.id;
+        } else {
+            payload.linkedPurchaseId = _selectedPosition.id;
+        }
+
+        try {
+            const created = await API.post('/api/metal-fixes', payload);
+            const fixNumber = created && created.fixNumber ? created.fixNumber : 'Fix';
+            Toast.show(`${fixNumber} posted successfully`, 'success');
+            closeCreateModal();
+            // Clear cached positions — they've changed
+            _openSalePositions     = [];
+            _openPurchasePositions = [];
+            loadDashboard();
+            loadExposure();
+            loadFixes();
+        } catch(e) {
+            Toast.show('Failed: ' + (e.message || ''), 'error');
+        } finally {
+            btn.disabled = false;
+        }
+
+    } else {
+        // ── STANDALONE HPF PATH (unchanged) ───────────────────────
+        const partyId = document.getElementById('cParty').value;
+        const weight  = parseFloat(document.getElementById('cWeight').value);
+        const txRate  = parseFloat(document.getElementById('cTxRate').value);
+
+        if (!partyId) { Toast.show('Please select a party', 'error'); return; }
+        if (!weight || weight <= 0) { Toast.show('Weight must be > 0', 'error'); return; }
+        if (!txRate  || txRate  <= 0) { Toast.show('Deal rate must be > 0', 'error'); return; }
+
+        const party  = _parties.find(p => String(p.id) === String(partyId));
+        btn.disabled = true;
+
+        const payload = {
+            businessId:          _bizId,
+            partyId:             Number(partyId),
+            partyName:           party ? party.name : '',
+            fixType:             document.getElementById('cFixType').value,
+            metalType:           document.getElementById('cMetalType').value,
+            purity:              (() => {
+                const s = document.getElementById('cPurity').value;
+                if (s === 'custom') return document.getElementById('cPurityCustom').value || null;
+                return s || null;
+            })(),
+            weightGrams:         weight,
+            transactionRate:     txRate,
+            discountPremium:     parseFloat(document.getElementById('cDiscPrem').value) || 0,
+            discountPremiumType: document.getElementById('cDpType').value,
+            exchangeRate:        parseFloat(document.getElementById('cExRate').value) || 3.6740,
+            marginPercent:       parseFloat(document.getElementById('cMargin').value) || null,
+            notes:               document.getElementById('cNotes').value.trim() || null,
+            createdBy:           Auth.getUserName() || null
+        };
+
+        try {
+            const created = await API.post('/api/metal-fixes', payload);
+            const fixNumber = created && created.fixNumber ? created.fixNumber : 'Fix';
+            Toast.show(`${fixNumber} created successfully`, 'success');
+            closeCreateModal();
+            loadDashboard();
+            loadFixes();
+        } catch(e) {
+            Toast.show('Failed to create fix: ' + (e.message || ''), 'error');
+        } finally {
+            btn.disabled = false;
+        }
     }
 }
 
@@ -1097,11 +1588,23 @@ function openSettleModal(fixId) {
     const info = document.getElementById('smFixInfo');
     if (_activeFixData) {
         const f = _activeFixData;
-        info.innerHTML = `<strong>${escapeHtml(f.fixNumber)}</strong> · ${escapeHtml(f.partyName || '')} ·
+        const dpLabel = f.discountPremium && f.discountPremium != 0
+            ? ` · D/P: <strong>${f.discountPremium > 0 ? '+' : ''}${fmtNum(f.discountPremium, 2)}
+                ${f.discountPremiumType === 'PER_OZ' ? '$/oz' : '%'}</strong>
+                → eff. <strong>${fmtNum(f.effectiveRate, 2)} $/oz</strong>`
+            : '';
+        info.innerHTML = `
+            <div><strong>${escapeHtml(f.fixNumber)}</strong> ·
+            ${escapeHtml(f.partyName || '')} ·
             <span class="metal-chip ${f.metalType === 'GOLD' ? 'metal-GOLD' : 'metal-SILVER'}">${f.metalType}</span>
-            ${fmtGrams(f.weightGrams)} g · Deal ${fmtNum(f.transactionRate, 2)} $/oz
-            ${f.fixedRate ? `· <strong>Fixed @ ${fmtNum(f.fixedRate, 2)}</strong>` : ''}`;
-        document.getElementById('smRate').value  = f.fixedRate ? fmtNum(f.fixedRate, 2) : '';
+            ${fmtGrams(f.weightGrams)} g</div>
+            <div style="margin-top:4px;color:var(--text-muted)">
+                Deal rate: <strong>${fmtNum(f.transactionRate, 2)} $/oz</strong>${dpLabel}
+                · Est. AED: <strong>${fmtAed(f.totalAed)}</strong>
+            </div>`;
+        // Pre-fill rate field with the original transactionRate (not the effective rate)
+        // so the cashier knows what baseline to compare today's market rate against
+        document.getElementById('smRate').value  = f.transactionRate ? fmtNum(f.transactionRate, 2) : '';
         document.getElementById('scOrigAed').textContent = fmtAed(f.totalAed);
     } else {
         info.innerHTML = `Fix ID: ${fixId}`;
@@ -1120,19 +1623,37 @@ function closeSettleModal() {
 }
 
 function recalcSettle() {
-    const rate = parseFloat(document.getElementById('smRate').value)   || 0;
-    const ex   = parseFloat(document.getElementById('smExRate').value) || 3.6740;
-    if (!_activeFixData || !rate) {
+    const mktRate = parseFloat(document.getElementById('smRate').value)   || 0;
+    const ex      = parseFloat(document.getElementById('smExRate').value) || 3.6740;
+
+    const effRateEl = document.getElementById('scEffRate');
+    if (!_activeFixData || !mktRate) {
         document.getElementById('scSettleAed').textContent = '—';
         document.getElementById('scDiff').textContent      = '—';
+        if (effRateEl) effRateEl.textContent = '—';
         return;
     }
-    const w = _activeFixData.weightGrams;
-    const oz = w / TROY_OZ;
-    const settleAed = oz * rate * ex;
-    const origAed   = parseFloat(_activeFixData.totalAed) || 0;
-    const diff      = origAed - settleAed;
 
+    const w   = _activeFixData.weightGrams;
+    const oz  = w / TROY_OZ;
+    const dp  = parseFloat(_activeFixData.discountPremium)   || 0;
+    const dpt = _activeFixData.discountPremiumType || 'PER_OZ';
+
+    // Re-apply the same discount/premium as the original deal (mirrors backend computeEffectiveRate)
+    let effRate;
+    if (dpt === 'PERCENTAGE') {
+        effRate = mktRate * (1 + dp / 100);
+    } else {
+        effRate = mktRate + dp;  // PER_OZ — dp may be negative (discount)
+    }
+
+    const settleAed = oz * effRate * ex;
+    const origAed   = parseFloat(_activeFixData.totalAed) || 0;
+    // diff = origAed − settleAed: positive = CR (estimate was higher → party "saves")
+    //                              negative = DR (estimate was lower  → party pays more)
+    const diff = origAed - settleAed;
+
+    if (effRateEl) effRateEl.textContent = fmtNum(effRate, 2) + ' $/oz';
     document.getElementById('scSettleAed').textContent = fmtAed(settleAed);
     document.getElementById('scOrigAed').textContent   = fmtAed(origAed);
     const diffEl = document.getElementById('scDiff');
@@ -1165,6 +1686,388 @@ async function submitSettle() {
     } catch(e) {
         Toast.show('Failed: ' + (e.message || ''), 'error');
     }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STAGE 4 — OPEN UNFIXED POSITION EXPOSURE DASHBOARD
+   ══════════════════════════════════════════════════════════════ */
+
+let _exposureData = null;   // last fetched exposure payload
+let _expTabActive = 'sale'; // 'sale' | 'purchase'
+
+/* ── Collapse / expand the exposure card ──────────────────────── */
+function toggleExposureCard() {
+    const body    = document.getElementById('exposureBody');
+    const chevron = document.getElementById('exposureChevron');
+    const hidden  = body.style.display === 'none';
+    body.style.display  = hidden ? '' : 'none';
+    chevron.className   = hidden
+        ? 'fas fa-chevron-down exp-chevron-open'
+        : 'fas fa-chevron-down exp-chevron-closed';
+}
+
+/* ── Tab switch ────────────────────────────────────────────────── */
+function switchExpTab(tab) {
+    _expTabActive = tab;
+    document.getElementById('expTabSale').className     = 'exp-tab' + (tab === 'sale'     ? ' exp-tab-active' : '');
+    document.getElementById('expTabPurchase').className = 'exp-tab' + (tab === 'purchase' ? ' exp-tab-active' : '');
+    document.getElementById('expSalePanel').style.display     = tab === 'sale'     ? '' : 'none';
+    document.getElementById('expPurchasePanel').style.display = tab === 'purchase' ? '' : 'none';
+}
+
+/* ── Main load function ────────────────────────────────────────── */
+async function loadExposure() {
+    const icon = document.getElementById('exposureRefreshIcon');
+    if (icon) icon.className = 'fas fa-circle-notch fa-spin';
+
+    const ozRate = parseFloat(document.getElementById('expOzRate').value) || null;
+    const xRate  = parseFloat(document.getElementById('expXRate').value)  || null;
+
+    let url = `/api/metal-fixes/exposure?businessId=${_bizId}`;
+    if (ozRate) url += `&ozRate=${ozRate}`;
+    if (xRate)  url += `&exchangeRate=${xRate}`;
+
+    try {
+        const d = await API.get(url);
+        _exposureData = d;
+        renderExposureStats(d);
+        renderExposureSaleTable(d.openSalePositions     || [], ozRate, xRate || 3.6740);
+        renderExposurePurchaseTable(d.openPurchasePositions || [], ozRate, xRate || 3.6740);
+    } catch(e) {
+        console.error('Exposure load failed', e);
+    } finally {
+        if (icon) icon.className = 'fas fa-rotate';
+    }
+}
+
+/* ── Refresh only the AED columns when the rate inputs change ──── */
+function refreshExposureAed() {
+    loadExposure();
+}
+
+/* ── Render aggregate stat cards ───────────────────────────────── */
+function renderExposureStats(d) {
+    const saleG     = d.totalOpenSaleWeightGrams     ?? 0;
+    const purchaseG = d.totalOpenPurchaseWeightGrams ?? 0;
+    const netG      = d.netOpenWeightGrams           ?? 0;
+
+    document.getElementById('expSaleGrams').textContent     = fmtGrams(saleG) + ' g';
+    document.getElementById('expPurchaseGrams').textContent = fmtGrams(purchaseG) + ' g';
+
+    // Net position value + colour
+    const netEl    = document.getElementById('expNetGrams');
+    const netLabel = document.getElementById('expNetLabel');
+    netEl.textContent = (netG >= 0 ? '+' : '') + fmtGrams(netG) + ' g';
+    if (netG > 0.001) {
+        netEl.className   = 'mf-stat-value net-positive';
+        netLabel.textContent = 'Net AED inflow position';
+    } else if (netG < -0.001) {
+        netEl.className   = 'mf-stat-value net-negative';
+        netLabel.textContent = 'Net AED outflow position';
+    } else {
+        netEl.className   = 'mf-stat-value net-zero';
+        netLabel.textContent = 'Flat — fully hedged';
+    }
+
+    // AED sub-labels (only when estimate available)
+    if (d.estimatedSaleAed != null) {
+        document.getElementById('expSaleAed').textContent     = fmtAed(d.estimatedSaleAed)     + ' est.';
+        document.getElementById('expPurchaseAed').textContent = fmtAed(d.estimatedPurchaseAed) + ' est.';
+    } else {
+        document.getElementById('expSaleAed').textContent     = (d.openSaleCount ?? 0)     + ' position(s)';
+        document.getElementById('expPurchaseAed').textContent = (d.openPurchaseCount ?? 0) + ' position(s)';
+    }
+
+    // Count badges on tabs
+    document.getElementById('expSaleCountBadge').textContent     = d.openSaleCount     ?? 0;
+    document.getElementById('expPurchaseCountBadge').textContent = d.openPurchaseCount ?? 0;
+}
+
+/* ── Render sale positions table ───────────────────────────────── */
+function renderExposureSaleTable(positions, ozRate, xRate) {
+    const tbody = document.getElementById('expSaleTbody');
+    const empty = document.getElementById('expSaleEmpty');
+
+    if (!positions.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = positions.map(p => {
+        const remaining = p.remainingOpenWeightGrams ?? 0;
+        const oz        = remaining / 31.1035;
+        const prem      = p.agreedPremiumDiscount != null ? parseFloat(p.agreedPremiumDiscount) : null;
+        let estAed = '—';
+        if (ozRate && ozRate > 0) {
+            const effRate = prem != null ? ozRate + prem : ozRate;
+            estAed = fmtAed(oz * effRate * (xRate || 3.6740));
+        }
+        return `<tr>
+            <td><strong>${escapeHtml(p.receiptNumber || '—')}</strong></td>
+            <td>${escapeHtml(p.customerName || '—')}</td>
+            <td class="num">${fmtGrams(p.pureWeightGrams)}</td>
+            <td class="num" style="font-weight:600;color:var(--primary)">${fmtGrams(remaining)}</td>
+            <td class="num">${prem != null
+                ? (prem >= 0 ? '+' : '') + fmtNum(prem, 2)
+                : '<span style="color:var(--text-muted)">—</span>'}</td>
+            <td class="num">${estAed}</td>
+            <td style="color:var(--text-muted)">${fmtShort(p.createdAt)}</td>
+            <td style="text-align:center">
+                <button class="btn btn-sm"
+                        style="background:#e0e7ff;color:#3730a3;border:none;
+                               padding:3px 10px;font-size:0.7rem;white-space:nowrap"
+                        onclick="openCreateModalFromPosition(${p.id},'UNFIXED_SALE')"
+                        title="Create a fix for this position">
+                    <i class="fas fa-scale-balanced"></i> Fix
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/* ── Render purchase positions table ───────────────────────────── */
+function renderExposurePurchaseTable(positions, ozRate, xRate) {
+    const tbody = document.getElementById('expPurchaseTbody');
+    const empty = document.getElementById('expPurchaseEmpty');
+
+    if (!positions.length) {
+        tbody.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+    }
+    empty.style.display = 'none';
+
+    tbody.innerHTML = positions.map(p => {
+        const remaining = p.remainingOpenWeightGrams ?? 0;
+        const oz        = remaining / 31.1035;
+        const prem      = p.agreedPremiumDiscount != null ? parseFloat(p.agreedPremiumDiscount) : null;
+        let estAed = '—';
+        if (ozRate && ozRate > 0) {
+            const effRate = prem != null ? ozRate + prem : ozRate;
+            estAed = fmtAed(oz * effRate * (xRate || 3.6740));
+        }
+        return `<tr>
+            <td><strong>${escapeHtml(p.invoiceNumber || '—')}</strong></td>
+            <td>${escapeHtml(p.supplierName || '—')}</td>
+            <td class="num">${fmtGrams(p.pureWeightGrams)}</td>
+            <td class="num" style="font-weight:600;color:var(--primary)">${fmtGrams(remaining)}</td>
+            <td class="num">${prem != null
+                ? (prem >= 0 ? '+' : '') + fmtNum(prem, 2)
+                : '<span style="color:var(--text-muted)">—</span>'}</td>
+            <td class="num">${estAed}</td>
+            <td style="color:var(--text-muted)">${fmtShort(p.purchaseDate)}</td>
+            <td style="text-align:center">
+                <button class="btn btn-sm"
+                        style="background:#dbeafe;color:#1d4ed8;border:none;
+                               padding:3px 10px;font-size:0.7rem;white-space:nowrap"
+                        onclick="openCreateModalFromPosition(${p.id},'UNFIXED_PURCHASE')"
+                        title="Create a fix for this position">
+                    <i class="fas fa-scale-balanced"></i> Fix
+                </button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STAGE 5 — UNFIXED POSITION FLOW IN CREATE MODAL
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Mode switch ────────────────────────────────────────────────── */
+function setCreateMode(mode) {
+    _createMode = mode;
+    const isUnfixed = mode === 'unfixed';
+
+    document.getElementById('cModeStandaloneBtn').className =
+        'mode-btn' + (!isUnfixed ? ' mode-btn-active' : '');
+    document.getElementById('cModeUnfixedBtn').className =
+        'mode-btn' + (isUnfixed ? ' mode-btn-active' : '');
+
+    document.getElementById('cStandaloneSection').style.display = isUnfixed ? 'none' : '';
+    document.getElementById('cUnfixedSection').style.display    = isUnfixed ? ''     : 'none';
+
+    // Disc/prem + D/P type are locked in unfixed mode (premium comes from the position)
+    document.getElementById('cDiscPremGroup').style.display = isUnfixed ? 'none' : '';
+    document.getElementById('cDpTypeGroup').style.display   = isUnfixed ? 'none' : '';
+    // Margin is not applicable for position fixes
+    document.getElementById('cMarginGroup').style.display   = isUnfixed ? 'none' : '';
+
+    if (isUnfixed) {
+        _selectedPosition = null;
+        document.getElementById('cPositionInfo').style.display  = 'none';
+        document.getElementById('cLockedPremRow').style.display = 'none';
+        document.getElementById('cWeightHint').style.display    = 'none';
+        loadPositionPickerForMode();
+    } else {
+        document.getElementById('cDiscPrem').value = '';
+        document.getElementById('cDpType').value   = 'PER_OZ';
+        document.getElementById('cMargin').value   = '';
+    }
+
+    updateModalTitle();
+    clearCalcCreate();
+}
+
+/* ── Position type toggle ────────────────────────────────────────── */
+function setPositionType(type) {
+    _createPosType    = type;
+    _selectedPosition = null;
+
+    const isSale = type === 'UNFIXED_SALE';
+    document.getElementById('cPosSaleBtn').className =
+        'pos-type-btn' + (isSale  ? ' pos-type-sale-active'     : '');
+    document.getElementById('cPosPurchaseBtn').className =
+        'pos-type-btn' + (!isSale ? ' pos-type-purchase-active' : '');
+
+    document.getElementById('cPositionInfo').style.display  = 'none';
+    document.getElementById('cLockedPremRow').style.display = 'none';
+    document.getElementById('cWeightHint').style.display    = 'none';
+    clearCalcCreate();
+
+    loadPositionPickerForMode();
+    updateModalTitle();
+}
+
+/* ── Load position dropdown from API ────────────────────────────── */
+async function loadPositionPickerForMode() {
+    const sel = document.getElementById('cPositionSelect');
+    sel.innerHTML = '<option value="">— Loading… —</option>';
+    sel.disabled  = true;
+
+    try {
+        if (_createPosType === 'UNFIXED_SALE') {
+            // Use cached list if available (cleared on modal open and after successful post)
+            if (!_openSalePositions.length) {
+                _openSalePositions = await API.get(
+                    `/api/metal-fixes/unfixed-sales?businessId=${_bizId}`
+                ).catch(() => []);
+            }
+            populatePositionDropdown(_openSalePositions, 'receiptNumber', 'customerName');
+        } else {
+            if (!_openPurchasePositions.length) {
+                _openPurchasePositions = await API.get(
+                    `/api/metal-fixes/unfixed-purchases?businessId=${_bizId}`
+                ).catch(() => []);
+            }
+            populatePositionDropdown(_openPurchasePositions, 'invoiceNumber', 'supplierName');
+        }
+    } catch(e) {
+        sel.innerHTML = '<option value="">— Failed to load positions —</option>';
+    } finally {
+        sel.disabled = false;
+    }
+}
+
+function populatePositionDropdown(positions, refField, nameField) {
+    const sel = document.getElementById('cPositionSelect');
+    if (!positions.length) {
+        sel.innerHTML = '<option value="">— No open positions —</option>';
+        return;
+    }
+    sel.innerHTML = '<option value="">— Select a position —</option>' +
+        positions.map(p => {
+            const rem  = Number(p.remainingOpenWeightGrams || 0).toFixed(3);
+            const ref  = p[refField]  || '—';
+            const name = p[nameField] || '—';
+            return `<option value="${p.id}">${escapeHtml(ref)} · ${escapeHtml(name)} · ${rem} g</option>`;
+        }).join('');
+}
+
+/* ── Position selected ───────────────────────────────────────────── */
+function onPositionSelected() {
+    const posId = document.getElementById('cPositionSelect').value;
+    if (!posId) {
+        _selectedPosition = null;
+        document.getElementById('cPositionInfo').style.display  = 'none';
+        document.getElementById('cLockedPremRow').style.display = 'none';
+        document.getElementById('cWeightHint').style.display    = 'none';
+        clearCalcCreate();
+        return;
+    }
+
+    const pool = _createPosType === 'UNFIXED_SALE'
+            ? _openSalePositions : _openPurchasePositions;
+    const pos = pool.find(p => String(p.id) === String(posId));
+    if (!pos) return;
+
+    _selectedPosition = pos;
+    const isSale    = _createPosType === 'UNFIXED_SALE';
+    const remaining = pos.remainingOpenWeightGrams || 0;
+    const prem      = pos.agreedPremiumDiscount != null
+            ? parseFloat(pos.agreedPremiumDiscount) : null;
+
+    // ── Position info box
+    document.getElementById('cPositionInfo').style.display = '';
+    document.getElementById('cPositionInfo').innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px">
+            <div><span style="color:var(--text-muted)">${isSale ? 'Receipt' : 'Invoice'}:</span>
+                 <strong>${escapeHtml(isSale ? pos.receiptNumber : pos.invoiceNumber || '—')}</strong></div>
+            <div><span style="color:var(--text-muted)">${isSale ? 'Customer' : 'Supplier'}:</span>
+                 <strong>${escapeHtml(isSale ? pos.customerName : pos.supplierName || '—')}</strong></div>
+            <div><span style="color:var(--text-muted)">Remaining:</span>
+                 <strong style="color:var(--primary)">${fmtGrams(remaining)} g</strong></div>
+            <div><span style="color:var(--text-muted)">Orig. Weight:</span>
+                 <strong>${fmtGrams(pos.pureWeightGrams || 0)} g</strong></div>
+        </div>`;
+
+    // ── Locked premium
+    if (prem !== null) {
+        document.getElementById('cLockedPremRow').style.display = '';
+        document.getElementById('cLockedPremValue').textContent =
+            (prem >= 0 ? '+' : '') + fmtNum(prem, 2) + ' $/oz  (cannot be changed)';
+        // Keep hidden fields in sync for recalcCreate()
+        document.getElementById('cDiscPrem').value = prem;
+        document.getElementById('cDpType').value   = 'PER_OZ';
+    } else {
+        document.getElementById('cLockedPremRow').style.display = 'none';
+        document.getElementById('cDiscPrem').value = '0';
+        document.getElementById('cDpType').value   = 'PER_OZ';
+    }
+
+    // ── Pre-fill weight + max cap
+    document.getElementById('cWeight').value = remaining.toFixed(3);
+    document.getElementById('cWeight').max   = remaining;
+    document.getElementById('cWeightHint').style.display = '';
+    document.getElementById('cWeightHint').textContent =
+        `Max: ${fmtGrams(remaining)} g (full remaining open weight)`;
+
+    recalcCreate();
+}
+
+/* ── Open modal pre-wired to a specific position ─────────────────── */
+async function openCreateModalFromPosition(posId, posType) {
+    // Open and reset the modal first (sets _createMode = 'standalone')
+    openCreateModal();
+
+    // Now switch to unfixed mode with the correct position type
+    _createMode    = 'unfixed';
+    _createPosType = posType;
+
+    // Update mode toggle UI
+    document.getElementById('cModeStandaloneBtn').className = 'mode-btn';
+    document.getElementById('cModeUnfixedBtn').className    = 'mode-btn mode-btn-active';
+    document.getElementById('cStandaloneSection').style.display = 'none';
+    document.getElementById('cUnfixedSection').style.display    = '';
+    document.getElementById('cDiscPremGroup').style.display     = 'none';
+    document.getElementById('cDpTypeGroup').style.display       = 'none';
+    document.getElementById('cMarginGroup').style.display       = 'none';
+
+    // Update position type buttons
+    const isSale = posType === 'UNFIXED_SALE';
+    document.getElementById('cPosSaleBtn').className =
+        'pos-type-btn' + (isSale  ? ' pos-type-sale-active'     : '');
+    document.getElementById('cPosPurchaseBtn').className =
+        'pos-type-btn' + (!isSale ? ' pos-type-purchase-active' : '');
+
+    updateModalTitle();
+
+    // Load the position list then auto-select the target position
+    await loadPositionPickerForMode();
+    const sel = document.getElementById('cPositionSelect');
+    sel.value = String(posId);
+    onPositionSelected();
 }
 
 /* ── Formatters ──────────────────────────────────────────────── */

@@ -55,6 +55,11 @@ public class Product {
     @Column
     private String imagePath;
 
+    /** Product class: "BULLION" (investment-grade bars/coins) or "JEWELLERY" (fabricated pieces).
+     *  Used for product organization and filtering only — does NOT drive VAT logic. */
+    @Column(name = "product_class", nullable = false)
+    private String productClass = "JEWELLERY";
+
     /** True for scrap gold/silver items — purity entered per-transaction */
     @Column(nullable = false)
     private boolean isScrap = false;
@@ -124,6 +129,9 @@ public class Product {
 
     public String getImagePath() { return imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath; }
+
+    public String getProductClass() { return productClass; }
+    public void setProductClass(String productClass) { this.productClass = productClass != null ? productClass : "JEWELLERY"; }
 
     public boolean isScrap() { return isScrap; }
     public void setScrap(boolean scrap) { this.isScrap = scrap; }

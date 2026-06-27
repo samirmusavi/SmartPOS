@@ -105,6 +105,19 @@ public class PurchaseService {
         if (body.get("exchangeRate") != null)
             p.setExchangeRate(bd(body.get("exchangeRate"), new BigDecimal("3.6740")));
 
+        // Premium / discount totals (from the bullion price calculator)
+        p.setPremiumAmount(bd(body.get("premiumAmount"), BigDecimal.ZERO));
+        p.setDiscountAmount(bd(body.get("discountAmount"), BigDecimal.ZERO));
+        // Optional staff rounding adjustment
+        p.setRoundOffAmount(bd(body.get("roundOffAmount"), BigDecimal.ZERO));
+
+        // ── Unfixed pricing fields (Stage 2) ───────────────────────────────────────
+        String opm = "UNFIXED_AT_TRADE".equals(str(body.get("originalPricingMethod"), "FIXED_AT_TRADE"))
+                ? "UNFIXED_AT_TRADE" : "FIXED_AT_TRADE";
+        p.setOriginalPricingMethod(opm);
+        BigDecimal agreedPremiumDiscount = bd(body.get("agreedPremiumDiscount"), null);
+        p.setAgreedPremiumDiscount(agreedPremiumDiscount);
+
         p.setCreatedBy(str(body.get("createdBy"), null));
 
         // ── 2. Generate invoice number ────────────────────────
@@ -124,13 +137,66 @@ public class PurchaseService {
             savedItems.add(itemRepo.save(item));
         }
 
-        // ── Party ledger: post entry when purchase is linked to a supplier party ──
-        if (saved.getSupplierId() != null) {
-            supplierRepository.findById(saved.getSupplierId()).ifPresent(party ->
-                    partyLedgerService.postPurchaseEntry(saved, party));
+        // ── Unfixed weight fields: compute server-side from items ─────────────────
+        if ("UNFIXED_AT_TRADE".equals(opm)) {
+            double totalGrossGrams = 0.0;
+            String dominantPurity  = null;
+            for (PurchaseItem item : savedItems) {
+                double grams = 0.0;
+                if ("GRAM".equalsIgnoreCase(item.getUnitType())) {
+                    grams = item.getWeightGrams() != null ? item.getWeightGrams() : item.getQuantity();
+                } else if (item.getWeightGrams() != null && item.getWeightGrams() > 0) {
+                    grams = item.getWeightGrams();
+                }
+                totalGrossGrams += grams;
+                if (dominantPurity == null
+                        && item.getPurity() != null && !item.getPurity().isBlank()) {
+                    dominantPurity = item.getPurity();
+                }
+            }
+            String purity = dominantPurity != null ? dominantPurity : "995";
+            double purityFactor = 1.0;
+            try { purityFactor = Double.parseDouble(purity) / 1000.0; }
+            catch (NumberFormatException ignored) {}
+            double pureGrams = totalGrossGrams * purityFactor;
+
+            saved.setGrossWeightGrams(totalGrossGrams > 0 ? totalGrossGrams : null);
+            saved.setPureWeightGrams(pureGrams > 0 ? pureGrams : null);
+            saved.setRemainingOpenWeightGrams(pureGrams > 0 ? pureGrams : null);
+            saved.setFixingCompletionStatus("OPEN");
+            saved = purchaseRepo.save(saved);
+        } else {
+            // FIXED_AT_TRADE: still record gross weight for reference; status stays NOT_APPLICABLE
+            double totalGrossGrams = 0.0;
+            for (PurchaseItem item : savedItems) {
+                double grams = 0.0;
+                if ("GRAM".equalsIgnoreCase(item.getUnitType())) {
+                    grams = item.getWeightGrams() != null ? item.getWeightGrams() : item.getQuantity();
+                } else if (item.getWeightGrams() != null && item.getWeightGrams() > 0) {
+                    grams = item.getWeightGrams();
+                }
+                totalGrossGrams += grams;
+            }
+            if (totalGrossGrams > 0) {
+                saved.setGrossWeightGrams(totalGrossGrams);
+                saved = purchaseRepo.save(saved);
+            }
         }
 
-        return toResponse(saved, savedItems);
+        // ── Party ledger: post entry when purchase is linked to a supplier party ──
+        final Purchase finalSaved = saved;
+        if (finalSaved.getSupplierId() != null) {
+            supplierRepository.findById(finalSaved.getSupplierId()).ifPresent(party -> {
+                if ("UNFIXED_AT_TRADE".equals(opm)) {
+                    // Metal received now; AED deferred until Fixing — post metal-only entry
+                    partyLedgerService.postUnfixedPurchaseEntry(finalSaved, party);
+                } else {
+                    partyLedgerService.postPurchaseEntry(finalSaved, party);
+                }
+            });
+        }
+
+        return toResponse(finalSaved, savedItems);
     }
 
     // ── List purchases ────────────────────────────────────────
@@ -436,7 +502,16 @@ public class PurchaseService {
         m.put("goldPaymentOzRate",      p.getGoldPaymentOzRate());
         m.put("goldPaymentValue",       p.getGoldPaymentValue());
         m.put("cashAmountPaid",         p.getCashAmountPaid());
-        m.put("createdBy",              p.getCreatedBy());
+        m.put("premiumAmount",              p.getPremiumAmount());
+        m.put("discountAmount",             p.getDiscountAmount());
+        m.put("roundOffAmount",             p.getRoundOffAmount());
+        m.put("originalPricingMethod",      p.getOriginalPricingMethod());
+        m.put("fixingCompletionStatus",     p.getFixingCompletionStatus());
+        m.put("grossWeightGrams",           p.getGrossWeightGrams());
+        m.put("pureWeightGrams",            p.getPureWeightGrams());
+        m.put("agreedPremiumDiscount",      p.getAgreedPremiumDiscount());
+        m.put("remainingOpenWeightGrams",   p.getRemainingOpenWeightGrams());
+        m.put("createdBy",                  p.getCreatedBy());
         m.put("createdAt",     p.getCreatedAt() != null
                 ? p.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss")) : null);
         return m;

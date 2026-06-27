@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -340,6 +340,39 @@
     </div>
 </div>
 
+<!-- PROMOTE-TO-CUSTOMER CONFIRM MODAL -->
+<div class="modal-overlay" id="promoteModal">
+    <div class="modal" style="max-width:420px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-user-plus" style="margin-right:8px;color:#065f46"></i>Add as Customer?</span>
+            <button class="modal-close" onclick="Modal.close('promoteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="text-align:center">
+            <div class="empty-state-icon"
+                 style="background:#d1fae5;color:#065f46;margin:0 auto 16px">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="empty-state-title mb-2">
+                Add <strong id="promoteSupplierName"></strong> as a Customer?
+            </div>
+            <div class="empty-state-text">
+                They will appear in both <strong>Suppliers</strong> and
+                <strong>Customers</strong> lists, and in Parties as
+                <em>Both</em>. This action does not affect any existing data.
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="Modal.close('promoteModal')">Cancel</button>
+            <button class="btn btn-sm" id="promoteConfirmBtn"
+                    style="background:#065f46;color:#fff;border:none;padding:8px 18px;border-radius:var(--radius-md)">
+                <i class="fas fa-user-plus"></i> Yes, Add as Customer
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- DELETE MODAL -->
 <div class="modal-overlay" id="deleteModal">
     <div class="modal" style="max-width:400px">
@@ -442,7 +475,7 @@
             <tr>
                 <td class="text-muted">${i + 1}</td>
                 <td>
-                    <div class="cell-primary">${s.name}${s.linkedCustomerId ? '<span class="badge badge-info" style="margin-left:6px;font-size:0.6rem"><i class="fas fa-user"></i> Customer</span>' : ''}</div>
+                    <div class="cell-primary">${s.name}${s.isCustomer ? '<span class="badge badge-info" style="margin-left:6px;font-size:0.6rem"><i class="fas fa-user"></i> Customer</span>' : ''}</div>
                     ${s.notes
             ? `<div class="text-xs text-muted" style="margin-top:2px">
                                ${s.notes.length > 40
@@ -487,6 +520,12 @@
                                 onclick="openEdit(${s.id})" title="Edit">
                             <i class="fas fa-edit"></i>
                         </button>
+                        ${!s.isCustomer ? `<button class="btn btn-sm btn-icon-only"
+                                style="background:#d1fae5;color:#065f46;border:none"
+                                onclick="openPromoteToCustomer(${s.id}, '${escapeHtml(s.name)}')"
+                                title="Also add as Customer">
+                            <i class="fas fa-user-plus"></i>
+                        </button>` : ''}
                         <button class="btn btn-danger btn-sm btn-icon-only"
                                 onclick="openDelete(${s.id}, '${escapeHtml(s.name)}')"
                                 title="Delete">
@@ -731,6 +770,34 @@
             await loadData();
             openEdit(supplierId);
         } catch (e) { Toast.error(e.message || 'Failed to unlink.'); }
+    }
+
+    // ── Promote-to-Customer ──────────────────────────────────────────────
+    let _promoteId   = null;
+    let _promoteName = null;
+
+    function openPromoteToCustomer(id, name) {
+        _promoteId   = id;
+        _promoteName = name;
+        document.getElementById('promoteSupplierName').textContent = name;
+        document.getElementById('promoteConfirmBtn').onclick = confirmPromoteToCustomer;
+        Modal.open('promoteModal');
+    }
+
+    async function confirmPromoteToCustomer() {
+        const btn = document.getElementById('promoteConfirmBtn');
+        btn.disabled = true;
+        try {
+            await API.put(`${SUPPLIER_API}/${_promoteId}/promote-to-customer`, {});
+            Modal.close('promoteModal');
+            Toast.success(`${_promoteName} is now also a Customer`);
+            _promoteId = _promoteName = null;
+            loadData();
+        } catch (e) {
+            Toast.error(e.message || 'Failed to promote to customer.');
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     loadData();

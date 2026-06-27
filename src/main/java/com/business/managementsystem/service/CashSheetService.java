@@ -185,6 +185,38 @@ public class CashSheetService {
         }
     }
 
+    // ── Sync Purchase data into cash entries for the given date ──
+    @Transactional
+    public void syncFromPurchase(Long businessId, Long branchId, LocalDate date) {
+        // Ensure day sheet exists
+        getOrCreateDaySheet(businessId, branchId, date);
+
+        // Delete only PURCHASE type entries — leave SALE / EXPENSE / RETURN untouched
+        entryRepo.deleteSyncedEntriesByDate(businessId, branchId, date,
+                List.of(CashEntry.EntryType.PURCHASE));
+
+        LocalDateTime from = date.atStartOfDay();
+        LocalDateTime to   = date.plusDays(1).atStartOfDay();
+
+        // Place new purchase entries after whatever is already there
+        int seq = entryRepo.findMaxSortOrderByDate(businessId, branchId, date) + 1;
+
+        // ── Cash purchases (payment out to supplier) ──────────────
+        List<Purchase> purchases = purchaseRepo
+                .findCashPurchasesByBranchAndDateRange(businessId, branchId, from, to);
+        for (Purchase pur : purchases) {
+            String party = pur.getSupplierName() != null ? pur.getSupplierName() : "Supplier";
+            String desc  = pur.getInvoiceNumber() != null ? pur.getInvoiceNumber() : "Purchase";
+
+            entryRepo.save(new CashEntry(
+                    businessId, branchId, date,
+                    party, desc,
+                    BigDecimal.ZERO, pur.getTotalAmount(),
+                    CashEntry.EntryType.PURCHASE, pur.getId(),
+                    seq++, null));
+        }
+    }
+
     // ── Add a manual entry (auto-detect type) ────────────────────
     @Transactional
     public CashEntry addManualEntry(Long businessId, Long branchId, LocalDate date,

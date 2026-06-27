@@ -153,6 +153,15 @@ public class CustomerController {
                         getBusinessId(h), id));
     }
 
+    // PUT /api/customers/{id}/promote-to-supplier
+    // One-click "Also add as Supplier" — handles both negative and positive IDs
+    @PutMapping("/{id}/promote-to-supplier")
+    public ResponseEntity<Map<String, Object>> promoteToSupplier(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        return ResponseEntity.ok(customerService.promoteToSupplier(id, getBusinessId(h)));
+    }
+
     // PUT /api/customers/{id}/link-supplier/{supplierId}
     @PutMapping("/{id}/link-supplier/{supplierId}")
     public ResponseEntity<Map<String, Object>> linkSupplier(

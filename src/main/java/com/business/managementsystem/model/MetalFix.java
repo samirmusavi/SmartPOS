@@ -105,6 +105,17 @@ public class MetalFix {
     @Column(name = "linked_purchase_id")
     private Long linkedPurchaseId;
 
+    /**
+     * NULL              = standalone HPF (existing behaviour, unchanged)
+     * UNFIXED_SALE      = this fix prices an open weight from an UNFIXED_AT_TRADE SaleTransaction
+     * UNFIXED_PURCHASE  = this fix prices an open weight from an UNFIXED_AT_TRADE Purchase
+     *
+     * When set, the fix is IMMUTABLE (posted directly as FIXED; no settle lifecycle).
+     * The ledger entry posts AED only — metal was already posted at trade time.
+     */
+    @Column(name = "linked_transaction_type", length = 20)
+    private String linkedTransactionType;
+
     @Column(name = "notes", columnDefinition = "TEXT")
     private String notes;
 
@@ -145,9 +156,10 @@ public class MetalFix {
     public LocalDate   getFixedDate()           { return fixedDate; }
     public BigDecimal  getSettlementAmount()    { return settlementAmount; }
     public LocalDate   getSettlementDate()      { return settlementDate; }
-    public Long        getLinkedSaleId()        { return linkedSaleId; }
-    public Long        getLinkedPurchaseId()    { return linkedPurchaseId; }
-    public String      getNotes()               { return notes; }
+    public Long        getLinkedSaleId()          { return linkedSaleId; }
+    public Long        getLinkedPurchaseId()      { return linkedPurchaseId; }
+    public String      getLinkedTransactionType() { return linkedTransactionType; }
+    public String      getNotes()                 { return notes; }
     public LocalDateTime getCreatedAt()         { return createdAt; }
     public LocalDateTime getUpdatedAt()         { return updatedAt; }
     public String      getCreatedBy()           { return createdBy; }
@@ -175,8 +187,9 @@ public class MetalFix {
     public void setFixedDate(LocalDate v)      { this.fixedDate           = v; }
     public void setSettlementAmount(BigDecimal v){ this.settlementAmount  = v; }
     public void setSettlementDate(LocalDate v) { this.settlementDate      = v; }
-    public void setLinkedSaleId(Long v)        { this.linkedSaleId        = v; }
-    public void setLinkedPurchaseId(Long v)    { this.linkedPurchaseId    = v; }
-    public void setNotes(String v)             { this.notes               = v; }
+    public void setLinkedSaleId(Long v)             { this.linkedSaleId           = v; }
+    public void setLinkedPurchaseId(Long v)         { this.linkedPurchaseId       = v; }
+    public void setLinkedTransactionType(String v)  { this.linkedTransactionType  = v; }
+    public void setNotes(String v)                  { this.notes                  = v; }
     public void setCreatedBy(String v)         { this.createdBy           = v; }
 }

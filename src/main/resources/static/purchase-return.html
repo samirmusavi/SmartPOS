@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -695,10 +695,10 @@
                     <span class="text-xs text-muted" style="white-space:nowrap">
                         of ${remaining} ${unitLabel} available
                     </span>
-                    <span class="font-semibold text-sm"
-                          style="color:var(--warning);margin-left:auto"
+                    <span class="font-semibold"
+                          style="color:var(--warning);margin-left:auto;font-size:0.72rem;white-space:nowrap"
                           id="itemRecoveredPreview_${id}">
-                        ${Format.currency(ppu)}
+                        1 ${unitLabel} &times; AED ${fmt(ppu)} each = AED ${fmt(ppu)}
                     </span>
                 </div>
             </div>`;
@@ -715,8 +715,9 @@
             card.classList.add('selected');
             checkIcon.style.display = 'block';
             returnSelections[id] = { qty: 1, remaining, ppu, productName, unitType, weightGrams, originalQty };
+            const unitLbl = unitType === 'GRAM' ? 'g' : 'pc';
             document.getElementById(`itemRecoveredPreview_${id}`).textContent =
-                Format.currency(ppu);
+                `1 ${unitLbl} × AED ${fmt(ppu)} each = AED ${fmt(ppu)}`;
         }
         updateSharedFormVisibility();
         updateTotalRecoveredPreview();
@@ -730,8 +731,9 @@
         if (qty > max) qty = max;
         input.value = qty;
         if (returnSelections[id]) returnSelections[id].qty = qty;
+        const unitLbl = returnSelections[id] && returnSelections[id].unitType === 'GRAM' ? 'g' : 'pc';
         document.getElementById(`itemRecoveredPreview_${id}`).textContent =
-            Format.currency(qty * ppu);
+            `${qty} ${unitLbl} × AED ${fmt(ppu)} each = AED ${fmt(qty * ppu)}`;
         updateTotalRecoveredPreview();
     }
 
@@ -875,6 +877,16 @@
     }
 
     loadReturns();
+
+    // Fix 2: if ?invoice= URL param is present, auto-open return modal for that invoice
+    (function checkInvoiceParam() {
+        const params = new URLSearchParams(window.location.search);
+        const inv    = params.get('invoice');
+        if (!inv) return;
+        openNewReturnModal();
+        document.getElementById('returnInvoiceInput').value = inv.toUpperCase();
+        lookupInvoiceForReturn();
+    })();
 </script>
 </body>
 </html>

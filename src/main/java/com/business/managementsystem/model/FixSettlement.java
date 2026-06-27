@@ -63,6 +63,14 @@ public class FixSettlement {
     @Column(name = "difference_cr_dr", precision = 15, scale = 2)
     private BigDecimal differenceCrDr;
 
+    /**
+     * The raw market rate ($/oz) entered by the cashier at settlement time,
+     * BEFORE reapplying the original deal's discount/premium.
+     * fixedRate stores the effective rate (settlementMarketRate ± discountPremium).
+     */
+    @Column(name = "settlement_market_rate", precision = 10, scale = 2)
+    private BigDecimal settlementMarketRate;
+
     @Column(name = "settled_by")
     private String settledBy;
 
@@ -91,8 +99,9 @@ public class FixSettlement {
     public BigDecimal  getExchangeRate()     { return exchangeRate; }
     public BigDecimal  getSettlementAed()    { return settlementAed; }
     public BigDecimal  getOriginalAed()      { return originalAed; }
-    public BigDecimal  getDifferenceCrDr()   { return differenceCrDr; }
-    public String      getSettledBy()        { return settledBy; }
+    public BigDecimal  getDifferenceCrDr()       { return differenceCrDr; }
+    public BigDecimal  getSettlementMarketRate() { return settlementMarketRate; }
+    public String      getSettledBy()            { return settledBy; }
     public LocalDate   getSettlementDate()   { return settlementDate; }
     public String      getNotes()            { return notes; }
     public LocalDateTime getCreatedAt()      { return createdAt; }
@@ -109,8 +118,9 @@ public class FixSettlement {
     public void setExchangeRate(BigDecimal v){ this.exchangeRate       = v; }
     public void setSettlementAed(BigDecimal v){ this.settlementAed    = v; }
     public void setOriginalAed(BigDecimal v) { this.originalAed       = v; }
-    public void setDifferenceCrDr(BigDecimal v){ this.differenceCrDr = v; }
-    public void setSettledBy(String v)       { this.settledBy         = v; }
+    public void setDifferenceCrDr(BigDecimal v)      { this.differenceCrDr        = v; }
+    public void setSettlementMarketRate(BigDecimal v){ this.settlementMarketRate   = v; }
+    public void setSettledBy(String v)               { this.settledBy              = v; }
     public void setSettlementDate(LocalDate v){ this.settlementDate   = v; }
     public void setNotes(String v)           { this.notes             = v; }
 }

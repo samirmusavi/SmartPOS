@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -394,6 +394,9 @@
 
         <button class="btn btn-secondary" onclick="syncPOS()" id="syncBtn">
             <i class="fas fa-rotate"></i> Sync from POS
+        </button>
+        <button class="btn btn-secondary" onclick="syncPurchases()" id="syncPurchaseBtn">
+            <i class="fas fa-cart-flatbed"></i> Sync from Purchase
         </button>
         <button class="btn btn-secondary" onclick="printSheet()">
             <i class="fas fa-print"></i> Print
@@ -871,7 +874,7 @@ function renderEntries() {
         html += `<tr><td colspan="5" class="empty-state" style="padding:var(--space-6)!important">
             <i class="fas fa-inbox" style="font-size:1.5rem;display:block;margin-bottom:8px;opacity:0.3"></i>
             No transactions yet for this day.<br>
-            <span style="font-size:var(--text-xs)">Click <strong>Sync from POS</strong> to import today's sales &amp; expenses.</span>
+            <span style="font-size:var(--text-xs)">Click <strong>Sync from POS</strong> to import today's sales &amp; expenses, or <strong>Sync from Purchase</strong> to import cash purchases.</span>
         </td></tr>`;
     } else {
         entries.forEach(e => {
@@ -1163,6 +1166,32 @@ async function syncPOS() {
     finally {
         setLoading(false);
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rotate"></i> Sync from POS'; }
+    }
+}
+
+// ── SYNC FROM PURCHASE ────────────────────────────────────────
+async function syncPurchases() {
+    const confirmed = confirm(
+        `Sync cash purchases for ${state.date}?\n\n` +
+        `This replaces purchase entries in the cash sheet but keeps all other entries (Sales, Expenses, Manual) untouched.`
+    );
+    if (!confirmed) return;
+
+    setLoading(true);
+    const btn = document.getElementById('syncPurchaseBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-cart-flatbed fa-spin"></i> Syncing…'; }
+
+    try {
+        let url = `/api/cash-sheet/sync-purchases?date=${state.date}`;
+        if (state.branchId) url += `&branchId=${state.branchId}`;
+
+        const data = await API.post(url, {});
+        applySheetData(data);
+        Toast.success('Cash purchases synced successfully.');
+    } catch (e) { /* API shows toast */ }
+    finally {
+        setLoading(false);
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-cart-flatbed"></i> Sync from Purchase'; }
     }
 }
 

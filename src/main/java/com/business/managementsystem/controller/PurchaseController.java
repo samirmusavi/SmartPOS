@@ -1,7 +1,10 @@
 package com.business.managementsystem.controller;
 
 import com.business.managementsystem.service.PurchaseService;
+import com.business.managementsystem.service.TaxInvoicePdfService;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -11,10 +14,13 @@ import java.util.Map;
 @RequestMapping("/api/purchases")
 public class PurchaseController {
 
-    private final PurchaseService purchaseService;
+    private final PurchaseService      purchaseService;
+    private final TaxInvoicePdfService taxInvoicePdfService;
 
-    public PurchaseController(PurchaseService purchaseService) {
-        this.purchaseService = purchaseService;
+    public PurchaseController(PurchaseService purchaseService,
+                              TaxInvoicePdfService taxInvoicePdfService) {
+        this.purchaseService      = purchaseService;
+        this.taxInvoicePdfService = taxInvoicePdfService;
     }
 
     // ── Extract headers ───────────────────────────────────────
@@ -103,6 +109,30 @@ public class PurchaseController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
                     .body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    // ── GET /api/purchases/{id}/invoice/pdf ───────────────────
+    // Generates and streams a Tax Invoice (Fixed) as a PDF for the given purchase.
+    // Authentication: Bearer token via X-Business-Id header.
+    @GetMapping("/{id}/invoice/pdf")
+    public ResponseEntity<?> getPurchaseInvoicePdf(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Business-Id", required = false) String bh) {
+        try {
+            Long businessId = getBusinessId(bh);
+            byte[] pdfBytes = taxInvoicePdfService.generatePurchaseInvoicePdf(id, businessId);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_PDF);
+            headers.set(HttpHeaders.CONTENT_DISPOSITION,
+                    "inline; filename=\"tax_invoice_purchase_" + id + ".pdf\"");
+            return new ResponseEntity<>(pdfBytes, headers, HttpStatus.OK);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(Map.of("error", e.getMessage()));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "PDF generation failed"));
         }
     }
 }

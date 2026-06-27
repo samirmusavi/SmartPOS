@@ -131,12 +131,25 @@ public class SaleService {
                                                  double vatPercent,
                                                  BigDecimal exchangeRate,
                                                  String pricingMethod,
-                                                 BigDecimal goldOzRate) {
+                                                 BigDecimal goldOzRate,
+                                                 BigDecimal premiumAmount,
+                                                 BigDecimal roundOffAmount,
+                                                 Boolean includeReverseChargeDeclaration,
+                                                 String originalPricingMethod,
+                                                 BigDecimal agreedPremiumDiscount) {
         if (cartItems == null || cartItems.isEmpty())
             throw new RuntimeException("Cart is empty.");
 
+        // Normalise originalPricingMethod; default to FIXED_AT_TRADE for safety
+        final String opm = ("UNFIXED_AT_TRADE".equals(originalPricingMethod))
+                ? "UNFIXED_AT_TRADE" : "FIXED_AT_TRADE";
+
         BigDecimal subtotal = BigDecimal.ZERO;
         List<Sale> sales = new ArrayList<>();
+
+        // Accumulators for unfixed weight calculation
+        double totalGrossGrams = 0.0;
+        String dominantPurity  = null;
 
         for (Map<String, Object> item : cartItems) {
             Long productId = Long.parseLong(item.get("productId").toString());
@@ -184,6 +197,15 @@ public class SaleService {
                 sale.setScrapPurity(item.get("scrapPurity").toString());
             }
             sales.add(sale);
+
+            // Accumulate gross grams from GRAM-unit items for unfixed weight calculation
+            if ("GRAM".equalsIgnoreCase(product.getUnitType())) {
+                totalGrossGrams += quantity;
+                if (dominantPurity == null
+                        && product.getPurity() != null && !product.getPurity().isBlank()) {
+                    dominantPurity = product.getPurity();
+                }
+            }
         }
 
         if (discountAmount == null) discountAmount = BigDecimal.ZERO;
@@ -192,7 +214,8 @@ public class SaleService {
 
         BigDecimal vatRate = BigDecimal.valueOf(vatPercent).divide(BigDecimal.valueOf(100), 4, RoundingMode.HALF_UP);
         BigDecimal vatAmount = discountedSubtotal.multiply(vatRate).setScale(2, RoundingMode.HALF_UP);
-        BigDecimal totalAmount = discountedSubtotal.add(vatAmount);
+        BigDecimal roundOff = roundOffAmount != null ? roundOffAmount : BigDecimal.ZERO;
+        BigDecimal totalAmount = discountedSubtotal.add(vatAmount).add(roundOff);
 
         BigDecimal change = BigDecimal.ZERO;
         BigDecimal dueAmount = totalAmount;
@@ -231,8 +254,33 @@ public class SaleService {
         tx.setExchangeRate(exchangeRate);
         tx.setPricingMethod(pricingMethod);
         tx.setGoldOzRate(goldOzRate);
+        tx.setPremiumAmount(premiumAmount);
+        tx.setRoundOffAmount(roundOff);
+        tx.setIncludeReverseChargeDeclaration(
+                includeReverseChargeDeclaration != null && includeReverseChargeDeclaration);
         tx.setCustomerId(customerId);
         tx.setCustomerName(customerName);
+
+        // ── Unfixed pricing fields (Stage 2) ───────────────────────────────────────
+        tx.setOriginalPricingMethod(opm);
+        if ("UNFIXED_AT_TRADE".equals(opm)) {
+            // Server-side pure weight calculation — never trusted from frontend
+            String purity = dominantPurity != null ? dominantPurity : "995";
+            double purityFactor = 1.0;
+            try { purityFactor = Double.parseDouble(purity) / 1000.0; }
+            catch (NumberFormatException ignored) {}
+            double pureGrams = totalGrossGrams * purityFactor;
+
+            tx.setGrossWeightGrams(totalGrossGrams > 0 ? totalGrossGrams : null);
+            tx.setPureWeightGrams(pureGrams > 0 ? pureGrams : null);
+            tx.setAgreedPremiumDiscount(agreedPremiumDiscount);
+            tx.setRemainingOpenWeightGrams(pureGrams > 0 ? pureGrams : null);
+            tx.setFixingCompletionStatus("OPEN");
+        } else {
+            tx.setFixingCompletionStatus("NOT_APPLICABLE");
+            tx.setGrossWeightGrams(totalGrossGrams > 0 ? totalGrossGrams : null);
+        }
+
         SaleTransaction savedTx = txRepository.save(tx);
 
         if (customerId != null) {
@@ -251,8 +299,14 @@ public class SaleService {
 
         // ── Party ledger: post entry when sale is linked to a party ──
         if (customerId != null) {
-            resolvePartyForSale(customerId, businessId).ifPresent(party ->
-                    partyLedgerService.postSaleEntry(savedTx, party));
+            resolvePartyForSale(customerId, businessId).ifPresent(party -> {
+                if ("UNFIXED_AT_TRADE".equals(opm)) {
+                    // Metal moves now; AED deferred until Fixing — post metal-only entry
+                    partyLedgerService.postUnfixedSaleEntry(savedTx, party);
+                } else {
+                    partyLedgerService.postSaleEntry(savedTx, party);
+                }
+            });
         }
 
         String branchName = branchId != null
@@ -284,7 +338,7 @@ public class SaleService {
     @Transactional
     public SaleDTO recordSale(Long businessId, Long productId, double quantity, Long branchId) {
         List<Map<String, Object>> items = List.of(Map.of("productId", productId, "quantity", quantity));
-        Map<String, Object> result = recordTransaction(businessId, branchId, items, null, null, null, null, null, BigDecimal.ZERO, 5.0, null, null, null);
+        Map<String, Object> result = recordTransaction(businessId, branchId, items, null, null, null, null, null, BigDecimal.ZERO, 5.0, null, null, null, null, BigDecimal.ZERO, false, null, null);
 
         @SuppressWarnings("unchecked")
         List<Map<String, Object>> saleItems = (List<Map<String, Object>>) result.get("items");
@@ -498,6 +552,15 @@ public class SaleService {
         m.put("exchangeRate",   tx.getExchangeRate());
         m.put("pricingMethod",  tx.getPricingMethod());
         m.put("goldOzRate",     tx.getGoldOzRate());
+        m.put("premiumAmount",  tx.getPremiumAmount());
+        m.put("roundOffAmount", tx.getRoundOffAmount());
+        m.put("includeReverseChargeDeclaration", tx.getIncludeReverseChargeDeclaration());
+        m.put("originalPricingMethod",    tx.getOriginalPricingMethod());
+        m.put("fixingCompletionStatus",   tx.getFixingCompletionStatus());
+        m.put("grossWeightGrams",         tx.getGrossWeightGrams());
+        m.put("pureWeightGrams",          tx.getPureWeightGrams());
+        m.put("agreedPremiumDiscount",    tx.getAgreedPremiumDiscount());
+        m.put("remainingOpenWeightGrams", tx.getRemainingOpenWeightGrams());
         m.put("customerId",     tx.getCustomerId());
         m.put("customerName",   tx.getCustomerName());
         m.put("items",          items);

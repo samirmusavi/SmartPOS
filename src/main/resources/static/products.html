@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -271,6 +271,11 @@
                 <select class="form-control" id="categoryFilter" style="width:160px" onchange="renderTable()">
                     <option value="">All Categories</option>
                 </select>
+                <select class="form-control" id="classFilter" style="width:150px" onchange="renderTable()">
+                    <option value="">All Classes</option>
+                    <option value="BULLION">Bullion</option>
+                    <option value="JEWELLERY">Jewellery</option>
+                </select>
                 <select class="form-control" id="stockFilter" style="width:140px" onchange="renderTable()">
                     <option value="">All Stock</option>
                     <option value="out">Out of Stock</option>
@@ -373,6 +378,15 @@
                         <span class="font-semibold" style="color:var(--warning)"><i class="fas fa-recycle" style="margin-right:6px;font-size:0.85rem"></i>Scrap / Assay Item</span>
                         <span class="text-muted" style="font-weight:400;font-size:0.75rem">— purity entered per-transaction at time of sale/purchase</span>
                     </label>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Product Class</label>
+                        <select id="addProductClass" class="form-control">
+                            <option value="JEWELLERY">Jewellery</option>
+                            <option value="BULLION">Bullion</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="grid-2" style="display:none"><!-- spacer kept for layout -->
                     <div class="form-group">
@@ -488,6 +502,30 @@
                         </select>
                     </div>
                 </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Unit Type *</label>
+                        <select id="editUnitType" class="form-control" onchange="toggleEditQtyUnit()">
+                            <option value="PCS">PCS — Pieces</option>
+                            <option value="GRAM">GRAM — Weight (g)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Purity <span class="text-muted" style="font-weight:400;text-transform:none;letter-spacing:0">— optional</span></label>
+                        <select id="editPurity" class="form-control" onchange="syncPurityInput('edit')">
+                            <option value="">No purity</option>
+                            <option value="585">14k / 585</option>
+                            <option value="750">18k / 750</option>
+                            <option value="875">21k / 875</option>
+                            <option value="920">22k / 920</option>
+                            <option value="999.9">24k / 999.9</option>
+                            <option value="995">995.0 Bullion</option>
+                            <option value="custom">Custom…</option>
+                        </select>
+                        <input type="number" id="editPurityCustom" class="form-control" placeholder="e.g. 750" step="0.1" min="0" max="1000" style="margin-top:6px;display:none" oninput="syncPurityLabel('edit')">
+                        <div id="editPurityLabel" class="text-xs text-muted" style="margin-top:4px"></div>
+                    </div>
+                </div>
                 <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:var(--space-4)">
                     <div class="text-xs font-semibold text-muted uppercase tracking" style="margin-bottom:12px">
                         <i class="fas fa-tag" style="margin-right:6px"></i>Pricing
@@ -516,6 +554,15 @@
                         <span class="font-semibold" style="color:var(--warning)"><i class="fas fa-recycle" style="margin-right:6px;font-size:0.85rem"></i>Scrap / Assay Item</span>
                         <span class="text-muted" style="font-weight:400;font-size:0.75rem">— purity entered per-transaction</span>
                     </label>
+                </div>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">Product Class</label>
+                        <select id="editProductClass" class="form-control">
+                            <option value="JEWELLERY">Jewellery</option>
+                            <option value="BULLION">Bullion</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Quantity</label>
@@ -1029,6 +1076,7 @@
     function renderTable() {
         const q     = document.getElementById('searchInput').value.toLowerCase();
         const cat   = document.getElementById('categoryFilter').value;
+        const cls   = document.getElementById('classFilter').value;
         const stock = document.getElementById('stockFilter').value;
 
         let filtered = allProducts.filter(p => {
@@ -1038,13 +1086,14 @@
                 (p.barcode  && p.barcode.toLowerCase().includes(q))  ||
                 (p.category && p.category.toLowerCase().includes(q)) ||
                 ((p.supplierName||'').toLowerCase().includes(q));
-            const matchC = !cat   || p.category === cat;
+            const matchC  = !cat || p.category === cat;
+            const matchCl = !cls || p.productClass === cls;
             // Stock filter uses branch quantity when a branch is selected
             const matchS = !stock ||
                 (stock==='out' && displayQty===0) ||
                 (stock==='low' && displayQty>0 && displayQty<10) ||
                 (stock==='ok'  && displayQty>=10);
-            return matchQ && matchC && matchS;
+            return matchQ && matchC && matchCl && matchS;
         });
 
         const total = filtered.length;
@@ -1071,9 +1120,12 @@
                 const thumbHtml   = p.imagePath
                     ? `<img src="${p.imagePath}" alt="" class="product-thumb">`
                     : `<div class="product-thumb-placeholder"><i class="fas fa-box-open"></i></div>`;
+                const classBadge  = p.productClass === 'BULLION'
+                    ? '<span title="Bullion" style="font-size:0.55rem;padding:2px 6px;background:rgba(234,179,8,0.12);color:#b45309;border:1px solid rgba(234,179,8,0.3);border-radius:var(--radius-full);font-weight:700;white-space:nowrap;flex-shrink:0"><i class="fas fa-coins" style="font-size:0.5rem;margin-right:2px"></i>Bullion</span>'
+                    : '<span title="Jewellery" style="font-size:0.55rem;padding:2px 6px;background:rgba(139,92,246,0.10);color:var(--primary);border:1px solid rgba(139,92,246,0.25);border-radius:var(--radius-full);font-weight:700;white-space:nowrap;flex-shrink:0"><i class="fas fa-gem" style="font-size:0.5rem;margin-right:2px"></i>Jewel</span>';
                 return `<tr>
                     <td class="text-muted">${start+i+1}</td>
-                    <td class="cell-primary"><div class="flex items-center gap-2">${thumbHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>${p.isScrap?'<span style="font-size:0.55rem;padding:2px 6px;background:rgba(245,158,11,0.12);color:var(--warning);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-full);font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0">Scrap</span>':''}</div></td>
+                    <td class="cell-primary"><div class="flex items-center gap-2">${thumbHtml}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.name}</span>${p.isScrap?'<span style="font-size:0.55rem;padding:2px 6px;background:rgba(245,158,11,0.12);color:var(--warning);border:1px solid rgba(245,158,11,0.3);border-radius:var(--radius-full);font-weight:700;white-space:nowrap;text-transform:uppercase;letter-spacing:0.04em;flex-shrink:0">Scrap</span>':''}${classBadge}</div></td>
                     <td class="cell-mono">${p.barcode}</td>
                     <td><span class="badge badge-neutral">${p.category}</span></td>
                     <td>${p.supplierName?`<span class="supplier-tag"><i class="fas fa-truck" style="font-size:0.6rem"></i>${p.supplierName}</span>`:'<span class="text-muted">—</span>'}</td>
@@ -1120,6 +1172,12 @@
             qtyLabel.textContent = 'Initial Quantity (PCS) *';
             if (wgtGroup) wgtGroup.style.display = 'block';
         }
+    }
+
+    function toggleEditQtyUnit() {
+        const unitType = document.getElementById('editUnitType').value;
+        const wgtGroup = document.getElementById('editWeightGroup');
+        if (wgtGroup) wgtGroup.style.display = (unitType === 'PCS') ? 'block' : 'none';
     }
 
     function syncPurityInput(modal) {
@@ -1184,6 +1242,8 @@
         const totalWeightGrams = (unitType === 'PCS' && document.getElementById('addTotalWeightGrams')?.value)
             ? parseFloat(document.getElementById('addTotalWeightGrams').value) : null;
 
+        const productClass = document.getElementById('addProductClass').value || 'JEWELLERY';
+
         try {
             await API.post(PRODUCTS_API, {
                 name,
@@ -1196,13 +1256,15 @@
                 unitType,
                 purity: purity ? purity.toString() : null,
                 isScrap,
-                totalWeightGrams
+                totalWeightGrams,
+                productClass
             });
             closeAddModal();
             Toast.success('Product added successfully.');
             ['addName','addBarcode','addCategory','addCostPrice','addPrice','addQuantity'].forEach(id => document.getElementById(id).value='');
             document.getElementById('addSupplier').value='';
             document.getElementById('addUnitType').value='PCS';
+            document.getElementById('addProductClass').value='JEWELLERY';
             document.getElementById('addPurity').value='';
             document.getElementById('addPurityCustom').style.display='none';
             document.getElementById('addPurityLabel').textContent='';
@@ -1230,12 +1292,30 @@
         document.getElementById('editSupplier').value        = p.supplierId||'';
         document.getElementById('editIsScrap').checked       = p.isScrap || false;
 
-        // Total weight — only relevant for PCS products
-        const editWgtGroup = document.getElementById('editWeightGroup');
-        if (editWgtGroup) {
-            editWgtGroup.style.display = (p.unitType === 'PCS') ? 'block' : 'none';
-            document.getElementById('editTotalWeightGrams').value = p.totalWeightGrams || '';
+        // Unit Type — Fix 1
+        document.getElementById('editUnitType').value = p.unitType || 'PCS';
+        toggleEditQtyUnit();
+
+        // Purity — Fix 1
+        const knownPurities = ['585','750','875','920','999.9','995'];
+        const purityVal = p.purity || '';
+        if (knownPurities.includes(purityVal)) {
+            document.getElementById('editPurity').value = purityVal;
+            document.getElementById('editPurityCustom').style.display = 'none';
+            document.getElementById('editPurityCustom').value = '';
+        } else if (purityVal) {
+            document.getElementById('editPurity').value = 'custom';
+            document.getElementById('editPurityCustom').value = purityVal;
+            document.getElementById('editPurityCustom').style.display = 'block';
+        } else {
+            document.getElementById('editPurity').value = '';
+            document.getElementById('editPurityCustom').value = '';
+            document.getElementById('editPurityCustom').style.display = 'none';
         }
+        syncPurityInput('edit');
+
+        // Product Class — Fix 3
+        document.getElementById('editProductClass').value = p.productClass || 'JEWELLERY';
 
         // Set product image preview
         updateEditImagePreview(p.imagePath);
@@ -1254,10 +1334,30 @@
         const isScrap = document.getElementById('editIsScrap').checked;
         const totalWeightGrams = document.getElementById('editTotalWeightGrams')?.value
             ? parseFloat(document.getElementById('editTotalWeightGrams').value) : null;
+        // Fix 1: include unitType and purity
+        const unitType   = document.getElementById('editUnitType').value || 'PCS';
+        const puritySel  = document.getElementById('editPurity').value;
+        let purity = null;
+        if (puritySel === 'custom') {
+            purity = document.getElementById('editPurityCustom').value || null;
+        } else if (puritySel) {
+            purity = puritySel;
+        }
+        // Fix 3: include productClass
+        const productClass = document.getElementById('editProductClass').value || 'JEWELLERY';
+
         if (!name||!category||!quantity) { Toast.error('Please fill in all required fields (Name, Category, Quantity).'); return; }
         if (costPrice && price && parseFloat(costPrice)>parseFloat(price)) Toast.warning('Cost price is higher than selling price — you will make a loss.');
         try {
-            await API.put(`${PRODUCTS_API}/${id}`, { name, barcode, category, costPrice: costPrice ? parseFloat(costPrice) : 0, price: price ? parseFloat(price) : 0, quantity:parseInt(quantity), supplierId:supplierId?parseInt(supplierId):null, isScrap, totalWeightGrams });
+            await API.put(`${PRODUCTS_API}/${id}`, {
+                name, barcode, category,
+                costPrice: costPrice ? parseFloat(costPrice) : 0,
+                price: price ? parseFloat(price) : 0,
+                quantity: parseInt(quantity),
+                supplierId: supplierId ? parseInt(supplierId) : null,
+                isScrap, totalWeightGrams,
+                unitType, purity, productClass
+            });
             closeEditModal(); Toast.success('Product updated successfully.'); loadData();
         } catch(err) { Toast.error('Failed to update product.'); }
     }

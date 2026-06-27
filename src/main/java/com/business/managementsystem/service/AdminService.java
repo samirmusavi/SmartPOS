@@ -342,7 +342,7 @@ public class AdminService {
     public Business updateBusinessPlan(Long id, Business.Plan plan) {
         Business business = getBusinessById(id);
         business.setPlan(plan);
-        business.setExpiryDate(LocalDateTime.now().plusMonths(1));
+        // expiryDate intentionally not touched — no subscription enforcement
         return businessRepository.save(business);
     }
 

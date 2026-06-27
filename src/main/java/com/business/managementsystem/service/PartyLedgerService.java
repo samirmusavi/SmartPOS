@@ -21,11 +21,11 @@ import java.util.*;
  *
  * Entry directions:
  *   SAL  → aedCredit  (party owes you for gold sold)    + metalDebit (metal given out)
- *   PUR  → aedDebit   (you owe party for gold bought)   + metalCredit (metal received)
+ *   PUR  → aedCredit  (party delivered metal; you owe them AED → they have credit) + metalCredit (metal received)
  *   REC  → aedDebit   (party paid you → reduces their credit balance toward 0)
- *   PAY  → aedCredit  (you paid party → reduces your debit balance toward 0)
+ *   PAY  → aedDebit   (you paid party → reduces their credit balance toward 0)
  *   HPF  → same direction as SAL/PUR depending on fixType
- *   SFX  → aedDebit + metalCredit (closes the fix position)
+ *   SFX  → metal close (always) + NET AED difference only (avoids double-posting the HPF amount)
  */
 @Service
 public class PartyLedgerService {
@@ -104,20 +104,42 @@ public class PartyLedgerService {
         String     voucherNo    = sale.getReceiptNumber() != null
                 ? sale.getReceiptNumber() : generateVoucherNumber(sale.getBusinessId(), "SAL");
 
-        // ── Determine if this is an OZ-rate bullion sale ────────────
-        boolean isBullionSale = totalGrams > 0 && sale.getGoldOzRate() != null;
+        // ── Determine if this is an OZ-rate or PER-GRAM bullion sale ──
+        // Fix 3: must also confirm pricingMethod is OZ_RATE or PER_GRAM
+        //        (not just any sale that happens to have a goldOzRate value)
+        boolean isBullionSale = totalGrams > 0
+                && sale.getGoldOzRate() != null
+                && sale.getGoldOzRate().compareTo(BigDecimal.ZERO) > 0
+                && ("OZ_RATE".equals(sale.getPricingMethod())
+                        || "PER_GRAM".equals(sale.getPricingMethod()));
 
         if (isBullionSale) {
             BigDecimal ozWeight   = BigDecimal.valueOf(totalGrams)
                     .divide(TROY_OZ, 8, RoundingMode.HALF_UP);
             BigDecimal metalValue = ozWeight.multiply(sale.getGoldOzRate())
                     .multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal premium    = sale.getTotalAmount().subtract(metalValue);
+            // Fix 2: use the premium stored by the calculator for accuracy;
+            //        fall back to recalculation only if not stored.
+            BigDecimal premium = (sale.getPremiumAmount() != null
+                    && sale.getPremiumAmount().compareTo(BigDecimal.ZERO) != 0)
+                    ? sale.getPremiumAmount()
+                    : sale.getTotalAmount().subtract(metalValue);
 
-            // Per-oz discount/premium amount (for narration)
+            // Per-oz USD premium/discount for narration.
+            // premiumAmount is stored as total AED:
+            //   premiumAmount = ozWeight × purityFactor × premiumPerOzUSD × exchangeRate
+            // Recover premiumPerOzUSD = premiumAmount / (ozWeight × purityFactor × exchangeRate)
             BigDecimal perOz = BigDecimal.ZERO;
-            if (ozWeight.compareTo(BigDecimal.ZERO) > 0) {
-                perOz = premium.divide(ozWeight, 2, RoundingMode.HALF_UP);
+            if (ozWeight.compareTo(BigDecimal.ZERO) > 0 && exchangeRate.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal purityFactor;
+                try {
+                    purityFactor = new BigDecimal(purity).divide(new BigDecimal("1000"), 8, RoundingMode.HALF_UP);
+                    if (purityFactor.compareTo(BigDecimal.ZERO) <= 0) purityFactor = BigDecimal.ONE;
+                } catch (NumberFormatException ignored) {
+                    purityFactor = BigDecimal.ONE;
+                }
+                perOz = premium.divide(
+                        ozWeight.multiply(purityFactor).multiply(exchangeRate), 2, RoundingMode.HALF_UP);
             }
 
             String discPremLabel = premium.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
@@ -170,13 +192,61 @@ public class PartyLedgerService {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  UNFIXED SALE ENTRY  (UNFIXED_AT_TRADE — metal-only, AED = ZERO)
+    //
+    //  Metal physically leaves the vault at sale time.
+    //  AED value is unknown until a later Fixing event settles the price.
+    //  Rule: post metalDebit = pureWeightGrams, aedCredit = ZERO.
+    //  The subsequent Fixing event will post the full AED credit.
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void postUnfixedSaleEntry(SaleTransaction sale, Supplier party) {
+        if (sale.getPureWeightGrams() == null || sale.getPureWeightGrams() <= 0) return;
+
+        List<Sale> items = saleRepo.findByTransactionId(sale.getId());
+        String purity    = null;
+        for (Sale item : items) {
+            if ("GRAM".equalsIgnoreCase(item.getUnitType())
+                    && item.getPurity() != null && !item.getPurity().isBlank()) {
+                purity = item.getPurity();
+                break;
+            }
+        }
+        if (purity == null) purity = "995";
+
+        LocalDate  date      = sale.getCreatedAt() != null
+                ? sale.getCreatedAt().toLocalDate() : LocalDate.now();
+        String     voucherNo = sale.getReceiptNumber() != null
+                ? sale.getReceiptNumber() : generateVoucherNumber(sale.getBusinessId(), "SAL");
+
+        BigDecimal perOz = sale.getAgreedPremiumDiscount() != null
+                ? sale.getAgreedPremiumDiscount() : BigDecimal.ZERO;
+        String discPremLabel = perOz.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
+        String weightStr     = formatWeight(sale.getPureWeightGrams());
+
+        PartyLedgerEntry e = newEntry(party, "SAL", voucherNo, date,
+                sale.getBusinessId(), sale.getBranchId());
+        e.setNarration(String.format("UNFIXED SALE %s %s @%s$ %s — AED DEFERRED",
+                weightStr, purity, perOz.abs().toPlainString(), discPremLabel));
+        // AED price is deferred — post ZERO AED, metal debit only
+        e.setAedCredit(BigDecimal.ZERO);
+        e.setMetalDebit(sale.getPureWeightGrams());
+        e.setMetalType("GOLD");
+        e.setPurity(purity);
+        e.setReferenceId(sale.getId());
+        e.setReferenceType("SALE");
+        ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  PURCHASE ENTRY
     // ═══════════════════════════════════════════════════════════════
 
     /**
      * Posts one or two ledger entries for a purchase transaction.
      *
-     * Entry 1 — METAL:  aedDebit = base metal value, metalCredit = grams received
+     * Entry 1 — METAL:  aedCredit = base metal value, metalCredit = grams received
      * Entry 2 — PREMIUM (if non-zero)
      */
     @Transactional
@@ -219,11 +289,28 @@ public class PartyLedgerService {
                     .divide(TROY_OZ, 8, RoundingMode.HALF_UP);
             BigDecimal metalValue = ozWeight.multiply(goldOzRate)
                     .multiply(exchangeRate).setScale(2, RoundingMode.HALF_UP);
-            BigDecimal premium    = purchase.getTotalAmount().subtract(metalValue);
+            // Fix 4: use the premium stored on the purchase for accuracy;
+            //        fall back to recalculation only if not stored.
+            BigDecimal premium = (purchase.getPremiumAmount() != null
+                    && purchase.getPremiumAmount().compareTo(BigDecimal.ZERO) != 0)
+                    ? purchase.getPremiumAmount()
+                    : purchase.getTotalAmount().subtract(metalValue);
 
+            // Bug-fix: recover USD/oz premium from total AED premium.
+            // premiumAED = ozWeight × purityFactor × premiumPerOzUSD × exchangeRate
+            // → premiumPerOzUSD = premiumAED / (ozWeight × purityFactor × exchangeRate)
             BigDecimal perOz = BigDecimal.ZERO;
-            if (ozWeight.compareTo(BigDecimal.ZERO) > 0)
-                perOz = premium.divide(ozWeight, 2, RoundingMode.HALF_UP);
+            if (ozWeight.compareTo(BigDecimal.ZERO) > 0 && exchangeRate.compareTo(BigDecimal.ZERO) > 0) {
+                BigDecimal purityFactor;
+                try {
+                    purityFactor = new BigDecimal(purity).divide(new BigDecimal("1000"), 8, RoundingMode.HALF_UP);
+                    if (purityFactor.compareTo(BigDecimal.ZERO) <= 0) purityFactor = BigDecimal.ONE;
+                } catch (NumberFormatException ignored) {
+                    purityFactor = BigDecimal.ONE;
+                }
+                perOz = premium.divide(
+                        ozWeight.multiply(purityFactor).multiply(exchangeRate), 2, RoundingMode.HALF_UP);
+            }
 
             String discPremLabel = premium.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
             String weightStr     = formatWeight(totalGrams);
@@ -233,7 +320,7 @@ public class PartyLedgerService {
                     purchase.getBusinessId(), purchase.getBranchId());
             e1.setNarration(String.format("PURCHASE %s %s @%s$ METAL",
                     weightStr, purity, perOz.toPlainString()));
-            e1.setAedDebit(metalValue);
+            e1.setAedCredit(metalValue);
             e1.setMetalCredit(totalGrams);
             e1.setMetalType(metalType);
             e1.setPurity(purity);
@@ -248,9 +335,9 @@ public class PartyLedgerService {
                 e2.setNarration(String.format("PURCHASE %s %s @%s$ %s PREMIUM",
                         weightStr, purity, perOz.toPlainString(), discPremLabel));
                 if (premium.compareTo(BigDecimal.ZERO) > 0) {
-                    e2.setAedDebit(premium);           // premium → you owe more
+                    e2.setAedCredit(premium);          // premium → party has more credit
                 } else {
-                    e2.setAedCredit(premium.negate()); // discount → you owe less
+                    e2.setAedDebit(premium.negate());  // discount → reduces their credit
                 }
                 e2.setReferenceId(purchase.getId());
                 e2.setReferenceType("PURCHASE");
@@ -258,11 +345,11 @@ public class PartyLedgerService {
             }
 
         } else {
-            // Simple purchase entry — whole amount as debit
+            // Simple purchase entry — whole amount as credit (party has credit; we owe them)
             PartyLedgerEntry e = newEntry(party, "PUR", voucherNo, date,
                     purchase.getBusinessId(), purchase.getBranchId());
             e.setNarration("PURCHASE " + purchase.getInvoiceNumber());
-            e.setAedDebit(purchase.getTotalAmount());
+            e.setAedCredit(purchase.getTotalAmount());
             if (totalGrams > 0) {
                 e.setMetalCredit(totalGrams);
                 e.setMetalType(metalType);
@@ -272,6 +359,52 @@ public class PartyLedgerService {
             e.setReferenceType("PURCHASE");
             ledgerRepo.save(e);
         }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  UNFIXED PURCHASE ENTRY  (UNFIXED_AT_TRADE — metal-only, AED = ZERO)
+    //
+    //  Metal physically arrives at the vault at purchase time.
+    //  AED price is unknown until a later Fixing event settles the price.
+    //  Rule: post metalCredit = pureWeightGrams, aedDebit = ZERO.
+    //  The subsequent Fixing event will post the full AED debit.
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void postUnfixedPurchaseEntry(Purchase purchase, Supplier party) {
+        if (purchase.getPureWeightGrams() == null || purchase.getPureWeightGrams() <= 0) return;
+
+        List<PurchaseItem> items = purchaseItemRepo.findByPurchaseIdOrderByIdAsc(purchase.getId());
+        String purity = null;
+        for (PurchaseItem item : items) {
+            if (item.getPurity() != null && !item.getPurity().isBlank()) {
+                purity = item.getPurity();
+                break;
+            }
+        }
+        if (purity == null) purity = "995";
+
+        LocalDate  date      = purchase.getPurchaseDate() != null
+                ? purchase.getPurchaseDate().toLocalDate() : LocalDate.now();
+        String     voucherNo = purchase.getInvoiceNumber();
+
+        BigDecimal perOz = purchase.getAgreedPremiumDiscount() != null
+                ? purchase.getAgreedPremiumDiscount() : BigDecimal.ZERO;
+        String discPremLabel = perOz.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
+        String weightStr     = formatWeight(purchase.getPureWeightGrams());
+
+        PartyLedgerEntry e = newEntry(party, "PUR", voucherNo, date,
+                purchase.getBusinessId(), purchase.getBranchId());
+        e.setNarration(String.format("UNFIXED PURCHASE %s %s @%s$ %s — AED DEFERRED",
+                weightStr, purity, perOz.abs().toPlainString(), discPremLabel));
+        // AED price is deferred — post ZERO AED, metal credit only
+        e.setAedDebit(BigDecimal.ZERO);
+        e.setMetalCredit(purchase.getPureWeightGrams());
+        e.setMetalType("GOLD");
+        e.setPurity(purity);
+        e.setReferenceId(purchase.getId());
+        e.setReferenceType("PURCHASE");
+        ledgerRepo.save(e);
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -325,8 +458,8 @@ public class PartyLedgerService {
         e.setVoucherNumber(voucherNo);
         e.setVoucherDate(date != null ? date : LocalDate.now());
         e.setNarration("PAID " + formatAed(amount) + " AED TO " + partyName.toUpperCase());
-        // Payment = you paid party → reduces your debit (aedCredit reduces Σdebit−Σcredit magnitude)
-        e.setAedCredit(amount);
+        // Payment = you paid party → reduces their credit balance toward 0 (aedDebit reduces Σcredit−Σdebit)
+        e.setAedDebit(amount);
         e.setMetalDebit(0.0);
         e.setMetalCredit(0.0);
         e.setReferenceType("PAYMENT");
@@ -335,7 +468,151 @@ public class PartyLedgerService {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    //  FIX ENTRY  (HPF — when a metal fix is created)
+    //  METAL RECEIPT ENTRY  (weight-only, no AED — metal received from party)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public PartyLedgerEntry postMetalReceiptEntry(Long partyId, String partyName,
+                                                  Double weightGrams, String metalType,
+                                                  String purity, String notes,
+                                                  LocalDate date, String createdBy,
+                                                  Long businessId, Long branchId) {
+        String voucherNo = generateVoucherNumber(businessId, "MRC");
+        PartyLedgerEntry e = new PartyLedgerEntry();
+        e.setBusinessId(businessId);
+        e.setBranchId(branchId);
+        e.setPartyId(partyId);
+        e.setPartyName(partyName);
+        e.setVoucherType("MRC");
+        e.setVoucherNumber(voucherNo);
+        e.setVoucherDate(date != null ? date : LocalDate.now());
+        e.setNarration("METAL RCVD " + formatWeight(weightGrams) + " "
+                + (purity != null ? purity + " " : "")
+                + (metalType != null ? metalType : "GOLD")
+                + " FROM " + partyName.toUpperCase()
+                + (notes != null && !notes.isBlank() ? " | " + notes : ""));
+        // MRC — weight-only: NEVER touch AED columns
+        // Metal Receipt = we deliver metal TO the party (e.g. to settle a purchase obligation).
+        // Metal physically leaves our vault → metalDebit.  This reduces the outstanding metalCredit
+        // balance that the original Purchase posted, driving the running balance back toward zero.
+        e.setAedDebit(BigDecimal.ZERO);
+        e.setAedCredit(BigDecimal.ZERO);
+        e.setMetalDebit(weightGrams);            // metal leaves our vault → DR
+        e.setMetalCredit(0.0);
+        e.setMetalType(metalType != null ? metalType : "GOLD");
+        e.setPurity(purity);
+        e.setReferenceType("METAL_RECEIPT");
+        e.setCreatedBy(createdBy);
+        return ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  METAL PAYMENT ENTRY  (weight-only, no AED — metal given to party)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public PartyLedgerEntry postMetalPaymentEntry(Long partyId, String partyName,
+                                                   Double weightGrams, String metalType,
+                                                   String purity, String notes,
+                                                   LocalDate date, String createdBy,
+                                                   Long businessId, Long branchId) {
+        String voucherNo = generateVoucherNumber(businessId, "MPY");
+        PartyLedgerEntry e = new PartyLedgerEntry();
+        e.setBusinessId(businessId);
+        e.setBranchId(branchId);
+        e.setPartyId(partyId);
+        e.setPartyName(partyName);
+        e.setVoucherType("MPY");
+        e.setVoucherNumber(voucherNo);
+        e.setVoucherDate(date != null ? date : LocalDate.now());
+        e.setNarration("METAL PAID " + formatWeight(weightGrams) + " "
+                + (purity != null ? purity + " " : "")
+                + (metalType != null ? metalType : "GOLD")
+                + " TO " + partyName.toUpperCase()
+                + (notes != null && !notes.isBlank() ? " | " + notes : ""));
+        // MPY — weight-only: NEVER touch AED columns
+        // Metal Payment = party delivers metal TO us (e.g. to settle a sale obligation).
+        // Metal physically enters our vault → metalCredit.  This reduces the outstanding metalDebit
+        // balance that the original Sale posted, driving the running balance back toward zero.
+        e.setAedDebit(BigDecimal.ZERO);
+        e.setAedCredit(BigDecimal.ZERO);
+        e.setMetalDebit(0.0);
+        e.setMetalCredit(weightGrams);            // metal enters our vault → CR
+        e.setMetalType(metalType != null ? metalType : "GOLD");
+        e.setPurity(purity);
+        e.setReferenceType("METAL_PAYMENT");
+        e.setCreatedBy(createdBy);
+        return ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  GENERAL JOURNAL ENTRY  (GJV — manual correction/adjustment)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public PartyLedgerEntry postGeneralJournalEntry(Long partyId, String partyName,
+                                                    BigDecimal aedDebit, BigDecimal aedCredit,
+                                                    Double metalDebit, Double metalCredit,
+                                                    String metalType, String purity,
+                                                    String reason,
+                                                    LocalDate date, String createdBy,
+                                                    Long businessId, Long branchId) {
+        // Normalise nulls to zero
+        if (aedDebit    == null) aedDebit    = BigDecimal.ZERO;
+        if (aedCredit   == null) aedCredit   = BigDecimal.ZERO;
+        if (metalDebit  == null) metalDebit  = 0.0;
+        if (metalCredit == null) metalCredit = 0.0;
+
+        // Validate: reason is mandatory for GJV
+        if (reason == null || reason.isBlank())
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Reason/narration is required for a Journal entry.");
+
+        // Validate: at least one non-zero value
+        boolean hasValue = aedDebit.compareTo(BigDecimal.ZERO) > 0
+                || aedCredit.compareTo(BigDecimal.ZERO) > 0
+                || metalDebit > 0 || metalCredit > 0;
+        if (!hasValue)
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Journal entry must have at least one non-zero value.");
+
+        // Validate: cannot have both AED debit and AED credit
+        if (aedDebit.compareTo(BigDecimal.ZERO) > 0 && aedCredit.compareTo(BigDecimal.ZERO) > 0)
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Cannot have both AED debit and AED credit in the same journal entry.");
+
+        // Validate: cannot have both metal debit and metal credit
+        if (metalDebit > 0 && metalCredit > 0)
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.BAD_REQUEST,
+                    "Cannot have both metal debit and metal credit in the same journal entry.");
+
+        String voucherNo = generateVoucherNumber(businessId, "GJV");
+        PartyLedgerEntry e = new PartyLedgerEntry();
+        e.setBusinessId(businessId);
+        e.setBranchId(branchId);
+        e.setPartyId(partyId);
+        e.setPartyName(partyName);
+        e.setVoucherType("GJV");
+        e.setVoucherNumber(voucherNo);
+        e.setVoucherDate(date != null ? date : LocalDate.now());
+        e.setNarration("JOURNAL: " + reason.trim());
+        e.setAedDebit(aedDebit);
+        e.setAedCredit(aedCredit);
+        e.setMetalDebit(metalDebit);
+        e.setMetalCredit(metalCredit);
+        if (metalType != null && !metalType.isBlank()) e.setMetalType(metalType);
+        if (purity    != null && !purity.isBlank())    e.setPurity(purity);
+        e.setReferenceType("JOURNAL");
+        e.setCreatedBy(createdBy);
+        return ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  FIX ENTRY  (PF for Purchase Fix, SF for Sale Fix)
     // ═══════════════════════════════════════════════════════════════
 
     @Transactional
@@ -345,7 +622,7 @@ public class PartyLedgerService {
         e.setBranchId(fix.getBranchId());
         e.setPartyId(fix.getPartyId());
         e.setPartyName(fix.getPartyName());
-        e.setVoucherType("HPF");
+        e.setVoucherType("PURCHASE_FIX".equals(fix.getFixType()) ? "PF" : "SF");
         e.setVoucherNumber(fix.getFixNumber());
         e.setVoucherDate(fix.getCreatedAt() != null
                 ? fix.getCreatedAt().toLocalDate() : LocalDate.now());
@@ -378,7 +655,101 @@ public class PartyLedgerService {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    //  UNFIXED SALE FIX ENTRY  (SF — AED credit only; metal was already posted at SAL time)
+    //
+    //  Lifecycle:  UNFIXED_AT_TRADE SAL entry posted metalDebit.
+    //              This SF entry posts the now-known AED credit.
+    //              No metal movement at all — would double-count if posted again.
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void postUnfixedSaleFixEntry(MetalFix fix, String parentRef) {
+        PartyLedgerEntry e = new PartyLedgerEntry();
+        e.setBusinessId(fix.getBusinessId());
+        e.setBranchId(fix.getBranchId());
+        e.setPartyId(fix.getPartyId());
+        e.setPartyName(fix.getPartyName());
+        e.setVoucherType("SF");
+        e.setVoucherNumber(fix.getFixNumber());
+        e.setVoucherDate(fix.getFixedDate() != null ? fix.getFixedDate() : LocalDate.now());
+
+        BigDecimal dp = fix.getDiscountPremium() != null ? fix.getDiscountPremium() : BigDecimal.ZERO;
+        String discPremLabel  = dp.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
+        String weightStr      = formatWeight(fix.getWeightGrams());
+        BigDecimal effRate    = fix.getEffectiveRate() != null ? fix.getEffectiveRate() : fix.getTransactionRate();
+
+        e.setNarration(String.format("FIX SALE %s %s @%s$ %s | REF:%s",
+                weightStr,
+                fix.getPurity() != null ? fix.getPurity() : "",
+                effRate.toPlainString(),
+                discPremLabel,
+                parentRef != null ? parentRef : ""));
+
+        // AED credit — party now owes the fixed price
+        // Metal = ZERO: metal was already debited in the UNFIXED_AT_TRADE SAL entry
+        e.setAedCredit(fix.getTotalAed());
+        e.setAedDebit(BigDecimal.ZERO);
+        e.setMetalDebit(0.0);
+        e.setMetalCredit(0.0);
+        e.setMetalType(fix.getMetalType());
+        e.setPurity(fix.getPurity());
+        e.setReferenceId(fix.getId());
+        e.setReferenceType("FIX");
+        e.setCreatedBy(fix.getCreatedBy());
+        ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  UNFIXED PURCHASE FIX ENTRY  (PF — AED debit only; metal was already posted at PUR time)
+    //
+    //  Lifecycle:  UNFIXED_AT_TRADE PUR entry posted metalCredit.
+    //              This PF entry posts the now-known AED debit.
+    //              No metal movement at all — would double-count if posted again.
+    // ═══════════════════════════════════════════════════════════════
+
+    @Transactional
+    public void postUnfixedPurchaseFixEntry(MetalFix fix, String parentRef) {
+        PartyLedgerEntry e = new PartyLedgerEntry();
+        e.setBusinessId(fix.getBusinessId());
+        e.setBranchId(fix.getBranchId());
+        e.setPartyId(fix.getPartyId());
+        e.setPartyName(fix.getPartyName());
+        e.setVoucherType("PF");
+        e.setVoucherNumber(fix.getFixNumber());
+        e.setVoucherDate(fix.getFixedDate() != null ? fix.getFixedDate() : LocalDate.now());
+
+        BigDecimal dp = fix.getDiscountPremium() != null ? fix.getDiscountPremium() : BigDecimal.ZERO;
+        String discPremLabel  = dp.compareTo(BigDecimal.ZERO) >= 0 ? "PREM" : "DISC";
+        String weightStr      = formatWeight(fix.getWeightGrams());
+        BigDecimal effRate    = fix.getEffectiveRate() != null ? fix.getEffectiveRate() : fix.getTransactionRate();
+
+        e.setNarration(String.format("FIX PURCHASE %s %s @%s$ %s | REF:%s",
+                weightStr,
+                fix.getPurity() != null ? fix.getPurity() : "",
+                effRate.toPlainString(),
+                discPremLabel,
+                parentRef != null ? parentRef : ""));
+
+        // AED debit — we now owe the party the fixed price
+        // Metal = ZERO: metal was already credited in the UNFIXED_AT_TRADE PUR entry
+        e.setAedDebit(fix.getTotalAed());
+        e.setAedCredit(BigDecimal.ZERO);
+        e.setMetalDebit(0.0);
+        e.setMetalCredit(0.0);
+        e.setMetalType(fix.getMetalType());
+        e.setPurity(fix.getPurity());
+        e.setReferenceId(fix.getId());
+        e.setReferenceType("FIX");
+        e.setCreatedBy(fix.getCreatedBy());
+        ledgerRepo.save(e);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     //  SETTLEMENT ENTRY  (SFX — closes the fix position)
+    //  TODO: If settlement vouchers ever need to be split by fixType
+    //        (e.g. "PSX" for Purchase settlements, "SSX" for Sale settlements),
+    //        replace the "SFX" literal below with the same conditional pattern
+    //        used in postFixEntry(). Until then, all settlements share "SFX".
     // ═══════════════════════════════════════════════════════════════
 
     @Transactional
@@ -388,24 +759,59 @@ public class PartyLedgerService {
         e.setBranchId(settlement.getBranchId());
         e.setPartyId(settlement.getPartyId());
         e.setPartyName(settlement.getPartyName());
-        e.setVoucherType("SFX");
+        e.setVoucherType("SFX"); // intentionally not split by fixType — see TODO above
         e.setVoucherNumber(settlement.getSettlementNumber());
         e.setVoucherDate(settlement.getSettlementDate());
-        e.setNarration(String.format("Fix %s Pure %s %.2fg @ %s per GOZ",
+
+        // Net AED difference = settlementAed − originalAed
+        //   > 0  → rate went UP   (settlement is higher than the HPF estimate)
+        //   < 0  → rate went DOWN (settlement is lower than the HPF estimate)
+        //   = 0  → no AED adjustment needed (only metal position closes)
+        BigDecimal netAedDiff = settlement.getSettlementAed()
+                .subtract(fix.getTotalAed())
+                .setScale(2, RoundingMode.HALF_UP);
+        int sign = netAedDiff.compareTo(BigDecimal.ZERO); // +1, 0, -1
+
+        String rateInfo = settlement.getSettlementMarketRate() != null
+                ? String.format("mkt %.2f → eff %.2f",
+                        settlement.getSettlementMarketRate().doubleValue(),
+                        settlement.getFixedRate().doubleValue())
+                : String.format("eff %.2f", settlement.getFixedRate().doubleValue());
+
+        e.setNarration(String.format("SFX %s %s %.3fg @ %s; net %s AED %.2f",
                 "SALE_FIX".equals(fix.getFixType()) ? "Sale" : "Purchase",
                 fix.getMetalType(),
                 settlement.getWeightGrams(),
-                settlement.getFixedRate().toPlainString()));
+                rateInfo,
+                sign >= 0 ? "CR+" : "DR-",
+                netAedDiff.abs().doubleValue()));
 
         boolean isSaleFix = "SALE_FIX".equals(fix.getFixType());
         if (isSaleFix) {
-            // Closes the aedCredit from HPF: debit = settlement amount
-            e.setAedDebit(settlement.getSettlementAed());
+            // Close metal position: HPF debited metal (you committed to deliver), SFX credits it
             e.setMetalCredit(settlement.getWeightGrams());
+            // AED adjustment — only the NET difference vs what HPF already posted
+            if (sign > 0) {
+                // Rate went up → party owes you MORE → additional AED credit
+                e.setAedCredit(netAedDiff);
+            } else if (sign < 0) {
+                // Rate went down → party owes you LESS → AED debit to offset HPF excess credit
+                e.setAedDebit(netAedDiff.abs());
+            }
+            // sign == 0: no AED entry, metal close only
         } else {
-            // Closes the aedDebit from HPF: credit = settlement amount
-            e.setAedCredit(settlement.getSettlementAed());
+            // PURCHASE_FIX
+            // Close metal position: HPF credited metal (party committed to deliver), SFX debits it
             e.setMetalDebit(settlement.getWeightGrams());
+            // AED adjustment — only the NET difference vs what HPF already posted
+            if (sign > 0) {
+                // Rate went up → you owe party MORE → additional AED debit
+                e.setAedDebit(netAedDiff);
+            } else if (sign < 0) {
+                // Rate went down → you owe party LESS → AED credit to offset HPF excess debit
+                e.setAedCredit(netAedDiff.abs());
+            }
+            // sign == 0: no AED entry, metal close only
         }
 
         e.setMetalType(fix.getMetalType());
@@ -578,6 +984,7 @@ public class PartyLedgerService {
         m.put("purity",        e.getPurity());
         m.put("referenceId",   e.getReferenceId());
         m.put("referenceType", e.getReferenceType());
+        m.put("branchId",      e.getBranchId());
         m.put("createdBy",     e.getCreatedBy());
         m.put("createdAt",     e.getCreatedAt() != null ? e.getCreatedAt().format(fmt) : null);
         return m;

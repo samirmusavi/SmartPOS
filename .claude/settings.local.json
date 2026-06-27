@@ -17,7 +17,13 @@
       "Bash(echo 'export PATH=\"$PATH:/c/Program Files/GitHub CLI\"')",
       "Bash(dir /s /b \"C:\\\\Users\\\\AHMAD\\\\Downloads\\\\SmartPOS\\\\Smart POS 10.1\\\\src\\\\main\\\\java\\\\*.java\")",
       "Bash(python3 -c ' *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(not exist *)",
+      "Bash(mkdir -p \"C:/Users/AHMAD/Downloads/SmartPOS/Smart POS 10.1/.claude\")",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(netstat -ano)",
+      "Bash(./mvnw compile *)",
+      "Bash(powershell -Command ' *)"
     ]
   }
 }

@@ -1,5 +1,5 @@
-<!DOCTYPE html>
-<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -115,6 +115,11 @@
 
                 <div style="text-align:center;margin-top:var(--space-5)">
                     <span class="text-xs text-muted" data-i18n="auth_no_account">Don't have an account?</span>
+                    <button class="btn btn-ghost btn-sm"
+                            onclick="switchTab('register')"
+                            style="font-size:var(--text-xs)">
+                        Register Business
+                    </button>
                 </div>
             </div>
 
@@ -292,6 +297,7 @@
 
         } catch (err) {
             showAlert('loginAlert', err.message || 'Invalid email or password.');
+        } finally {
             btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
             btn.disabled  = false;
         }

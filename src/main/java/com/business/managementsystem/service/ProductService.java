@@ -218,9 +218,14 @@ public class ProductService {
     // ── Create product ─────────────────────────────────────────────────
     @Transactional
     public ProductDTO createProduct(ProductDTO productDTO, Long businessId, Long branchId) {
-        if (productRepository.existsByBarcodeAndBusinessId(productDTO.getBarcode(), businessId)) {
+        // Only check uniqueness when a barcode is actually provided — blank barcode is allowed
+        String incomingBarcode = (productDTO.getBarcode() != null && !productDTO.getBarcode().isBlank())
+                ? productDTO.getBarcode().trim() : null;
+        if (incomingBarcode != null
+                && productRepository.existsByBarcodeAndBusinessId(incomingBarcode, businessId)) {
             throw new RuntimeException("Product with this barcode already exists.");
         }
+        productDTO.setBarcode(incomingBarcode); // normalise empty → null before persisting
 
         double initialQty = productDTO.getQuantity();
         Product product = convertToEntity(productDTO, businessId);
@@ -252,9 +257,20 @@ public class ProductService {
         existing.setCostPrice(productDTO.getCostPrice());
         existing.setQuantity(productDTO.getQuantity());
         existing.setCategory(productDTO.getCategory());
-        existing.setBarcode(productDTO.getBarcode());
+        // Normalise blank barcode → null; only check uniqueness when a new non-blank barcode is set
+        String updatedBarcode = (productDTO.getBarcode() != null && !productDTO.getBarcode().isBlank())
+                ? productDTO.getBarcode().trim() : null;
+        if (updatedBarcode != null && !updatedBarcode.equals(existing.getBarcode())
+                && productRepository.existsByBarcodeAndBusinessId(updatedBarcode, existing.getBusinessId())) {
+            throw new RuntimeException("Product with this barcode already exists.");
+        }
+        existing.setBarcode(updatedBarcode);
         existing.setSupplierId(productDTO.getSupplierId());
         existing.setScrap(productDTO.isScrap());
+        existing.setUnitType(productDTO.getUnitType());       // Fix 1: was missing from update
+        existing.setPurity(productDTO.getPurity());           // Fix 1: was missing from update
+        existing.setProductClass(productDTO.getProductClass() != null
+                ? productDTO.getProductClass() : "JEWELLERY"); // Fix 3
         if (productDTO.getTotalWeightGrams() != null) {
             existing.setTotalWeightGrams(productDTO.getTotalWeightGrams());
         }
@@ -639,6 +655,7 @@ public class ProductService {
         );
         dto.setScrap(product.isScrap());
         dto.setTotalWeightGrams(product.getTotalWeightGrams());
+        dto.setProductClass(product.getProductClass() != null ? product.getProductClass() : "JEWELLERY");
         return dto;
     }
 
@@ -646,13 +663,16 @@ public class ProductService {
         Product product = new Product();
         product.setBusinessId(businessId);
         product.setName(dto.getName());
-        product.setBarcode(dto.getBarcode());
+        // Store null rather than empty string so unique-index permits multiple barcode-less products
+        product.setBarcode((dto.getBarcode() != null && !dto.getBarcode().isBlank())
+                ? dto.getBarcode().trim() : null);
         product.setPrice(dto.getPrice());
         product.setCostPrice(dto.getCostPrice());
         product.setQuantity(dto.getQuantity());
         product.setCategory(dto.getCategory());
         product.setUnitType(dto.getUnitType());
         product.setPurity(dto.getPurity());
+        product.setProductClass(dto.getProductClass() != null ? dto.getProductClass() : "JEWELLERY");
         product.setScrap(dto.isScrap());
         if (dto.getSupplierId() != null) product.setSupplierId(dto.getSupplierId());
         if (dto.getTotalWeightGrams() != null) product.setTotalWeightGrams(dto.getTotalWeightGrams());

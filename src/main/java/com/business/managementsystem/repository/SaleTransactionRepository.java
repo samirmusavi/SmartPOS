@@ -95,6 +95,27 @@ public interface SaleTransactionRepository
             @Param("to")         LocalDateTime to,
             Pageable pageable);
 
+    // ── Open UNFIXED_AT_TRADE positions (remainingOpenWeightGrams > 0) ───────────
+    // Used by the Fixing UI to present a list of positions available to price.
+
+    @Query("SELECT t FROM SaleTransaction t " +
+           "WHERE t.businessId = :businessId " +
+           "AND t.originalPricingMethod = 'UNFIXED_AT_TRADE' " +
+           "AND t.fixingCompletionStatus = 'OPEN' " +
+           "ORDER BY t.createdAt DESC")
+    List<SaleTransaction> findOpenUnfixedSales(
+            @Param("businessId") Long businessId);
+
+    @Query("SELECT t FROM SaleTransaction t " +
+           "WHERE t.businessId = :businessId " +
+           "AND t.branchId = :branchId " +
+           "AND t.originalPricingMethod = 'UNFIXED_AT_TRADE' " +
+           "AND t.fixingCompletionStatus = 'OPEN' " +
+           "ORDER BY t.createdAt DESC")
+    List<SaleTransaction> findOpenUnfixedSalesByBranch(
+            @Param("businessId") Long businessId,
+            @Param("branchId")   Long branchId);
+
     // ── Admin Dashboard: Last Active per Business ─────────────
     // Returns [businessId, MAX(createdAt)] for all businesses.
     // Used to show "Last Active" column in admin businesses table.

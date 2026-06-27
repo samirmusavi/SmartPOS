@@ -153,6 +153,15 @@ public class SupplierController {
         return ResponseEntity.ok().build();
     }
 
+    // PUT /api/suppliers/{id}/promote-to-customer
+    // One-click "Also add as Customer" — sets isCustomer=true on the supplier record
+    @PutMapping("/{id}/promote-to-customer")
+    public ResponseEntity<Map<String, Object>> promoteToCustomer(
+            @PathVariable Long id,
+            @RequestHeader(value = "X-Business-Id", required = false) String h) {
+        return ResponseEntity.ok(supplierService.promoteToCustomer(id, getBusinessId(h)));
+    }
+
     // PUT /api/suppliers/{id}/link-customer/{customerId}
     @PutMapping("/{id}/link-customer/{customerId}")
     public ResponseEntity<Map<String, Object>> linkCustomer(

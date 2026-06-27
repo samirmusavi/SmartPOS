@@ -11,7 +11,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,14 +65,6 @@ public class AuthService {
                     "Your business account is " +
                             business.getStatus().toString().toLowerCase() +
                             ". Please contact SmartPOS support.");
-        }
-
-        // Check subscription not expired
-        if (business.getExpiryDate() != null &&
-                business.getExpiryDate().isBefore(LocalDateTime.now())) {
-            throw new RuntimeException(
-                    "Your subscription has expired. " +
-                            "Please contact SmartPOS support to renew.");
         }
 
         // Load active branches for this business

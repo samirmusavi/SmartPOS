@@ -41,7 +41,7 @@ public class Purchase {
     private PaymentMethod paymentMethod;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private Status status = Status.FULLY_PAID;
 
     @Column(nullable = false, precision = 15, scale = 2)
@@ -76,6 +76,50 @@ public class Purchase {
     @Column(precision = 15, scale = 2)
     private BigDecimal cashAmountPaid;
 
+    /** Total premium in AED for this purchase (sum of per-item premiums from the calculator) */
+    @Column(name = "premium_amount", precision = 15, scale = 2)
+    private BigDecimal premiumAmount = BigDecimal.ZERO;
+
+    /** Total discount in AED for this purchase (sum of per-item discounts from the calculator) */
+    @Column(name = "discount_amount", precision = 15, scale = 2)
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+
+    /** Optional staff-applied rounding adjustment baked into the final totalAmount at purchase time */
+    @Column(name = "round_off_amount", precision = 10, scale = 2)
+    private BigDecimal roundOffAmount = BigDecimal.ZERO;
+
+    // ── Unfixed pricing fields ─────────────────────────────────────────────────────
+    // FIXED_AT_TRADE   = normal purchase — AED settled immediately (default for all existing rows)
+    // UNFIXED_AT_TRADE = metal received now; AED price deferred until a later Fixing event
+    @Column(name = "original_pricing_method", nullable = false, length = 20)
+    private String originalPricingMethod = "FIXED_AT_TRADE";
+
+    // NOT_APPLICABLE = FIXED_AT_TRADE (default)
+    // OPEN           = unfixed; remaining open weight > 0
+    // FULLY_FIXED    = all pure weight consumed by Fixing events
+    @Column(name = "fixing_completion_status", nullable = false, length = 20)
+    private String fixingCompletionStatus = "NOT_APPLICABLE";
+
+    // Total gross weight in grams across all line items.
+    @Column(name = "gross_weight_grams")
+    private Double grossWeightGrams;
+
+    // Pure gold weight = grossWeightGrams × (purity / 1000).
+    // ALWAYS calculated server-side; never accepted from the frontend.
+    @Column(name = "pure_weight_grams")
+    private Double pureWeightGrams;
+
+    // Per-oz USD premium/discount agreed at deal time.
+    // For UNFIXED_AT_TRADE: locked permanently; reused at each subsequent Fixing event.
+    @Column(name = "agreed_premium_discount", precision = 10, scale = 4)
+    private BigDecimal agreedPremiumDiscount;
+
+    // For UNFIXED_AT_TRADE: grams remaining to be priced.
+    // Starts = pureWeightGrams; decremented by each Fixing event that consumes this purchase.
+    // Null for FIXED_AT_TRADE transactions.
+    @Column(name = "remaining_open_weight_grams")
+    private Double remainingOpenWeightGrams;
+
     @Column(length = 255)
     private String createdBy;
 
@@ -98,7 +142,8 @@ public class Purchase {
     public enum Status {
         FULLY_PAID,
         PARTIALLY_PAID,
-        DUE
+        DUE,
+        RETURNED
     }
 
     public Purchase() {}
@@ -123,9 +168,18 @@ public class Purchase {
     public BigDecimal       getGoldPaymentOzRate()      { return goldPaymentOzRate; }
     public BigDecimal       getGoldPaymentValue()       { return goldPaymentValue; }
     public BigDecimal       getCashAmountPaid()         { return cashAmountPaid; }
-    public String           getCreatedBy()              { return createdBy; }
-    public LocalDateTime    getCreatedAt()      { return createdAt; }
-    public LocalDateTime    getUpdatedAt()      { return updatedAt; }
+    public BigDecimal       getPremiumAmount()            { return premiumAmount; }
+    public BigDecimal       getDiscountAmount()           { return discountAmount; }
+    public BigDecimal       getRoundOffAmount()           { return roundOffAmount; }
+    public String           getOriginalPricingMethod()    { return originalPricingMethod; }
+    public String           getFixingCompletionStatus()   { return fixingCompletionStatus; }
+    public Double           getGrossWeightGrams()         { return grossWeightGrams; }
+    public Double           getPureWeightGrams()          { return pureWeightGrams; }
+    public BigDecimal       getAgreedPremiumDiscount()    { return agreedPremiumDiscount; }
+    public Double           getRemainingOpenWeightGrams() { return remainingOpenWeightGrams; }
+    public String           getCreatedBy()                { return createdBy; }
+    public LocalDateTime    getCreatedAt()                { return createdAt; }
+    public LocalDateTime    getUpdatedAt()                { return updatedAt; }
 
     // ── Setters ───────────────────────────────────────────────
     public void setBusinessId(Long v)          { this.businessId    = v; }
@@ -140,11 +194,20 @@ public class Purchase {
     public void setAmountPaid(BigDecimal v)    { this.amountPaid    = v != null ? v : BigDecimal.ZERO; }
     public void setDueAmount(BigDecimal v)     { this.dueAmount     = v != null ? v : BigDecimal.ZERO; }
     public void setExchangeRate(BigDecimal v)  { this.exchangeRate  = v; }
-    public void setNotes(String v)                       { this.notes                  = v; }
-    public void setGoldPaymentPurity(String v)           { this.goldPaymentPurity       = v; }
-    public void setGoldPaymentWeightGrams(Double v)      { this.goldPaymentWeightGrams  = v; }
-    public void setGoldPaymentOzRate(BigDecimal v)       { this.goldPaymentOzRate       = v; }
-    public void setGoldPaymentValue(BigDecimal v)        { this.goldPaymentValue        = v; }
-    public void setCashAmountPaid(BigDecimal v)          { this.cashAmountPaid          = v; }
-    public void setCreatedBy(String v)                   { this.createdBy               = v; }
+    public void setNotes(String v)                         { this.notes                  = v; }
+    public void setGoldPaymentPurity(String v)             { this.goldPaymentPurity       = v; }
+    public void setGoldPaymentWeightGrams(Double v)        { this.goldPaymentWeightGrams  = v; }
+    public void setGoldPaymentOzRate(BigDecimal v)         { this.goldPaymentOzRate       = v; }
+    public void setGoldPaymentValue(BigDecimal v)          { this.goldPaymentValue        = v; }
+    public void setCashAmountPaid(BigDecimal v)            { this.cashAmountPaid          = v; }
+    public void setPremiumAmount(BigDecimal v)             { this.premiumAmount           = v != null ? v : BigDecimal.ZERO; }
+    public void setDiscountAmount(BigDecimal v)            { this.discountAmount          = v != null ? v : BigDecimal.ZERO; }
+    public void setRoundOffAmount(BigDecimal v)            { this.roundOffAmount          = v != null ? v : BigDecimal.ZERO; }
+    public void setOriginalPricingMethod(String v)         { this.originalPricingMethod   = v != null ? v : "FIXED_AT_TRADE"; }
+    public void setFixingCompletionStatus(String v)        { this.fixingCompletionStatus  = v != null ? v : "NOT_APPLICABLE"; }
+    public void setGrossWeightGrams(Double v)              { this.grossWeightGrams        = v; }
+    public void setPureWeightGrams(Double v)               { this.pureWeightGrams         = v; }
+    public void setAgreedPremiumDiscount(BigDecimal v)     { this.agreedPremiumDiscount   = v; }
+    public void setRemainingOpenWeightGrams(Double v)      { this.remainingOpenWeightGrams = v; }
+    public void setCreatedBy(String v)                     { this.createdBy               = v; }
 }

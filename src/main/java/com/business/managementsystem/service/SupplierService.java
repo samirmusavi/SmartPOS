@@ -339,6 +339,23 @@ public class SupplierService {
                 .toList();
     }
 
+    // ── Promote supplier → also a customer (one-click "Both") ────────
+    /**
+     * Sets isCustomer=true on an existing supplier record so the party
+     * appears in both the Suppliers list and the Customers list.
+     * Idempotent guard: throws if isCustomer is already true.
+     */
+    @Transactional
+    public Map<String, Object> promoteToCustomer(Long id, Long businessId) {
+        Supplier supplier = supplierRepository.findByIdAndBusinessId(id, businessId)
+                .orElseThrow(() -> new RuntimeException("Party not found."));
+        if (supplier.isCustomer()) {
+            throw new RuntimeException(supplier.getName() + " is already marked as a customer.");
+        }
+        supplier.setCustomer(true);
+        return toMap(supplierRepository.save(supplier), countProducts(id, businessId));
+    }
+
     // ── Link supplier ↔ customer ─────────────────────────────────────
     @Transactional
     public Map<String, Object> linkCustomer(Long supplierId, Long customerId, Long businessId) {

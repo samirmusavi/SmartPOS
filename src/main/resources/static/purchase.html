@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -400,6 +400,22 @@
                 </div>
             </div>
 
+            <!-- PRICING METHOD TOGGLE (Fixed / Unfixed) -->
+            <div id="pricingMethodBanner" style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 14px;margin-bottom:var(--space-3);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+                <span style="font-size:var(--text-xs);font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em">Pricing:</span>
+                <button id="btnPricingFixed" onclick="setPurchasePricingMethod('FIXED_AT_TRADE',this)"
+                    style="padding:4px 14px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:var(--primary);color:#fff;border:1px solid var(--primary)">
+                    <i class="fas fa-lock"></i> Fixed
+                </button>
+                <button id="btnPricingUnfixed" onclick="setPurchasePricingMethod('UNFIXED_AT_TRADE',this)"
+                    style="padding:4px 14px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:600;cursor:pointer;transition:all .15s;background:transparent;color:var(--text-muted);border:1px solid var(--border)">
+                    <i class="fas fa-clock"></i> Unfixed
+                </button>
+                <span id="unfixedBadge" style="display:none;background:rgba(245,158,11,0.15);color:#d97706;border:1px solid rgba(245,158,11,0.4);border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;padding:2px 10px">
+                    AED price deferred — metal enters vault today
+                </span>
+            </div>
+
             <!-- BULLION SECTION -->
             <div id="bullionCalcSection">
                 <div class="gold-row">
@@ -647,6 +663,14 @@
                 <span class="s-label" id="vatLabel">VAT (5%)</span>
                 <span class="s-val" id="vatAmt">AED 0.00</span>
             </div>
+            <div class="summary-row" id="roundOffRow">
+                <span class="s-label" style="color:var(--text-muted)">Round-off</span>
+                <input type="number" id="roundOffInput" step="0.01"
+                       style="width:80px;padding:2px 6px;font-size:var(--text-sm);
+                              text-align:right;border:1px solid var(--border);
+                              border-radius:var(--radius-sm);background:var(--surface-2)"
+                       placeholder="0.00" oninput="calcTotals()">
+            </div>
             <div class="summary-total">
                 <span class="s-label">Grand Total</span>
                 <span class="s-val" id="sumGrandTotal">AED 0.00</span>
@@ -679,6 +703,11 @@
         </div>
         <div class="filter-pills" id="filterPills">
             <button class="filter-pill active" data-cat="ALL" onclick="setCategoryFilter('ALL',this)">All</button>
+        </div>
+        <div class="filter-pills" id="classPills" style="margin-top:4px">
+            <button class="filter-pill active" data-class="ALL" onclick="setClassFilter('ALL',this)">All Classes</button>
+            <button class="filter-pill" data-class="BULLION" onclick="setClassFilter('BULLION',this)"><i class="fas fa-coins" style="font-size:0.6rem;margin-right:3px"></i>Bullion</button>
+            <button class="filter-pill" data-class="JEWELLERY" onclick="setClassFilter('JEWELLERY',this)"><i class="fas fa-gem" style="font-size:0.6rem;margin-right:3px"></i>Jewellery</button>
         </div>
     </div>
 
@@ -730,9 +759,38 @@
         <div id="receiptContent" style="max-height:60vh;overflow-y:auto;background:var(--surface-2);padding:var(--space-4)">
             <!-- Filled dynamically -->
         </div>
-        <div style="background:var(--surface-1);border-top:1px solid var(--border);padding:var(--space-3) var(--space-4);display:flex;gap:var(--space-2)">
+        <div style="background:var(--surface-1);border-top:1px solid var(--border);padding:var(--space-3) var(--space-4);display:flex;gap:var(--space-2);flex-wrap:wrap">
             <button class="btn btn-secondary" style="flex:1" onclick="printVoucher()"><i class="fas fa-print"></i> Print</button>
+            <button class="btn" style="flex:1;background:#f59e0b;border-color:#f59e0b;color:#fff" onclick="openPurHpfModal()" title="Create a Hold-Price Fix linked to this purchase">
+                <i class="fas fa-thumbtack"></i> Metal Fix
+            </button>
+            <button class="btn" style="flex:1;background:#3730a3;border-color:#3730a3;color:#fff"
+                    onclick="printTaxInvoice(state.lastPurchase,'PUR',state.items)"
+                    title="Print formal Tax Invoice (Fixed)">
+                <i class="fas fa-file-invoice"></i> Tax Invoice
+            </button>
+            <button class="btn" id="purInvoicePdfBtn" style="flex:1;background:#dc2626;border-color:#dc2626;color:#fff"
+                    onclick="downloadPurchaseInvoicePdfFromModal()"
+                    title="Download Tax Invoice as PDF">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
             <button class="btn btn-primary" style="flex:1;background:var(--success);border-color:var(--success)" onclick="startNewPurchase()"><i class="fas fa-plus"></i> New Purchase</button>
+        </div>
+    </div>
+</div>
+
+<!-- HPF FROM PURCHASE MINI-MODAL (Fix 5) -->
+<div class="modal-overlay" id="purHpfModal">
+    <div class="modal" style="max-width:480px">
+        <div class="modal-header">
+            <span class="modal-title"><i class="fas fa-thumbtack" style="color:var(--primary);margin-right:8px"></i> Create Metal Fix for Purchase</span>
+        </div>
+        <div class="modal-body" id="purHpfBody"></div>
+        <div class="modal-footer" style="display:flex;justify-content:flex-end;gap:var(--space-2)">
+            <button class="btn btn-secondary" onclick="closePurHpfModal()">Cancel</button>
+            <button class="btn btn-primary" id="btnSubmitPurHpf" onclick="submitPurHpf()">
+                <i class="fas fa-thumbtack"></i> Create HPF
+            </button>
         </div>
     </div>
 </div>
@@ -757,6 +815,7 @@ const state = {
     filteredProducts: [],
     categories:       [],
     activeCategory:   'ALL',
+    activeClass:      'ALL',
     supplierId:       null,
     supplierName:     '',
     paymentMethod:    'CASH',
@@ -774,7 +833,9 @@ const state = {
     // for scrap purity prompt
     pendingScrapProduct: null,
     // index in state.items of item currently being configured via calculator
-    _activeItemIdx: null
+    _activeItemIdx: null,
+    // Pricing method toggle: FIXED_AT_TRADE (default) | UNFIXED_AT_TRADE
+    originalPricingMethod: 'FIXED_AT_TRADE'
 };
 
 // jewellery mode ('perpiece' | 'totalset')
@@ -876,15 +937,55 @@ function setCategoryFilter(cat, el) {
     filterProducts(document.getElementById('productSearch').value);
 }
 
+function setClassFilter(cls, el) {
+    state.activeClass = cls;
+    document.querySelectorAll('#classPills .filter-pill').forEach(b => b.classList.remove('active'));
+    if (el) el.classList.add('active');
+    filterProducts(document.getElementById('productSearch').value);
+}
+
+/* ── FIXED / UNFIXED PRICING TOGGLE (purchase) ─────────────── */
+// Default: FIXED_AT_TRADE — completely unchanged behaviour.
+// UNFIXED_AT_TRADE: metal enters vault now; AED price deferred until a Fixing event.
+function setPurchasePricingMethod(method) {
+    state.originalPricingMethod = method;
+    const isUnfixed = (method === 'UNFIXED_AT_TRADE');
+
+    const btnFixed   = document.getElementById('btnPricingFixed');
+    const btnUnfixed = document.getElementById('btnPricingUnfixed');
+    if (btnFixed && btnUnfixed) {
+        if (isUnfixed) {
+            btnFixed.style.background    = 'transparent';
+            btnFixed.style.color         = 'var(--text-muted)';
+            btnFixed.style.borderColor   = 'var(--border)';
+            btnUnfixed.style.background  = '#d97706';
+            btnUnfixed.style.color       = '#fff';
+            btnUnfixed.style.borderColor = '#d97706';
+        } else {
+            btnFixed.style.background    = 'var(--primary)';
+            btnFixed.style.color         = '#fff';
+            btnFixed.style.borderColor   = 'var(--primary)';
+            btnUnfixed.style.background  = 'transparent';
+            btnUnfixed.style.color       = 'var(--text-muted)';
+            btnUnfixed.style.borderColor = 'var(--border)';
+        }
+    }
+
+    const badge = document.getElementById('unfixedBadge');
+    if (badge) badge.style.display = isUnfixed ? 'inline-block' : 'none';
+}
+
 function filterProducts(query) {
     const q = (query || '').toLowerCase().trim();
     const cat = state.activeCategory;
+    const cls = state.activeClass || 'ALL';
     state.filteredProducts = state.products.filter(p => {
-        const catOk = cat === 'ALL' || p.category === cat;
+        const catOk  = cat === 'ALL' || p.category === cat;
+        const clsOk  = cls === 'ALL' || p.productClass === cls;
         const nameOk = !q || p.name.toLowerCase().includes(q)
             || (p.purity && p.purity.toLowerCase().includes(q))
             || (p.barcode && p.barcode.toLowerCase().includes(q));
-        return catOk && nameOk && p.active;
+        return catOk && clsOk && nameOk && p.active;
     });
     renderProductGrid();
 }
@@ -1680,7 +1781,8 @@ function calcTotals() {
     const applyVat = document.getElementById('vatToggle') && document.getElementById('vatToggle').checked;
     const vatPct   = applyVat ? (parseFloat(document.getElementById('vatPercent')?.value) || 5) : 0;
     const vat      = applyVat ? discountedSub * (vatPct / 100) : 0;
-    const grand    = discountedSub + vat;
+    const roundOff = parseFloat(document.getElementById('roundOffInput')?.value) || 0;
+    const grand    = discountedSub + vat + roundOff;
 
     // Items in cart count
     const cartItemCount = state.items.reduce((s, i) =>
@@ -2243,9 +2345,16 @@ async function submitPurchase() {
     const purchaseDateVal = document.getElementById('purchaseDate').value;
     if (!purchaseDateVal) { Toast.error('Please set a purchase date.'); return; }
 
-    const grand = state.items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+    const itemsSubtotal = state.items.reduce((s, i) => s + (parseFloat(i.totalPrice) || 0), 0);
+    const roundOffAmt   = parseFloat(document.getElementById('roundOffInput')?.value) || 0;
+    const grand = itemsSubtotal + roundOffAmt;
     const paid  = parseFloat(document.getElementById('amountPaid').value) || 0;
     const exRate = parseFloat(document.getElementById('globalExchangeRate').value) || state.exchangeRate || 3.674;
+
+    // Unfixed pricing: read toggle state
+    const purOpm = state.originalPricingMethod || 'FIXED_AT_TRADE';
+    const purAgreedPremDisc = purOpm === 'UNFIXED_AT_TRADE'
+        ? (parseFloat(document.getElementById('premiumValue')?.value) || null) : null;
 
     const payload = {
         supplierId:    state.supplierId,
@@ -2257,7 +2366,12 @@ async function submitPurchase() {
         amountPaid:    paid,
         exchangeRate:  exRate,
         notes:         document.getElementById('purNotes').value.trim() || null,
+        premiumAmount: state.items.reduce((s, i) => s + (parseFloat(i._calcPremium)  || 0), 0) || null,
+        discountAmount: state.items.reduce((s, i) => s + (parseFloat(i._calcDiscount) || 0), 0) || null,
+        roundOffAmount: roundOffAmt || null,
         createdBy:     Auth.getUserName(),
+        originalPricingMethod: purOpm,
+        agreedPremiumDiscount: purAgreedPremDisc,
         // Gold Exchange payment fields
         goldPaymentPurity:      state.paymentMethod === 'GOLD_EXCHANGE' && goldPayState.purity > 0
                                     ? String(goldPayState.purity) : null,
@@ -2415,6 +2529,111 @@ function closeReceiptModal(e) {
     document.getElementById('receiptOverlay').classList.remove('open');
 }
 
+// ── Fix 5 — Create Metal Fix (HPF) linked to a completed purchase ──
+let _purHpfData = {};
+
+function openPurHpfModal() {
+    const data = state.lastPurchase;
+    if (!data) { Toast.error('No purchase data found.'); return; }
+
+    const partyId   = data.supplierId  ? parseInt(data.supplierId)  : null;
+    const partyName = data.supplierName || '';
+
+    // Aggregate GRAM items for weight, purity, ozRate
+    const gramItems = (data.items || []).filter(i => i.unitType === 'GRAM');
+    const totalGrams = gramItems.reduce((s, i) => s + (parseFloat(i.weightGrams || i.quantity) || 0), 0);
+    const purityItem = gramItems.find(i => i.purity);
+    const purity     = purityItem ? String(purityItem.purity) : '';
+    const ozItem     = gramItems.find(i => i.goldOzRate && parseFloat(i.goldOzRate) > 0);
+    const ozRate     = ozItem ? parseFloat(ozItem.goldOzRate) : 0;
+    const xRate      = data.exchangeRate ? parseFloat(data.exchangeRate) : 3.674;
+
+    _purHpfData = { partyId, partyName, linkedPurchaseId: data.id };
+
+    document.getElementById('purHpfBody').innerHTML = `
+        <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);
+                    border-radius:var(--radius-md);padding:var(--space-3);margin-bottom:var(--space-4);
+                    font-size:var(--text-sm)">
+            <div><b>Invoice:</b> ${escHtml(data.invoiceNumber || '—')}</div>
+            <div><b>Supplier:</b> ${escHtml(partyName || '—')}</div>
+        </div>
+        ${!partyId ? '<div style="color:var(--danger);font-size:var(--text-xs);margin-bottom:var(--space-3);">⚠ No supplier linked. Metal fix will be created without a ledger entry.</div>' : ''}
+        <div class="form-group">
+            <label class="form-label">Weight (grams) <span style="color:var(--danger)">*</span></label>
+            <input type="number" id="phWeight" class="form-control"
+                   value="${totalGrams > 0 ? totalGrams.toFixed(3) : ''}"
+                   step="0.001" min="0.001" placeholder="e.g. 100.000">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Transaction Rate (USD/oz) <span style="color:var(--danger)">*</span></label>
+            <input type="number" id="phRate" class="form-control"
+                   value="${ozRate > 0 ? ozRate : ''}"
+                   step="0.01" min="0.01" placeholder="e.g. 3200.00">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Premium / Discount per oz (USD)
+                <span style="color:var(--text-secondary);font-weight:400;font-size:var(--text-xs)">negative = discount</span>
+            </label>
+            <input type="number" id="phDp" class="form-control" value="0" step="0.01">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Purity</label>
+            <input type="text" id="phPurity" class="form-control" value="${escHtml(purity)}" placeholder="e.g. 995">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Exchange Rate (AED/USD)</label>
+            <input type="number" id="phXRate" class="form-control" value="${xRate}" step="0.0001" min="0">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Notes</label>
+            <input type="text" id="phNotes" class="form-control" placeholder="Optional">
+        </div>
+    `;
+    document.getElementById('purHpfModal').classList.add('open');
+}
+
+function closePurHpfModal() {
+    document.getElementById('purHpfModal').classList.remove('open');
+}
+
+async function submitPurHpf() {
+    const d = _purHpfData;
+    const weightGrams     = parseFloat(document.getElementById('phWeight').value) || 0;
+    const transactionRate = parseFloat(document.getElementById('phRate').value)   || 0;
+    if (weightGrams     <= 0) { Toast.error('Weight must be greater than 0.');           return; }
+    if (transactionRate <= 0) { Toast.error('Transaction rate must be greater than 0.'); return; }
+
+    const btn = document.getElementById('btnSubmitPurHpf');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    try {
+        const result = await API.post('/api/metal-fixes', {
+            businessId:          parseInt(Auth.getBusinessId()),
+            branchId:            Auth.getBranchId() ? parseInt(Auth.getBranchId()) : null,
+            partyId:             d.partyId,
+            partyName:           d.partyName || 'Unknown',
+            fixType:             'PURCHASE_FIX',
+            metalType:           'GOLD',
+            weightGrams,
+            transactionRate,
+            discountPremium:     parseFloat(document.getElementById('phDp').value)    || 0,
+            discountPremiumType: 'PER_OZ',
+            exchangeRate:        parseFloat(document.getElementById('phXRate').value) || 3.674,
+            purity:              document.getElementById('phPurity').value.trim()     || null,
+            linkedPurchaseId:    d.linkedPurchaseId,
+            notes:               document.getElementById('phNotes').value.trim()      || null,
+            createdBy:           Auth.getUserName()
+        });
+        Toast.success('Metal Fix created: ' + result.fixNumber);
+        closePurHpfModal();
+    } catch(e) {
+        Toast.error(e.message || 'Failed to create Metal Fix.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-thumbtack"></i> Create HPF';
+    }
+}
+
 function printVoucher() {
     const content = document.getElementById('receiptContent').innerHTML;
     const w = window.open('', '_blank', 'width=380,height=600');
@@ -2434,6 +2653,33 @@ function printVoucher() {
 function startNewPurchase() {
     document.getElementById('receiptOverlay').classList.remove('open');
     clearAll();
+}
+
+// ── Download Tax Invoice PDF from purchase receipt modal ─────
+async function downloadPurchaseInvoicePdfFromModal() {
+    const pur = state.lastPurchase;
+    if (!pur || !pur.id) {
+        Toast.warning('No purchase available.');
+        return;
+    }
+    const btn  = document.getElementById('purInvoicePdfBtn');
+    const orig = btn ? btn.innerHTML : null;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    try {
+        const url = `/api/purchases/${pur.id}/invoice/pdf`;
+        const res = await fetch(url, { headers: API._headers() });
+        if (res.status === 401) { Auth.logout(); return; }
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        const blob   = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const win    = window.open(objUrl, '_blank');
+        if (!win) Toast.warning('Allow pop-ups for this site to view the PDF.');
+        setTimeout(() => URL.revokeObjectURL(objUrl), 120_000);
+    } catch (e) {
+        Toast.error('PDF generation failed: ' + (e.message || 'Unknown error'));
+    } finally {
+        if (btn && orig) { btn.disabled = false; btn.innerHTML = orig; }
+    }
 }
 </script>
 </body>

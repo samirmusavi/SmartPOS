@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "SmartPOS Backend",
+      "runtimeExecutable": "C:\\Users\\AHMAD\\Downloads\\SmartPOS\\Smart POS 10.1\\.claude\\start-server.cmd",
+      "runtimeArgs": [],
+      "port": 8090,
+      "autoPort": false
+    }
+  ]
+}

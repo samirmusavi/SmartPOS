@@ -44,6 +44,9 @@ public class ProductDTO {
     // URL path to product image — populated when returning data
     private String imagePath;
 
+    // Product class: "BULLION" or "JEWELLERY" — for organization and filtering only
+    private String productClass = "JEWELLERY";
+
     // True when this is a scrap gold/silver item — purity entered per-transaction
     private boolean isScrap = false;
 
@@ -115,6 +118,9 @@ public class ProductDTO {
 
     public String getImagePath() { return imagePath; }
     public void setImagePath(String imagePath) { this.imagePath = imagePath; }
+
+    public String getProductClass() { return productClass; }
+    public void setProductClass(String productClass) { this.productClass = productClass != null ? productClass : "JEWELLERY"; }
 
     public boolean isScrap() { return isScrap; }
     public void setScrap(boolean scrap) { this.isScrap = scrap; }

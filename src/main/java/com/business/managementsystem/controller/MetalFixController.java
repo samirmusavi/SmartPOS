@@ -1,9 +1,11 @@
 package com.business.managementsystem.controller;
 
 import com.business.managementsystem.service.MetalFixService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -121,6 +123,59 @@ public class MetalFixController {
     public ResponseEntity<Map<String, Object>> getFixById(
             @PathVariable Long id) {
         return ResponseEntity.ok(metalFixService.getFixById(id));
+    }
+
+    // ── GET /api/metal-fixes/unfixed-sales ──────────────────────────
+    /**
+     * Returns all UNFIXED_AT_TRADE sales with remaining open weight.
+     * Used by the fixing UI to present a pick-list of positions available to price.
+     *
+     * Query params:
+     *   businessId (required)
+     *   branchId   (optional)
+     */
+    @GetMapping("/unfixed-sales")
+    public ResponseEntity<List<Map<String, Object>>> getOpenUnfixedSales(
+            @RequestParam Long businessId,
+            @RequestParam(required = false) Long branchId) {
+        return ResponseEntity.ok(metalFixService.getOpenUnfixedSales(businessId, branchId));
+    }
+
+    // ── GET /api/metal-fixes/unfixed-purchases ───────────────────────
+    /**
+     * Returns all UNFIXED_AT_TRADE purchases with remaining open weight.
+     *
+     * Query params:
+     *   businessId (required)
+     *   branchId   (optional)
+     */
+    @GetMapping("/unfixed-purchases")
+    public ResponseEntity<List<Map<String, Object>>> getOpenUnfixedPurchases(
+            @RequestParam Long businessId,
+            @RequestParam(required = false) Long branchId) {
+        return ResponseEntity.ok(metalFixService.getOpenUnfixedPurchases(businessId, branchId));
+    }
+
+    // ── GET /api/metal-fixes/exposure ───────────────────────────
+    /**
+     * Derives open unfixed-position exposure from existing Sale/Purchase records.
+     * Returns total open weight, net position, and optional AED estimation.
+     * NO new persisted table — pure aggregation over existing UNFIXED_AT_TRADE records.
+     *
+     * Query params:
+     *   businessId   (required)
+     *   branchId     (optional)
+     *   ozRate       (optional: live $/oz spot rate for AED estimation)
+     *   exchangeRate (optional: USD→AED rate, defaults to 3.6740)
+     */
+    @GetMapping("/exposure")
+    public ResponseEntity<Map<String, Object>> getExposureDashboard(
+            @RequestParam Long businessId,
+            @RequestParam(required = false) Long branchId,
+            @RequestParam(required = false) BigDecimal ozRate,
+            @RequestParam(required = false) BigDecimal exchangeRate) {
+        return ResponseEntity.ok(
+                metalFixService.getExposureDashboard(businessId, branchId, ozRate, exchangeRate));
     }
 
     // ── PUT /api/metal-fixes/{id}/fix ────────────────────────────────

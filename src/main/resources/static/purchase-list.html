@@ -1,5 +1,5 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en-GB">
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -18,6 +18,7 @@
         .s-fully-paid     { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(34,197,94,0.12);color:#16a34a;border:1px solid rgba(34,197,94,0.25); }
         .s-partial        { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(245,158,11,0.12);color:#d97706;border:1px solid rgba(245,158,11,0.25); }
         .s-due            { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(239,68,68,0.12);color:#dc2626;border:1px solid rgba(239,68,68,0.25); }
+        .s-returned       { display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:var(--radius-full);font-size:var(--text-xs);font-weight:700;background:rgba(99,102,241,0.12);color:var(--primary);border:1px solid rgba(99,102,241,0.25); }
 
         /* ── Payment method pill ────────────────────────────── */
         .pm-badge         { display:inline-block;padding:2px 8px;border-radius:var(--radius-full);font-size:0.68rem;font-weight:600;border:1px solid var(--border);color:var(--text-secondary);background:var(--surface-2); }
@@ -524,6 +525,7 @@ function statusHtml(s) {
     if (s === 'FULLY_PAID')     return `<span class="s-fully-paid"><i class="fas fa-check-circle" style="font-size:0.6rem"></i> Paid</span>`;
     if (s === 'PARTIALLY_PAID') return `<span class="s-partial"><i class="fas fa-clock" style="font-size:0.6rem"></i> Partial</span>`;
     if (s === 'DUE')            return `<span class="s-due"><i class="fas fa-exclamation-circle" style="font-size:0.6rem"></i> Due</span>`;
+    if (s === 'RETURNED')       return `<span class="s-returned"><i class="fas fa-rotate-left" style="font-size:0.6rem"></i> Returned</span>`;
     return `<span class="pm-badge">${escHtml(s || '–')}</span>`;
 }
 
@@ -554,6 +556,12 @@ function toggleMenu(event, idx) {
         <div class="drop-item" onclick="printVoucher(${pur.id})">
             <i class="fas fa-print" style="width:16px;color:var(--text-muted)"></i> Print Voucher
         </div>
+        <div class="drop-item" onclick="downloadPurchaseInvoicePdf(${pur.id});closeMenu()">
+            <i class="fas fa-file-pdf" style="width:16px;color:#dc2626"></i> Download Tax Invoice (PDF)
+        </div>
+        <div class="drop-item" onclick="processPurchaseReturn('${escHtml(pur.invoiceNumber || '')}')">
+            <i class="fas fa-rotate-left" style="width:16px;color:var(--warning)"></i> Process Return
+        </div>
         <div class="drop-item danger" onclick="openDeleteModal(${pur.id},'${escHtml(pur.invoiceNumber || String(pur.id))}')">
             <i class="fas fa-trash" style="width:16px"></i> Delete
         </div>`;
@@ -562,7 +570,7 @@ function toggleMenu(event, idx) {
     let left = rect.right - dropW;
     let top  = rect.bottom + 4;
     if (left < 4) left = 4;
-    if (top + 140 > window.innerHeight) top = rect.top - 144;
+    if (top + 180 > window.innerHeight) top = rect.top - 184;
     drop.style.left = left + 'px';
     drop.style.top  = top  + 'px';
 }
@@ -570,6 +578,31 @@ function toggleMenu(event, idx) {
 function closeMenu() {
     openMenuIdx = -1;
     document.getElementById('globalActionDrop').style.display = 'none';
+}
+
+/* ── Download Tax Invoice PDF ────────────────────────────── */
+async function downloadPurchaseInvoicePdf(purchaseId) {
+    if (!purchaseId) { Toast.warning('No purchase selected.'); return; }
+    const url = `/api/purchases/${purchaseId}/invoice/pdf`;
+    try {
+        const res = await fetch(url, { headers: API._headers() });
+        if (res.status === 401) { Auth.logout(); return; }
+        if (!res.ok) throw new Error('Server returned ' + res.status);
+        const blob   = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const win    = window.open(objUrl, '_blank');
+        if (!win) Toast.warning('Allow pop-ups for this site to view the PDF.');
+        setTimeout(() => URL.revokeObjectURL(objUrl), 120_000);
+    } catch (e) {
+        Toast.error('PDF generation failed: ' + (e.message || 'Unknown error'));
+    }
+}
+
+/* ── Process Return shortcut ──────────────────────────────── */
+function processPurchaseReturn(invoiceNumber) {
+    closeMenu();
+    if (!invoiceNumber) { Toast.error('No invoice number available for this purchase.'); return; }
+    window.location.href = `/purchase-return.html?invoice=${encodeURIComponent(invoiceNumber)}`;
 }
 
 /* ── View detail ──────────────────────────────────────────── */

@@ -75,6 +75,27 @@ public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
             @Param("from")     LocalDateTime from,
             @Param("to")       LocalDateTime to);
 
+    // ── Open UNFIXED_AT_TRADE positions (remainingOpenWeightGrams > 0) ───────────
+    // Used by the Fixing UI to present a list of positions available to price.
+
+    @Query("SELECT p FROM Purchase p " +
+           "WHERE p.businessId = :businessId " +
+           "AND p.originalPricingMethod = 'UNFIXED_AT_TRADE' " +
+           "AND p.fixingCompletionStatus = 'OPEN' " +
+           "ORDER BY p.purchaseDate DESC")
+    List<Purchase> findOpenUnfixedPurchases(
+            @Param("businessId") Long businessId);
+
+    @Query("SELECT p FROM Purchase p " +
+           "WHERE p.businessId = :businessId " +
+           "AND p.branchId = :branchId " +
+           "AND p.originalPricingMethod = 'UNFIXED_AT_TRADE' " +
+           "AND p.fixingCompletionStatus = 'OPEN' " +
+           "ORDER BY p.purchaseDate DESC")
+    List<Purchase> findOpenUnfixedPurchasesByBranch(
+            @Param("businessId") Long businessId,
+            @Param("branchId")   Long branchId);
+
     // ── Cash purchases for cash-sheet sync ───────────────────
     @Query("SELECT p FROM Purchase p " +
            "WHERE p.businessId = :businessId " +
